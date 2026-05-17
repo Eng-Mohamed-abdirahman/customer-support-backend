@@ -53,6 +53,7 @@ export type OrganizationApiSettings = {
   keyPrefix: string
   totalTokensUsed: number
   monthlyLimit: number
+  lastKeyRotatedAt?: string | null
 }
 
 export type OrganizationSubscription = {
@@ -98,6 +99,7 @@ export type CreateCompanyResult = {
     status: OrganizationStatus
     createdAt: string
   }
+  apiKey: string
   invitation: {
     invitationId: string
     email: string
@@ -118,6 +120,45 @@ export type MyCompanyUsersResult = {
   organization: CompanyAdminEditableOrganization
   userCount: number
   users: CompanyUserRow[]
+}
+
+export type MyCompanyApiKeySettingsResult = {
+  apiSettings: Pick<OrganizationApiSettings, "keyPrefix" | "lastKeyRotatedAt">
+}
+
+export type RotateCompanyApiKeyResult = {
+  apiKey: string
+  apiKeyRecord?: CompanyApiKeyRecord
+  apiSettings: Pick<OrganizationApiSettings, "keyPrefix" | "lastKeyRotatedAt">
+}
+
+export type CompanyApiKeyRecord = {
+  id: string
+  name: string
+  keyPrefix: string
+  createdAt: string | null
+  lastUsedAt: string | null
+  lastRevealedAt: string | null
+  revokedAt: string | null
+}
+
+export type ListCompanyApiKeysResult = {
+  apiKeys: CompanyApiKeyRecord[]
+}
+
+export type CreateCompanyApiKeyInput = {
+  name: string
+}
+
+export type CreateCompanyApiKeyResult = {
+  apiKey: string
+  apiKeyRecord: CompanyApiKeyRecord
+  apiSettings: Pick<OrganizationApiSettings, "keyPrefix" | "lastKeyRotatedAt">
+}
+
+export type RevokeCompanyApiKeyResult = {
+  apiKeyRecord: CompanyApiKeyRecord
+  apiSettings: Pick<OrganizationApiSettings, "keyPrefix" | "lastKeyRotatedAt">
 }
 
 export type UpdateCompanyProfileInput = {

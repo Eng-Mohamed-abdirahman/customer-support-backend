@@ -150,7 +150,7 @@ export function CompanyManagementPage({ title, description }: CompanyManagementP
       })
 
       setSuccessMessage(
-        `${result.organization.name} created. Invitation sent to ${result.invitation.email} as company-admin.`
+        `${result.organization.name} created. Invitation sent to ${result.invitation.email} as company-admin. API key (shown once): ${result.apiKey}`
       )
       setIsDialogOpen(false)
       form.reset()

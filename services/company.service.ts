@@ -2,8 +2,14 @@ import type { ApiEnvelope } from "@/types/invitation"
 import type {
   CreateCompanyInput,
   CreateCompanyResult,
+  CreateCompanyApiKeyInput,
+  CreateCompanyApiKeyResult,
+  ListCompanyApiKeysResult,
+  MyCompanyApiKeySettingsResult,
   MyCompanyUsersResult,
   OrganizationAdminSettingsResult,
+  RevokeCompanyApiKeyResult,
+  RotateCompanyApiKeyResult,
   OrganizationWithUsers,
   UpdateCompanyProfileInput,
   UpdateCompanyProfileResult,
@@ -97,6 +103,110 @@ export async function listMyCompanyUsers(): Promise<MyCompanyUsersResult> {
   )
 }
 
+export async function getMyCompanyApiKeySettings(): Promise<MyCompanyApiKeySettingsResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to view API settings")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/my-api-key`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  return extractData<MyCompanyApiKeySettingsResult>(
+    response,
+    "Failed to load API key settings. Please try again."
+  )
+}
+
+export async function rotateMyCompanyApiKey(): Promise<RotateCompanyApiKeyResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to rotate the API key")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/my-api-key/rotate`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  return extractData<RotateCompanyApiKeyResult>(
+    response,
+    "Failed to rotate API key. Please try again."
+  )
+}
+
+export async function listMyCompanyApiKeys(): Promise<ListCompanyApiKeysResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to view API keys")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/my-api-keys`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  return extractData<ListCompanyApiKeysResult>(
+    response,
+    "Failed to load API keys. Please try again."
+  )
+}
+
+export async function createMyCompanyApiKey(
+  payload: CreateCompanyApiKeyInput
+): Promise<CreateCompanyApiKeyResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to create an API key")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/my-api-keys`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  return extractData<CreateCompanyApiKeyResult>(
+    response,
+    "Failed to create API key. Please try again."
+  )
+}
+
+export async function revokeMyCompanyApiKey(
+  apiKeyId: string
+): Promise<RevokeCompanyApiKeyResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to revoke the API key")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/organizations/my-api-keys/${encodeURIComponent(apiKeyId)}/revoke`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  )
+
+  return extractData<RevokeCompanyApiKeyResult>(
+    response,
+    "Failed to revoke API key. Please try again."
+  )
+}
+
 export async function updateMyCompanyProfile(
   payload: UpdateCompanyProfileInput
 ): Promise<UpdateCompanyProfileResult> {
@@ -169,4 +279,48 @@ export async function updateOrganizationAdminSettings(
     response,
     "Failed to update organization settings. Please try again."
   )
+}
+export async function revealMyCompanyApiKey(
+  apiKeyId: string
+): Promise<{ apiKey: string; apiKeyRecord: CompanyApiKeyRecord }> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to reveal the API key")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/organizations/my-api-keys/${encodeURIComponent(apiKeyId)}/reveal`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  )
+
+  return extractData<{
+    apiKey: string
+    apiKeyRecord: CompanyApiKeyRecord
+  }>(response, "Failed to reveal API key.")
+}
+
+export async function deleteMyCompanyApiKey(
+  apiKeyId: string
+): Promise<{ success: boolean }> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to delete the API key")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/organizations/my-api-keys/${encodeURIComponent(apiKeyId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  )
+
+  return extractData<{ success: boolean }>(response, "Failed to delete API key.")
 }

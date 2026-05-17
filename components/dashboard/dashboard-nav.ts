@@ -8,6 +8,7 @@ import {
   KeyRound,
   LayoutDashboard,
   MessageSquareText,
+  Ticket,
   Puzzle,
   ReceiptText,
   Settings,
@@ -88,6 +89,13 @@ const generalNavItems: DashboardNavItem[] = [
     icon: MessageSquareText,
     description: "Inbox and live threads",
     access: { membershipRoles: organizationRoles },
+  },
+  {
+    title: "Tickets",
+    href: "/dashboard/tickets",
+    icon: Ticket,
+    description: "Human handoff requests",
+    access: { membershipRoles: organizationAdminRoles },
   },
   {
     title: "Knowledge Base",

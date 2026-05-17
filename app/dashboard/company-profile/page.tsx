@@ -1,6 +1,22 @@
 "use client"
 
-import { AlertCircle, Building2, RefreshCw, ShieldCheck, Users } from "lucide-react"
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Clock,
+  Globe,
+  Loader2,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  ShoppingBag,
+  Users,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -10,12 +26,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 import { listMyCompanyUsers, updateMyCompanyProfile } from "@/services/company.service"
 import type { MyCompanyUsersResult, UpdateCompanyProfileInput } from "@/types/company"
 
 const DEFAULT_FALLBACK_MESSAGE = "Our team will get back to you shortly."
 const DEFAULT_TIMEZONE = "Africa/Mogadishu"
 const DEFAULT_LANGUAGE = "en"
+
+type TabId = "profile" | "contact" | "business" | "support"
+
+const tabs: { id: TabId; label: string; icon: React.ElementType; description: string }[] = [
+  { id: "profile", label: "Profile", icon: Building2, description: "Company identity and branding" },
+  { id: "contact", label: "Contact", icon: Mail, description: "Support email, phone, and address" },
+  { id: "business", label: "Business", icon: ShoppingBag, description: "Services, products, and policies" },
+  { id: "support", label: "Support", icon: MessageSquare, description: "Fallback messages and preferences" },
+]
 
 const formatDate = (value: string) => {
   const date = new Date(value)
@@ -93,9 +119,6 @@ const mapOrganizationToForm = (
   }
 }
 
-const textAreaClassName =
-  "flex min-h-24 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm"
-
 export default function CompanyProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -103,6 +126,8 @@ export default function CompanyProfilePage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [profileData, setProfileData] = useState<MyCompanyUsersResult | null>(null)
   const [formData, setFormData] = useState<UpdateCompanyProfileInput>(() => emptyProfileForm())
+  const [activeTab, setActiveTab] = useState<TabId>("profile")
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   const loadProfile = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -223,6 +248,8 @@ export default function CompanyProfilePage() {
       })
       setFormData(mapOrganizationToForm(response.organization))
 
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
       toast.success("Company profile updated successfully.")
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to update company profile."
@@ -232,35 +259,37 @@ export default function CompanyProfilePage() {
     }
   }
 
+  const companyInitial = profileData?.organization?.name?.charAt(0)?.toUpperCase() ?? "C"
+
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Workspace / Company
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-              Company Profile
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Review your company workspace identity, user footprint, and core account details.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 gap-2"
-            onClick={() => void loadProfile(true)}
-            disabled={isLoading || isRefreshing}
-          >
-            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+      {/* ─── Page header ─── */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Workspace / Company
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+            Company Profile
+          </h1>
+          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+            Manage your organization&apos;s identity, contact details, and support preferences.
+          </p>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 gap-2"
+          onClick={() => void loadProfile(true)}
+          disabled={isLoading || isRefreshing}
+        >
+          <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
+          Refresh
+        </Button>
       </header>
 
+      {/* ─── Error alert ─── */}
       {loadError ? (
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
@@ -269,326 +298,468 @@ export default function CompanyProfilePage() {
         </Alert>
       ) : null}
 
+      {/* ─── Save success banner ─── */}
+      {saveSuccess ? (
+        <Alert className="border-emerald-500/30 bg-emerald-500/5">
+          <CheckCircle2 className="size-4 text-emerald-600" />
+          <AlertTitle className="text-emerald-700 dark:text-emerald-400">Changes saved</AlertTitle>
+          <AlertDescription className="text-emerald-600 dark:text-emerald-500">
+            Your company profile has been updated successfully.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {/* ─── Company Identity Hero Card ─── */}
       {isLoading ? (
-        <section className="grid gap-4 md:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((index) => (
-            <Card key={index} className="border-border/70 bg-card/95 py-4">
-              <CardHeader className="gap-2 px-4 pb-0">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-8 w-20" />
-              </CardHeader>
-              <CardContent className="px-4 pt-1">
-                <Skeleton className="h-4 w-36" />
-              </CardContent>
-            </Card>
-          ))}
-        </section>
+        <Card className="overflow-hidden border-border/70">
+          <CardContent className="flex items-center gap-5 p-6">
+            <Skeleton className="size-16 shrink-0 rounded-2xl" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <section className="grid gap-4 md:grid-cols-3">
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Company name</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <Building2 className="size-5 text-primary" />
-                {profileData?.organization.name ?? "-"}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+        <Card className="group relative overflow-hidden border-border/70 bg-gradient-to-br from-primary/[0.04] via-transparent to-secondary/[0.04]">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+          <CardContent className="relative flex flex-wrap items-center gap-5 p-6">
+            {/* Avatar / Initial */}
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-2xl font-bold text-white shadow-lg shadow-primary/20">
+              {companyInitial}
+            </div>
 
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Workspace slug</CardDescription>
-              <CardTitle className="text-lg font-semibold tracking-tight">
-                {profileData?.organization.slug ?? "-"}
-              </CardTitle>
-            </CardHeader>
-          </Card>
+            {/* Info */}
+            <div className="flex-1 space-y-1">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                {profileData?.organization?.name ?? "Your Company"}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {profileData?.organization?.slug ? `@${profileData.organization.slug}` : "No slug assigned"}
+              </p>
+            </div>
 
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Created</CardDescription>
-              <CardTitle className="text-lg font-semibold tracking-tight">
-                {profileData ? formatDate(profileData.organization.createdAt) : "-"}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Total users</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <Users className="size-5 text-primary" />
-                {profileData?.userCount ?? 0}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Company admins</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <ShieldCheck className="size-5 text-primary" />
-                {companyAdminCount}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Status</CardDescription>
-              <CardTitle className="text-lg font-semibold tracking-tight uppercase">
-                {profileData?.organization.status ?? "-"}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/70 bg-card/95 py-4">
-            <CardHeader className="gap-2 px-4 pb-1">
-              <CardDescription>Staff members</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <Users className="size-5 text-primary" />
-                {staffCount}
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </section>
+            {/* Quick Stats */}
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
+                  <Users className="size-4 text-primary" />
+                  {profileData?.userCount ?? 0}
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Total Users</p>
+              </div>
+              <div className="h-8 w-px bg-border/60" />
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
+                  <ShieldCheck className="size-4 text-primary" />
+                  {companyAdminCount}
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Admins</p>
+              </div>
+              <div className="h-8 w-px bg-border/60" />
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
+                  <Users className="size-4 text-primary" />
+                  {staffCount}
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Staff</p>
+              </div>
+              <div className="h-8 w-px bg-border/60" />
+              <div className="text-center">
+                <p className="text-sm font-semibold text-foreground capitalize">
+                  {profileData?.organization?.status ?? "-"}
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Status</p>
+              </div>
+              {profileData?.organization?.createdAt ? (
+                <>
+                  <div className="h-8 w-px bg-border/60" />
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-foreground">
+                      {formatDate(profileData.organization.createdAt)}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Created</p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <Card className="border-border/70 bg-card/95 py-0">
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Edit company-admin fields</CardTitle>
-          <CardDescription>
-            Update organization profile, contact, business information, and support settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pb-5">
-          <div className="space-y-3 rounded-lg border border-border/70 p-4">
-            <p className="text-sm font-semibold text-foreground">Profile</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="profileName">Company name</Label>
-                <Input
+      {/* ─── Tabbed Editor ─── */}
+      <Card className="overflow-hidden border-border/70">
+        {/* Tab Navigation */}
+        <div className="border-b border-border/60 bg-muted/30">
+          <nav className="flex overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "group/tab relative flex shrink-0 items-center gap-2.5 px-5 py-3.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className={cn(
+                    "size-4 transition-colors",
+                    isActive ? "text-primary" : "text-muted-foreground group-hover/tab:text-foreground"
+                  )} />
+                  {tab.label}
+
+                  {/* Active indicator */}
+                  {isActive ? (
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary" />
+                  ) : null}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Tab Description */}
+        <div className="border-b border-border/40 bg-muted/15 px-6 py-3">
+          <p className="text-xs text-muted-foreground">
+            {tabs.find((t) => t.id === activeTab)?.description}
+          </p>
+        </div>
+
+        {/* Tab Content */}
+        <CardContent className="p-6">
+          {/* ─── Profile Tab ─── */}
+          {activeTab === "profile" ? (
+            <div className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <FieldGroup
                   id="profileName"
-                  value={formData.profile.name}
-                  onChange={(event) =>
-                    handleFieldChange("profile", "name", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                  autoComplete="organization"
-                />
-              </div>
+                  label="Company Name"
+                  icon={Building2}
+                  required
+                >
+                  <Input
+                    id="profileName"
+                    value={formData.profile.name}
+                    onChange={(e) => handleFieldChange("profile", "name", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="e.g. Acme Inc"
+                    autoComplete="organization"
+                  />
+                </FieldGroup>
 
-              <div className="space-y-2">
-                <Label htmlFor="profileBusinessType">Business type</Label>
-                <Input
+                <FieldGroup
                   id="profileBusinessType"
-                  value={formData.profile.businessType}
-                  onChange={(event) =>
-                    handleFieldChange("profile", "businessType", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                />
+                  label="Business Type"
+                  icon={ShoppingBag}
+                >
+                  <Input
+                    id="profileBusinessType"
+                    value={formData.profile.businessType}
+                    onChange={(e) => handleFieldChange("profile", "businessType", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="e.g. E-commerce, SaaS, Healthcare"
+                  />
+                </FieldGroup>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="profileWebsiteUrl">Website URL</Label>
+              <FieldGroup
+                id="profileWebsiteUrl"
+                label="Website URL"
+                icon={Globe}
+              >
                 <Input
                   id="profileWebsiteUrl"
                   value={formData.profile.websiteUrl}
-                  onChange={(event) =>
-                    handleFieldChange("profile", "websiteUrl", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("profile", "websiteUrl", e.target.value)}
                   disabled={isLoading || isSaving}
+                  placeholder="https://example.com"
                   autoComplete="url"
                 />
-              </div>
+              </FieldGroup>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="profileLogoUrl">Logo URL</Label>
+              <FieldGroup
+                id="profileLogoUrl"
+                label="Logo URL"
+                icon={Globe}
+              >
                 <Input
                   id="profileLogoUrl"
                   value={formData.profile.logoUrl}
-                  onChange={(event) =>
-                    handleFieldChange("profile", "logoUrl", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("profile", "logoUrl", e.target.value)}
                   disabled={isLoading || isSaving}
+                  placeholder="https://example.com/logo.png"
                 />
-              </div>
+              </FieldGroup>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="profileDescription">Description</Label>
+              <FieldGroup
+                id="profileDescription"
+                label="Description"
+                icon={Building2}
+                hint="Briefly describe what your company does"
+              >
                 <textarea
                   id="profileDescription"
                   value={formData.profile.description}
-                  onChange={(event) =>
-                    handleFieldChange("profile", "description", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("profile", "description", e.target.value)}
                   disabled={isLoading || isSaving}
-                  className={textAreaClassName}
+                  placeholder="Tell your customers about your company..."
+                  className="flex min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 />
-              </div>
+              </FieldGroup>
             </div>
-          </div>
+          ) : null}
 
-          <div className="space-y-3 rounded-lg border border-border/70 p-4">
-            <p className="text-sm font-semibold text-foreground">Contact</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="contactSupportEmail">Support email</Label>
-                <Input
+          {/* ─── Contact Tab ─── */}
+          {activeTab === "contact" ? (
+            <div className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <FieldGroup
                   id="contactSupportEmail"
-                  value={formData.contact.supportEmail}
-                  onChange={(event) =>
-                    handleFieldChange("contact", "supportEmail", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                  autoComplete="email"
-                />
-              </div>
+                  label="Support Email"
+                  icon={Mail}
+                  required
+                >
+                  <Input
+                    id="contactSupportEmail"
+                    value={formData.contact.supportEmail}
+                    onChange={(e) => handleFieldChange("contact", "supportEmail", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="support@yourcompany.com"
+                    autoComplete="email"
+                  />
+                </FieldGroup>
 
-              <div className="space-y-2">
-                <Label htmlFor="contactPhone">Phone</Label>
-                <Input
+                <FieldGroup
                   id="contactPhone"
-                  value={formData.contact.phone}
-                  onChange={(event) => handleFieldChange("contact", "phone", event.target.value)}
-                  disabled={isLoading || isSaving}
-                  autoComplete="tel"
-                />
+                  label="Phone Number"
+                  icon={Phone}
+                >
+                  <Input
+                    id="contactPhone"
+                    value={formData.contact.phone}
+                    onChange={(e) => handleFieldChange("contact", "phone", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="+1 (555) 123-4567"
+                    autoComplete="tel"
+                  />
+                </FieldGroup>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="contactAddress">Address</Label>
+              <FieldGroup
+                id="contactAddress"
+                label="Address"
+                icon={MapPin}
+              >
                 <Input
                   id="contactAddress"
                   value={formData.contact.address}
-                  onChange={(event) =>
-                    handleFieldChange("contact", "address", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("contact", "address", e.target.value)}
                   disabled={isLoading || isSaving}
+                  placeholder="123 Main Street, City, Country"
                   autoComplete="street-address"
                 />
-              </div>
+              </FieldGroup>
             </div>
-          </div>
+          ) : null}
 
-          <div className="space-y-3 rounded-lg border border-border/70 p-4">
-            <p className="text-sm font-semibold text-foreground">Business info</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="businessInfoWorkingHours">Working hours</Label>
-                <Input
+          {/* ─── Business Tab ─── */}
+          {activeTab === "business" ? (
+            <div className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <FieldGroup
                   id="businessInfoWorkingHours"
-                  value={formData.businessInfo.workingHours}
-                  onChange={(event) =>
-                    handleFieldChange("businessInfo", "workingHours", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                />
-              </div>
+                  label="Working Hours"
+                  icon={Clock}
+                >
+                  <Input
+                    id="businessInfoWorkingHours"
+                    value={formData.businessInfo.workingHours}
+                    onChange={(e) => handleFieldChange("businessInfo", "workingHours", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="Mon - Fri, 9:00 AM - 5:00 PM"
+                  />
+                </FieldGroup>
 
-              <div className="space-y-2">
-                <Label htmlFor="businessInfoLocation">Location</Label>
-                <Input
+                <FieldGroup
                   id="businessInfoLocation"
-                  value={formData.businessInfo.location}
-                  onChange={(event) =>
-                    handleFieldChange("businessInfo", "location", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                />
+                  label="Location"
+                  icon={MapPin}
+                >
+                  <Input
+                    id="businessInfoLocation"
+                    value={formData.businessInfo.location}
+                    onChange={(e) => handleFieldChange("businessInfo", "location", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="City, Country"
+                  />
+                </FieldGroup>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="businessInfoServices">Services</Label>
+              <FieldGroup
+                id="businessInfoServices"
+                label="Services"
+                icon={ShoppingBag}
+                hint="List the services your company offers"
+              >
                 <textarea
                   id="businessInfoServices"
                   value={formData.businessInfo.services}
-                  onChange={(event) =>
-                    handleFieldChange("businessInfo", "services", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("businessInfo", "services", e.target.value)}
                   disabled={isLoading || isSaving}
-                  className={textAreaClassName}
+                  placeholder="Describe the services you provide..."
+                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 />
-              </div>
+              </FieldGroup>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="businessInfoProducts">Products</Label>
+              <FieldGroup
+                id="businessInfoProducts"
+                label="Products"
+                icon={ShoppingBag}
+                hint="List the products your company offers"
+              >
                 <textarea
                   id="businessInfoProducts"
                   value={formData.businessInfo.products}
-                  onChange={(event) =>
-                    handleFieldChange("businessInfo", "products", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("businessInfo", "products", e.target.value)}
                   disabled={isLoading || isSaving}
-                  className={textAreaClassName}
+                  placeholder="Describe the products you sell..."
+                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 />
-              </div>
+              </FieldGroup>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="businessInfoPolicies">Policies</Label>
+              <FieldGroup
+                id="businessInfoPolicies"
+                label="Policies"
+                icon={ShieldCheck}
+                hint="Return, refund, and warranty policies"
+              >
                 <textarea
                   id="businessInfoPolicies"
                   value={formData.businessInfo.policies}
-                  onChange={(event) =>
-                    handleFieldChange("businessInfo", "policies", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("businessInfo", "policies", e.target.value)}
                   disabled={isLoading || isSaving}
-                  className={textAreaClassName}
+                  placeholder="Describe your company policies..."
+                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 />
-              </div>
+              </FieldGroup>
             </div>
-          </div>
+          ) : null}
 
-          <div className="space-y-3 rounded-lg border border-border/70 p-4">
-            <p className="text-sm font-semibold text-foreground">Support settings</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="supportTimezone">Timezone</Label>
-                <Input
+          {/* ─── Support Tab ─── */}
+          {activeTab === "support" ? (
+            <div className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <FieldGroup
                   id="supportTimezone"
-                  value={formData.supportSettings.timezone}
-                  onChange={(event) =>
-                    handleFieldChange("supportSettings", "timezone", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                />
-              </div>
+                  label="Timezone"
+                  icon={Globe}
+                >
+                  <Input
+                    id="supportTimezone"
+                    value={formData.supportSettings.timezone}
+                    onChange={(e) => handleFieldChange("supportSettings", "timezone", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="e.g. Africa/Mogadishu"
+                  />
+                </FieldGroup>
 
-              <div className="space-y-2">
-                <Label htmlFor="supportLanguage">Language</Label>
-                <Input
+                <FieldGroup
                   id="supportLanguage"
-                  value={formData.supportSettings.language}
-                  onChange={(event) =>
-                    handleFieldChange("supportSettings", "language", event.target.value)
-                  }
-                  disabled={isLoading || isSaving}
-                />
+                  label="Language"
+                  icon={Globe}
+                >
+                  <Input
+                    id="supportLanguage"
+                    value={formData.supportSettings.language}
+                    onChange={(e) => handleFieldChange("supportSettings", "language", e.target.value)}
+                    disabled={isLoading || isSaving}
+                    placeholder="e.g. en, so, ar"
+                  />
+                </FieldGroup>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="supportFallbackMessage">Fallback message</Label>
+              <FieldGroup
+                id="supportFallbackMessage"
+                label="Fallback Message"
+                icon={MessageSquare}
+                hint="Shown when AI cannot resolve a query"
+              >
                 <textarea
                   id="supportFallbackMessage"
                   value={formData.supportSettings.fallbackMessage}
-                  onChange={(event) =>
-                    handleFieldChange("supportSettings", "fallbackMessage", event.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("supportSettings", "fallbackMessage", e.target.value)}
                   disabled={isLoading || isSaving}
-                  className={textAreaClassName}
+                  placeholder="Our team will get back to you shortly."
+                  className="flex min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                 />
-              </div>
+              </FieldGroup>
             </div>
-          </div>
+          ) : null}
 
-          <div className="flex justify-end">
-            <Button type="button" onClick={handleSaveCompanyProfile} disabled={isLoading || isSaving}>
-              {isSaving ? "Saving..." : "Save company profile"}
+          {/* ─── Save Button ─── */}
+          <div className="mt-8 flex items-center justify-between border-t border-border/50 pt-5">
+            <p className="text-xs text-muted-foreground">
+              Changes are saved across all tabs at once.
+            </p>
+            <Button
+              type="button"
+              onClick={handleSaveCompanyProfile}
+              disabled={isLoading || isSaving}
+              className="gap-2 bg-gradient-to-r from-primary to-secondary px-6 shadow-md shadow-primary/20 transition-shadow hover:shadow-lg hover:shadow-primary/30"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="size-4" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+/* ─── Reusable field group component ─── */
+function FieldGroup({
+  id,
+  label,
+  icon: Icon,
+  required,
+  hint,
+  children,
+}: {
+  id: string
+  label: string
+  icon: React.ElementType
+  required?: boolean
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Icon className="size-3.5 text-muted-foreground" />
+        <Label htmlFor={id} className="text-sm font-medium">
+          {label}
+          {required ? <span className="ml-0.5 text-destructive">*</span> : null}
+        </Label>
+      </div>
+      {hint ? (
+        <p className="text-[11px] text-muted-foreground">{hint}</p>
+      ) : null}
+      {children}
     </div>
   )
 }
