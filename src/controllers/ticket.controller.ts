@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 
 const mongoose = require("mongoose");
-const Conversation = require("../models/Conversation");
 const Ticket = require("../models/Ticket");
 
 const { apiResponse } = require("../utils/apiResponse");
@@ -25,6 +24,11 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
+  const organizationIdFromApiKey = normalizeText((req as any).organizationId);
+  if (organizationIdFromApiKey && mongoose.Types.ObjectId.isValid(organizationIdFromApiKey)) {
+    return String(organizationIdFromApiKey);
+  }
+
   const requester = (req as any).user as AuthenticatedUser | undefined;
   const organizationId = normalizeText(requester?.organizationId) || normalizeText(requester?.company);
 
@@ -33,6 +37,13 @@ const resolveOrganizationId = (req: Request): string => {
   }
 
   return String(organizationId);
+};
+
+const assertApiKeyRequest = (req: Request) => {
+  const organizationIdFromApiKey = normalizeText((req as any).organizationId);
+  if (!organizationIdFromApiKey) {
+    throw new AppError("API key is required to create tickets", 401);
+  }
 };
 
 const ensureCanViewTickets = (req: Request) => {
@@ -48,46 +59,31 @@ const ensureCanViewTickets = (req: Request) => {
 };
 
 const createTicket = asyncHandler(async (req: Request, res: Response) => {
+  assertApiKeyRequest(req);
   const parsed = createTicketSchema.safeParse(req.body);
   if (!parsed.success) {
     throw new AppError(parsed.error.issues[0]?.message ?? "Invalid request payload", 400);
   }
 
   const requester = (req as any).user as AuthenticatedUser | undefined;
-  if (!requester || !requester._id) {
+  const organizationFromApiKey = (req as any).organization as { createdBy?: string } | undefined;
+  const createdBy = requester?._id ?? organizationFromApiKey?.createdBy;
+  if (!createdBy) {
     throw new AppError("Not authorized to create tickets", 401);
   }
 
   const organizationId = resolveOrganizationId(req);
-  const conversationId = normalizeText(parsed.data.conversationId);
-
-  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-    throw new AppError("Conversation not found", 404);
-  }
-
-  const conversation = await Conversation.findOne({
-    _id: conversationId,
-    organizationId,
-  }).select("_id customerName customerPhone status");
-
-  if (!conversation) {
-    throw new AppError("Conversation not found", 404);
-  }
 
   const ticket = await Ticket.create({
     organizationId,
-    conversationId,
-    customerName: normalizeText(parsed.data.customerName) || conversation.customerName || "",
-    customerPhone: normalizeText(parsed.data.customerPhone) || conversation.customerPhone || "",
     title: parsed.data.title.trim(),
     description: parsed.data.description.trim(),
-    createdBy: requester._id,
+    createdBy,
     status: "open",
   });
 
   apiResponse(res, 201, "Ticket created successfully", {
     ticketId: String(ticket._id),
-    conversationId: String(ticket.conversationId),
     status: ticket.status,
   });
 });

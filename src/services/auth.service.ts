@@ -69,7 +69,11 @@ const resolveCompany = (role: UserRole, company?: string): string | null => {
 
 export const signupUser = async (data: SignupInput) => {
   const normalizedEmail = data.email.trim().toLowerCase();
-  const role = resolveRole(data.role);
+  if (data.role && data.role !== "staff") {
+    throw new AppError("Only staff accounts can be created via signup", 403);
+  }
+
+  const role = "staff" as UserRole;
   const company = resolveCompany(role, data.company);
 
   const existingUser = await User.findOne({ email: normalizedEmail });
@@ -87,6 +91,8 @@ export const signupUser = async (data: SignupInput) => {
 
   const token = jwt.sign({ id: user._id }, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+    issuer: env.JWT_ISSUER,
+    audience: env.JWT_AUDIENCE,
   });
 
   const safeUser = toSafeAuthUser(user);
@@ -107,6 +113,8 @@ export const loginUser = async (data: LoginInput) => {
 
   const token = jwt.sign({ id: user._id }, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+    issuer: env.JWT_ISSUER,
+    audience: env.JWT_AUDIENCE,
   });
 
   const safeUser = toSafeAuthUser(user);

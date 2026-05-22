@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import { randomUUID } from "crypto";
 import authRoutes from "./routes/auth.routes";
 import healthRoutes from "./routes/health.routes";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
+import { generalApiLimiter } from "./middlewares/rateLimit.middleware";
 const invitationRoutes = require("./routes/invitation.routes");
 const organizationRoutes = require("./routes/organization.routes");
 const knowledgeRoutes = require("./routes/knowledge.routes");
@@ -17,22 +18,53 @@ const aiRoutes = require("./routes/ai.routes");
 
 const app = express();
 
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+const allowedOrigins =
+	env.CORS_ORIGINS.length > 0
+		? env.CORS_ORIGINS
+		: [env.frontend.url, "https://techcash.vercel.app/"];
+
 app.use(
 	cors({
-		origin: env.frontend.url,
+		origin: (origin, callback) => {
+			if (!origin) {
+				callback(null, true);
+				return;
+			}
+
+			if (allowedOrigins.includes(origin)) {
+				callback(null, true);
+				return;
+			}
+
+			callback(new Error("Origin not allowed by CORS"));
+		},
 		credentials: true,
 	})
 );
-app.use(helmet());
 app.use(
-	rateLimit({
-		windowMs: 15 * 60 * 1000,
-		max: 300,
-		standardHeaders: true,
-		legacyHeaders: false,
+	helmet({
+		crossOriginResourcePolicy: { policy: "same-site" },
 	})
 );
-app.use(express.json());
+app.use((req, res, next) => {
+	const headerId = req.headers["x-request-id"];
+	const requestId = typeof headerId === "string" && headerId.trim() ? headerId : randomUUID();
+	(req as any).requestId = requestId;
+	res.setHeader("x-request-id", requestId);
+	next();
+});
+app.use(generalApiLimiter);
+app.use(
+	express.json({
+		limit: "1mb",
+		verify: (req, _res, buf) => {
+			(req as any).rawBody = buf;
+		},
+	})
+);
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
