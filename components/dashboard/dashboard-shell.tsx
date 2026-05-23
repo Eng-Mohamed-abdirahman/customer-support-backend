@@ -60,10 +60,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
       }
     }
 
-    window.addEventListener("supportly:user-updated", handleUserUpdated as EventListener)
+    window.addEventListener("technov:user-updated", handleUserUpdated as EventListener)
 
     return () => {
-      window.removeEventListener("supportly:user-updated", handleUserUpdated as EventListener)
+      window.removeEventListener("technov:user-updated", handleUserUpdated as EventListener)
     }
   }, [])
 
@@ -113,9 +113,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
       .join("")
       .slice(0, 2)
       .toUpperCase()
-    : "SU"
+    : "TN"
 
-  const resolvedInitials = initials || "SU"
+  const resolvedInitials = initials || "TN"
   const roleLabel = user?.platformRole
     ? user.platformRole
     : user?.membershipRole
@@ -269,10 +269,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <div className="flex items-center justify-between border-b border-sidebar-border px-5 py-5">
           <Link href="/dashboard" className="flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-sm font-semibold text-primary">
-              S
+              T
             </span>
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Supportly</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Technov</p>
               <p className="text-base font-semibold text-sidebar-foreground">Control Center</p>
             </div>
           </Link>

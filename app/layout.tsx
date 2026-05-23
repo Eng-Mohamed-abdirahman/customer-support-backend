@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Supportly Ai",
+  title: "Technov",
   description: "AI-powered customer support workspace",
 };
 

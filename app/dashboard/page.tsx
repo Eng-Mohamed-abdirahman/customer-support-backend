@@ -60,7 +60,7 @@ type DashboardContent = {
   welcomeDescription: string
 }
 
-const oneTimeApiKeyStorageKey = "supportly:onboarding-api-key"
+const oneTimeApiKeyStorageKey = "technov:onboarding-api-key"
 
 const resolveRoleContext = (user: StoredUser | null): DashboardRoleContext => {
   const platformRole = user?.platformRole ?? null

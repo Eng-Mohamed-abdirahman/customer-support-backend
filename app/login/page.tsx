@@ -76,7 +76,7 @@ export default function LoginPage() {
     <AuthShell
       heading="Welcome"
       description="Enter your credentials to sign in to your account"
-      dividerLabel="NEW TO SUPPORTLY AI?"
+      dividerLabel="NEW TO TECHNOV?"
       footerPrompt="Don't have an account?"
       footerActionLabel="Sign up"
       footerActionHref="/signup"

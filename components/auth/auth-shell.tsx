@@ -24,7 +24,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
             : "text-4xl font-semibold tracking-tight text-white"
         }
       >
-        Supportly Ai
+        Technov
       </span>
     </div>
   );
@@ -54,7 +54,7 @@ export function AuthShell({
                 &quot;The system acts as a digital AI employee that automatically responds to customer messages 24/7 using business-specific knowledge.&quot;
               </p>
               <footer className="text-base font-medium text-zinc-300">
-               Mohamed Abdirahman, CEO of Supportly Ai
+               Mohamed Abdirahman, CEO of Technov
               </footer>
             </blockquote>
           </div>

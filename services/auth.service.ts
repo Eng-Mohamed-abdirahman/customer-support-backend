@@ -166,7 +166,7 @@ export async function updateCurrentUserProfile(
 
   if (typeof window !== "undefined") {
     window.dispatchEvent(
-      new CustomEvent("supportly:user-updated", {
+      new CustomEvent("technov:user-updated", {
         detail: normalizedUser,
       })
     )
