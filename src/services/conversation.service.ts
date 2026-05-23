@@ -1,5 +1,3 @@
-const OpenAI = require("openai");
-
 const Organization = require("../models/Organization");
 const KnowledgeChunk = require("../models/KnowledgeChunk");
 
@@ -7,6 +5,9 @@ const { env } = require("../config/env");
 const { AppError } = require("../utils/appError");
 const { generateEmbeddings } = require("./embedding.service");
 const { queryKnowledgeVectors } = require("./pinecone.service");
+const { generateSupportReplyWithOpenAi } = require("./llm.service");
+const { rerankWithCohere } = require("./rerank.service");
+const { detectIntent, getConversationalResponse } = require("./intentDetection.service");
 
 type ConversationHistoryItem = {
   role: "customer" | "assistant";
@@ -40,6 +41,7 @@ type ConversationOrganization = {
     timezone?: string;
     language?: string;
   };
+  knowledgeBaseReference?: string;
   aiSettings?: {
     aiEnabled?: boolean;
     autoReplyEnabled?: boolean;
@@ -72,6 +74,14 @@ type RetrievedSource = {
   content: string;
 };
 
+type RankedSource = RetrievedSource & {
+  rerankScore?: number;
+};
+
+type RetrievedSourceSummary = Omit<RetrievedSource, "content"> & {
+  rerankScore?: number;
+};
+
 type UsageSummary = {
   promptTokens: number;
   completionTokens: number;
@@ -82,14 +92,17 @@ type UsageSummary = {
 
 type GenerateConversationReplyResult = {
   reply: string;
-  mode: "rag" | "fallback";
-  retrievedSources: Array<Omit<RetrievedSource, "content">>;
+  mode: "rag" | "fallback" | "conversational";
+  intent: string;
+  retrievedSources: RetrievedSourceSummary[];
   usage: UsageSummary;
 };
 
-const OpenAIClient = OpenAI?.default ?? OpenAI;
-
-let openAiClient: any = null;
+const VECTOR_SEARCH_TOP_K = 18;
+const FINAL_CONTEXT_TOP_K = 5;
+const MAX_CONTEXT_CHARS = 4200;
+const MAX_HISTORY_ITEMS = 8;
+const RERANK_SCORE_THRESHOLD = 0.15;
 
 const estimateTokenCount = (value: string): number => {
   const normalized = value?.trim() ?? "";
@@ -101,26 +114,16 @@ const estimateTokenCount = (value: string): number => {
   return Math.max(1, Math.ceil(normalized.length / 4));
 };
 
-const getOpenAiClient = () => {
-  if (!env.OPENAI_API_KEY) {
-    return null;
-  }
-
-  if (!openAiClient) {
-    openAiClient = new OpenAIClient({
-      apiKey: env.OPENAI_API_KEY,
-    });
-  }
-
-  return openAiClient;
-};
-
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
     return "";
   }
 
   return value.replace(/\s+/g, " ").trim();
+};
+
+const normalizeForDedupe = (value: string): string => {
+  return normalizeText(value).toLowerCase();
 };
 
 const clipText = (value: string, max = 420): string => {
@@ -132,7 +135,10 @@ const clipText = (value: string, max = 420): string => {
 };
 
 const defaultFallbackMessage =
-  "Our team will get back to you shortly. Please share a few more details about your request.";
+  "I don't have that specific information right now, but I'd be happy to help with something else! You can also reach out to our support team for further assistance. 😊";
+
+const NO_KNOWLEDGE_RESPONSE =
+  "I couldn't find that information right now, but I'd be happy to help with something else. Could you share more details or try rephrasing your question?";
 
 const resolveFallbackMessage = (organization: ConversationOrganization): string => {
   const configured = normalizeText(organization?.supportSettings?.fallbackMessage);
@@ -279,15 +285,31 @@ const hydrateRetrievedSources = async (
     .filter((source): source is RetrievedSource => Boolean(source));
 };
 
-const formatHistory = (history: ConversationHistoryItem[]): string => {
+const buildHistoryForPrompt = (history: ConversationHistoryItem[], latestMessage: string): string => {
   if (!Array.isArray(history) || history.length === 0) {
     return "";
   }
 
-  return history
-    .slice(-8)
+  const trimmedHistory = history.slice(-MAX_HISTORY_ITEMS).filter((item) => item.content);
+  const lastHistory = trimmedHistory[trimmedHistory.length - 1];
+
+  if (lastHistory && normalizeText(lastHistory.content) === normalizeText(latestMessage)) {
+    trimmedHistory.pop();
+  }
+
+  if (trimmedHistory.length === 0) {
+    return "";
+  }
+
+  return trimmedHistory
     .map((item) => `${item.role === "assistant" ? "Assistant" : "Customer"}: ${item.content}`)
     .join("\n");
+};
+
+const isWhoAreYouQuestion = (message: string): boolean => {
+  const normalized = normalizeText(message).toLowerCase();
+  return ["who are you", "who r you", "who is this", "who am i talking to"]
+    .some((phrase) => normalized.includes(phrase));
 };
 
 const buildOrganizationContext = (organization: ConversationOrganization): string => {
@@ -307,40 +329,195 @@ const buildOrganizationContext = (organization: ConversationOrganization): strin
     `Language: ${normalizeText(supportSettings.language) || "en"}`,
   ].join("\n");
 };
-
-const buildRetrievedContext = (sources: RetrievedSource[]): string => {
+const buildStructuredKnowledgeContext = (sources: RetrievedSource[]): string => {
   if (sources.length === 0) {
     return "";
   }
 
-  return sources
-    .map((source, index) => {
-      return [
-        `[Source ${index + 1}]`,
-        `Document: ${source.documentName}`,
-        `Chunk: ${source.chunkIndex}`,
-        `Score: ${source.score.toFixed(4)}`,
-        `Content: ${clipText(source.content, 1400)}`,
-      ].join("\n");
+  const groups: Array<{
+    key: string;
+    documentName: string;
+    chunkIndexes: number[];
+    contents: string[];
+  }> = [];
+  const groupByKey = new Map<string, typeof groups[number]>();
+
+  sources.forEach((source) => {
+    const key = `${source.documentId || "unknown"}:${source.documentName || "unknown"}`;
+    const existing = groupByKey.get(key);
+
+    if (existing) {
+      existing.chunkIndexes.push(source.chunkIndex);
+      existing.contents.push(source.content);
+      return;
+    }
+
+    const group = {
+      key,
+      documentName: source.documentName,
+      chunkIndexes: [source.chunkIndex],
+      contents: [source.content],
+    };
+
+    groupByKey.set(key, group);
+    groups.push(group);
+  });
+
+  return groups
+    .map((group, index) => {
+      const uniqueChunks = Array.from(new Set(group.chunkIndexes)).sort((a, b) => a - b);
+      const headerParts = [`Knowledge ${index + 1}`];
+      if (group.documentName && group.documentName !== "-") {
+        headerParts.push(`Doc: ${group.documentName}`);
+      }
+      if (uniqueChunks.length > 0) {
+        headerParts.push(`Chunks: ${uniqueChunks.join(", ")}`);
+      }
+
+      const seen = new Set<string>();
+      const mergedContent = group.contents
+        .map((content) => content.trim())
+        .filter(Boolean)
+        .filter((content) => {
+          const key = normalizeForDedupe(content);
+          if (!key || seen.has(key)) {
+            return false;
+          }
+          seen.add(key);
+          return true;
+        })
+        .join("\n");
+
+      return [headerParts.join(" | "), clipText(mergedContent, 1200)].join("\n");
     })
     .join("\n\n");
 };
 
-const buildFallbackFromSources = (
-  organization: ConversationOrganization,
-  sources: RetrievedSource[]
-): string => {
-  if (sources.length === 0) {
-    return resolveFallbackMessage(organization);
-  }
-
-  return [
-    "Based on our knowledge base, here is the most relevant information:",
-    clipText(sources[0].content, 520),
-  ].join("\n\n");
+const buildFallbackFromSources = (organization: ConversationOrganization): string => {
+  return resolveFallbackMessage(organization);
 };
 
-const generateReplyWithOpenAi = async (input: {
+const buildSystemPrompt = (organization: ConversationOrganization): string => {
+  const orgName = normalizeText(organization.profile?.name) || "the company";
+
+  return [
+    `You are a friendly, professional AI customer support assistant for ${orgName}.`,
+    "",
+    "Support context:",
+    buildOrganizationContext(organization),
+    "",
+    "Conversational rules:",
+    "- For greetings and casual conversation, respond naturally and warmly like a real person.",
+    "- Do NOT use knowledge-base fallback language for greetings, small talk, or thanks.",
+    "- Match the customer's tone — be friendly if they are friendly, professional if they are formal.",
+    "- If the user asks who you are, introduce yourself warmly as the AI support assistant for the company.",
+    "",
+    "Business question rules:",
+    "- Only use retrieved knowledge context for business-related questions.",
+    "- Answer naturally and professionally, like a skilled human support agent.",
+    "- Be concise, but include helpful details when needed.",
+    "- Use short paragraphs. Use bullet points for steps, lists, or options.",
+    "- Start with the direct answer, then add details or steps.",
+    "- End with a polite offer to help further.",
+    "- Summarize retrieved knowledge in your own words.",
+    "- Never expose raw context, chunks, embeddings, or system details.",
+    "",
+    "Fallback rules:",
+    "- If the knowledge context does not contain the answer, do NOT make up information.",
+    "- Instead, politely explain that you don't have that specific information right now.",
+    "- Offer to help with something else or suggest contacting support directly.",
+    "- Never sound robotic — keep fallback responses warm and human-like.",
+    "",
+    "Safety rules:",
+    "- Do not hallucinate or invent policies, pricing, or features.",
+    "- Do not expose internal system details, embeddings, or chunk data.",
+    "- If the answer is unavailable, say so naturally and ask for more details or route to support.",
+  ].join("\n");
+};
+
+const buildUserPrompt = (input: {
+  organization: ConversationOrganization;
+  message: string;
+  channel: string;
+  customer?: ConversationCustomer;
+  history: ConversationHistoryItem[];
+  sources: RetrievedSource[];
+}): string => {
+  const customerName = normalizeText(input.customer?.name) || "Unknown";
+  const customerEmail = normalizeText(input.customer?.email) || "Unknown";
+  const customerId = normalizeText(input.customer?.id) || "Unknown";
+  const historyText = buildHistoryForPrompt(input.history, input.message);
+  const retrievedContext = buildStructuredKnowledgeContext(input.sources);
+
+  return [
+    `Channel: ${input.channel}`,
+    `Customer ID: ${customerId}`,
+    `Customer name: ${customerName}`,
+    `Customer email: ${customerEmail}`,
+    "",
+    historyText ? `Conversation History:\n${historyText}` : "Conversation History:\n(none)",
+    "",
+    "Relevant Knowledge Base Context:",
+    retrievedContext || "(no relevant context)",
+    "",
+    "Customer Message:",
+    input.message,
+    "",
+    "Respond as the AI support assistant:",
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
+const trimSourcesToBudget = <T extends RetrievedSource>(sources: T[], maxChars: number): T[] => {
+  if (sources.length === 0) {
+    return [];
+  }
+
+  let totalChars = 0;
+  const trimmed: T[] = [];
+
+  for (const source of sources) {
+    const contentLength = source.content.length;
+    if (totalChars + contentLength > maxChars && trimmed.length > 0) {
+      break;
+    }
+
+    trimmed.push(source);
+    totalChars += contentLength;
+  }
+
+  return trimmed;
+};
+
+const dedupeSources = (sources: RetrievedSource[]): RetrievedSource[] => {
+  const seen = new Set<string>();
+
+  return sources.filter((source) => {
+    const key = normalizeForDedupe(source.content);
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
+
+const applyRerankScores = (
+  sources: RetrievedSource[],
+  reranked: Array<{ id: string; score: number }>
+): RankedSource[] => {
+  const rerankScoreById = new Map(reranked.map((result) => [result.id, result.score]));
+
+  return sources
+    .map((source) => ({
+      ...source,
+      rerankScore: rerankScoreById.get(source.embeddingId) ?? 0,
+    }))
+    .sort((left, right) => (right.rerankScore ?? 0) - (left.rerankScore ?? 0));
+};
+
+const generateReplyWithHuggingFace = async (input: {
   organization: ConversationOrganization;
   message: string;
   channel: string;
@@ -353,88 +530,42 @@ const generateReplyWithOpenAi = async (input: {
   completionTokens: number;
   totalTokens: number;
 }> => {
-  const client = getOpenAiClient();
+  const systemPrompt = buildSystemPrompt(input.organization);
+  const userPrompt = buildUserPrompt(input);
+  const finalPrompt = ["System:", systemPrompt, "", "User:", userPrompt, "", "Assistant:"].join(
+    "\n"
+  );
 
-  if (!client) {
-    throw new AppError("OPENAI_API_KEY is not configured", 500);
-  }
+  console.log("[RAG] Final system prompt", systemPrompt);
+  console.log("[RAG] Final user prompt", userPrompt);
 
-  const fallbackMessage = resolveFallbackMessage(input.organization);
-  const organizationContext = buildOrganizationContext(input.organization);
-  const historyText = formatHistory(input.history);
-  const retrievedContext = buildRetrievedContext(input.sources);
-  const customerName = normalizeText(input.customer?.name) || "Unknown";
-  const customerEmail = normalizeText(input.customer?.email) || "Unknown";
-  const customerId = normalizeText(input.customer?.id) || "Unknown";
-
-  const systemPrompt = [
-    "You are a customer support assistant that must answer using retrieved context from the organization knowledge base.",
-    "Never invent policies, pricing, or facts that are not present in the provided context.",
-    "If context is insufficient, reply with the fallback message exactly and ask for clarification.",
-    `Fallback message: ${fallbackMessage}`,
-    "Keep responses concise, helpful, and ready to send to customers.",
-  ].join("\n");
-
-  const userPrompt = [
-    `Channel: ${input.channel}`,
-    `Customer ID: ${customerId}`,
-    `Customer name: ${customerName}`,
-    `Customer email: ${customerEmail}`,
-    "",
-    "Organization context:",
-    organizationContext,
-    "",
-    historyText ? `Recent conversation:\n${historyText}\n` : "",
-    "Customer question:",
-    input.message,
-    "",
-    retrievedContext
-      ? `Retrieved knowledge chunks:\n${retrievedContext}`
-      : "Retrieved knowledge chunks: none",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const modelName = normalizeText(input.organization?.aiSettings?.modelName) || "gpt-4o-mini";
-
-  const response = (await client.responses.create({
-    model: modelName,
+  const reply = await generateSupportReplyWithOpenAi({
+    system: systemPrompt,
+    user: userPrompt,
     temperature: 0.2,
-    max_output_tokens: 500,
-    input: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      {
-        role: "user",
-        content: userPrompt,
-      },
-    ],
-  })) as any;
+    maxNewTokens: 420,
+  });
 
-  const reply = normalizeText(response?.output_text);
-
-  if (!reply) {
-    throw new AppError("OpenAI returned an empty response", 502);
-  }
-
-  const promptTokens =
-    typeof response?.usage?.input_tokens === "number" ? response.usage.input_tokens : 0;
-  const completionTokens =
-    typeof response?.usage?.output_tokens === "number" ? response.usage.output_tokens : 0;
-  const totalTokens =
-    typeof response?.usage?.total_tokens === "number"
-      ? response.usage.total_tokens
-      : promptTokens + completionTokens;
+  const promptTokens = estimateTokenCount(finalPrompt);
+  const completionTokens = estimateTokenCount(reply);
 
   return {
-    reply,
+    reply: normalizeText(reply),
     promptTokens,
     completionTokens,
-    totalTokens,
+    totalTokens: promptTokens + completionTokens,
   };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orchestrator: generateConversationReply
+// ─────────────────────────────────────────────────────────────────────────────
+// Flow:
+//   1. Intent Detection   → classify the message
+//   2. Conversational path → greetings / smalltalk / thanks / goodbye / identity
+//   3. RAG path            → embedding → vector search → rerank → LLM
+//   4. Smart fallback      → warm, human‑like "I don't have that info"
+// ─────────────────────────────────────────────────────────────────────────────
 
 const generateConversationReply = async (
   input: GenerateConversationReplyInput
@@ -443,31 +574,27 @@ const generateConversationReply = async (
   const message = normalizeText(input.message);
   const channel = normalizeText(input.channel) || "website";
   const history = Array.isArray(input.history) ? input.history : [];
-  const topK = typeof input.topK === "number" ? input.topK : 5;
+  const topK = typeof input.topK === "number" ? input.topK : FINAL_CONTEXT_TOP_K;
 
   if (!message) {
     throw new AppError("Message is required", 400);
   }
 
-  assertOrganizationAllowsConversation(organization, channel);
+  // ── Step 1: Intent Detection ───────────────────────────────────────────
+  const intentResult = detectIntent(message);
 
-  const embeddingResult = await generateEmbeddings([message]);
-  const queryVector = embeddingResult[0];
+  console.log("[INTENT]", {
+    message,
+    intent: intentResult.intent,
+    confidence: intentResult.confidence,
+    shouldRetrieve: intentResult.shouldRetrieve,
+  });
 
-  if (!Array.isArray(queryVector) || queryVector.length === 0) {
-    throw new AppError("Failed to generate embedding for the customer question", 502);
-  }
+  // ── Step 2: Conversational path (no retrieval needed) ──────────────────
+  if (!intentResult.shouldRetrieve) {
+    const orgName = normalizeText(organization.profile?.name) || "this organization";
+    const reply = getConversationalResponse(intentResult.intent, orgName);
 
-  const matches = (await queryKnowledgeVectors(organization._id, queryVector, topK)) as Array<{
-    id: string;
-    score: number;
-    metadata?: Record<string, unknown>;
-  }>;
-
-  const sources = await hydrateRetrievedSources(organization._id, matches);
-
-  if (sources.length === 0) {
-    const reply = resolveFallbackMessage(organization);
     const usageDelta = {
       promptTokens: estimateTokenCount(message),
       completionTokens: estimateTokenCount(reply),
@@ -476,22 +603,194 @@ const generateConversationReply = async (
 
     await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
 
+    console.log("[CONVERSATIONAL] Responded without retrieval:", intentResult.intent);
+
     return {
       reply,
-      mode: "fallback",
+      mode: "conversational",
+      intent: intentResult.intent,
       retrievedSources: [],
       usage: createUsageSummary(organization, usageDelta),
     };
   }
 
+  // ── Step 3: RAG path (business / support questions) ────────────────────
+  assertOrganizationAllowsConversation(organization, channel);
+
+  // 3a. Generate embedding
+  const embeddingResult = await generateEmbeddings([message]);
+  const queryVector = embeddingResult[0];
+
+  if (!Array.isArray(queryVector) || queryVector.length === 0) {
+    throw new AppError("Failed to generate embedding for the customer question", 502);
+  }
+
+  // 3b. Vector search
+  const vectorSearchTopK = Math.max(
+    1,
+    Math.min(typeof input.topK === "number" ? Math.max(input.topK, 10) : VECTOR_SEARCH_TOP_K, 20)
+  );
+
+  const matches = (await queryKnowledgeVectors(
+    organization._id,
+    queryVector,
+    vectorSearchTopK
+  )) as Array<{
+    id: string;
+    score: number;
+    metadata?: Record<string, unknown>;
+  }>;
+
+  const filteredMatches = matches
+    .filter((match) => {
+      const orgMatch =
+        typeof match.metadata?.organizationId === "string"
+          ? match.metadata.organizationId === String(organization._id)
+          : true;
+
+      return orgMatch && typeof match.score === "number";
+    })
+    .sort((left, right) => right.score - left.score)
+    .slice(0, vectorSearchTopK);
+
+  console.log("[RAG] User question", message);
+  console.log("=== VECTOR SEARCH RESULTS ===");
+  console.log(
+    matches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      documentId: match.metadata?.documentId,
+      chunkIndex: match.metadata?.chunkIndex,
+    }))
+  );
+  console.log("=== VECTOR SEARCH FILTERED ===");
+  console.log(
+    filteredMatches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      documentId: match.metadata?.documentId,
+      chunkIndex: match.metadata?.chunkIndex,
+    }))
+  );
+  console.log("[RAG] Vector search counts", {
+    total: matches.length,
+    filtered: filteredMatches.length,
+    topK: vectorSearchTopK,
+  });
+
+  // 3c. Hydrate sources (dedupe after we confirm we have content)
+  const hydratedSources = await hydrateRetrievedSources(organization._id, filteredMatches);
+  const sources = dedupeSources(hydratedSources);
+  const missingEmbeddingIds = filteredMatches
+    .map((match) => match.id)
+    .filter((id) => !hydratedSources.some((source) => source.embeddingId === id));
+
+  if (missingEmbeddingIds.length > 0) {
+    console.warn("[RAG] Missing chunks for embeddings", missingEmbeddingIds);
+  }
+
+  console.log("[RAG] Hydration summary", {
+    hydrated: hydratedSources.length,
+    deduped: sources.length,
+  });
+
+  const sourcesForRerank = sources.length > 0 ? sources : hydratedSources;
+
+  // ── Step 4: Smart fallback (no relevant sources found) ─────────────────
+  if (sourcesForRerank.length === 0) {
+    const reply = NO_KNOWLEDGE_RESPONSE;
+    const usageDelta = {
+      promptTokens: estimateTokenCount(message),
+      completionTokens: estimateTokenCount(reply),
+      totalTokens: estimateTokenCount(message) + estimateTokenCount(reply),
+    };
+
+    await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
+
+    console.log("[FALLBACK] No relevant sources found for:", message);
+
+    return {
+      reply,
+      mode: "fallback",
+      intent: intentResult.intent,
+      retrievedSources: [],
+      usage: createUsageSummary(organization, usageDelta),
+    };
+  }
+
+  // 3d. Rerank with Cohere
+  let rerankedSources: RankedSource[] = sourcesForRerank;
+  let rerankSucceeded = false;
   try {
-    const completion = await generateReplyWithOpenAi({
+    const rerankedResults = await rerankWithCohere(
+      message,
+      sourcesForRerank.map((source) => ({ id: source.embeddingId, text: source.content })),
+      Math.min(sourcesForRerank.length, vectorSearchTopK)
+    );
+
+    console.log("=== COHERE RERANKED RESULTS ===");
+    console.log(rerankedResults);
+    console.log("[RAG] Rerank summary", {
+      inputCount: sourcesForRerank.length,
+      outputCount: rerankedResults.length,
+      threshold: RERANK_SCORE_THRESHOLD,
+    });
+
+    rerankSucceeded = true;
+    const ranked = applyRerankScores(sourcesForRerank, rerankedResults).slice(
+      0,
+      Math.max(topK, FINAL_CONTEXT_TOP_K)
+    );
+    const filteredByRerank = ranked.filter(
+      (source) => (source.rerankScore ?? 0) >= RERANK_SCORE_THRESHOLD
+    );
+    rerankedSources = filteredByRerank.length > 0 ? filteredByRerank : ranked;
+  } catch (error) {
+    console.warn("[RAG] Cohere rerank failed, using vector ranking", error);
+    rerankedSources = sourcesForRerank
+      .sort((left, right) => right.score - left.score)
+      .slice(0, topK);
+  }
+
+  const fallbackSources: RankedSource[] = sourcesForRerank
+    .slice(0, topK)
+    .map((source) => ({ ...source, rerankScore: undefined }));
+
+  if (rerankSucceeded && rerankedSources.length === 0) {
+    rerankedSources = fallbackSources;
+  }
+
+  const finalSources = trimSourcesToBudget(
+    rerankedSources.length > 0 ? rerankedSources : fallbackSources,
+    MAX_CONTEXT_CHARS
+  );
+
+  console.log("[RAG] Final context summary", {
+    selected: finalSources.length,
+    totalChars: finalSources.reduce((sum, source) => sum + source.content.length, 0),
+  });
+
+  console.log("=== FINAL CONTEXT SENT TO LLM ===");
+  console.log(
+    finalSources.map((source) => ({
+      embeddingId: source.embeddingId,
+      score: source.score,
+      rerankScore: source.rerankScore ?? null,
+      documentName: source.documentName,
+      chunkIndex: source.chunkIndex,
+      excerpt: clipText(source.content, 220),
+    }))
+  );
+
+  // 3e. Generate LLM response with retrieved context
+  try {
+    const completion = await generateReplyWithHuggingFace({
       organization,
       message,
       history,
       channel,
       customer: input.customer,
-      sources,
+      sources: finalSources,
     });
 
     const totalTokens =
@@ -514,11 +813,13 @@ const generateConversationReply = async (
     return {
       reply: completion.reply,
       mode: "rag",
-      retrievedSources: sources.map(({ content, ...source }) => source),
+      intent: intentResult.intent,
+      retrievedSources: finalSources.map(({ content, ...source }) => source),
       usage: createUsageSummary(organization, usageDelta),
     };
-  } catch {
-    const reply = buildFallbackFromSources(organization, sources);
+  } catch (error) {
+    console.error("[RAG] LLM generation failed", error);
+    const reply = buildFallbackFromSources(organization);
     const usageDelta = {
       promptTokens: estimateTokenCount(message),
       completionTokens: estimateTokenCount(reply),
@@ -530,7 +831,8 @@ const generateConversationReply = async (
     return {
       reply,
       mode: "fallback",
-      retrievedSources: sources.map(({ content, ...source }) => source),
+      intent: intentResult.intent,
+      retrievedSources: finalSources.map(({ content, ...source }) => source),
       usage: createUsageSummary(organization, usageDelta),
     };
   }

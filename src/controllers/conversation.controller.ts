@@ -17,6 +17,7 @@ const {
   listMessages,
   getOrCreateConversation,
   appendMessage,
+  getRecentHistory,
 } = require("../services/conversationStore.service");
 
 const previewConversationOrganizationSelect =
@@ -197,12 +198,26 @@ const askCustomerConversation = asyncHandler(async (req: Request, res: Response)
     aiGenerated: false,
   });
 
+  const storedHistory = await getRecentHistory({
+    organizationId,
+    conversationId: String(conversation._id),
+    limit: 8,
+  });
+
+  const historyForAi = storedHistory.filter((item: any, index: number, list: any[]) => {
+    if (index !== list.length - 1) {
+      return true;
+    }
+
+    return !(item.role === "customer" && item.content === payload.message.trim());
+  });
+
   const result = await generateConversationReply({
     organization: toConversationOrganizationContext(organization),
     message: payload.message,
     channel,
     topK: payload.topK,
-    history: payload.history,
+    history: historyForAi,
     customer: payload.customer,
   });
 

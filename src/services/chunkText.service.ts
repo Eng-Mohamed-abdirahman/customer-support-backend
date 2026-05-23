@@ -1,6 +1,6 @@
 type ChunkingOptions = {
-  chunkSizeWords?: number;
-  overlapWords?: number;
+  chunkSizeChars?: number;
+  overlapChars?: number;
 };
 
 type ChunkedText = {
@@ -8,14 +8,15 @@ type ChunkedText = {
   content: string;
   tokenCount: number;
   metadata: {
-    startWord: number;
-    endWord: number;
+    startChar: number;
+    endChar: number;
+    charCount: number;
     wordCount: number;
   };
 };
 
-const DEFAULT_CHUNK_SIZE_WORDS = 900;
-const DEFAULT_CHUNK_OVERLAP_WORDS = 120;
+const DEFAULT_CHUNK_SIZE_CHARS = 800;
+const DEFAULT_CHUNK_OVERLAP_CHARS = 150;
 
 const normalizeForChunking = (rawText: string): string => {
   return rawText
@@ -30,11 +31,11 @@ const splitTextIntoChunks = (
   rawText: string,
   options: ChunkingOptions = {}
 ): ChunkedText[] => {
-  const chunkSizeWords = options.chunkSizeWords ?? DEFAULT_CHUNK_SIZE_WORDS;
-  const overlapWords = options.overlapWords ?? DEFAULT_CHUNK_OVERLAP_WORDS;
+  const chunkSizeChars = options.chunkSizeChars ?? DEFAULT_CHUNK_SIZE_CHARS;
+  const overlapChars = options.overlapChars ?? DEFAULT_CHUNK_OVERLAP_CHARS;
 
-  if (chunkSizeWords <= overlapWords) {
-    throw new Error("chunkSizeWords must be greater than overlapWords");
+  if (chunkSizeChars <= overlapChars) {
+    throw new Error("chunkSizeChars must be greater than overlapChars");
   }
 
   const normalizedText = normalizeForChunking(rawText);
@@ -42,36 +43,50 @@ const splitTextIntoChunks = (
     return [];
   }
 
-  const words = normalizedText.split(/\s+/).filter(Boolean);
-  if (words.length === 0) {
+  const textLength = normalizedText.length;
+  if (textLength === 0) {
     return [];
   }
 
   const chunks: ChunkedText[] = [];
   let chunkIndex = 0;
-  let startWord = 0;
+  let startChar = 0;
 
-  while (startWord < words.length) {
-    const endWordExclusive = Math.min(startWord + chunkSizeWords, words.length);
-    const chunkWords = words.slice(startWord, endWordExclusive);
+  while (startChar < textLength) {
+    const maxEndChar = Math.min(startChar + chunkSizeChars, textLength);
+    let endChar = maxEndChar;
 
-    chunks.push({
-      chunkIndex,
-      content: chunkWords.join(" "),
-      tokenCount: chunkWords.length,
-      metadata: {
-        startWord,
-        endWord: Math.max(startWord, endWordExclusive - 1),
-        wordCount: chunkWords.length,
-      },
-    });
+    if (maxEndChar < textLength) {
+      const lastSpace = normalizedText.lastIndexOf(" ", maxEndChar);
+      if (lastSpace > startChar + 100) {
+        endChar = lastSpace;
+      }
+    }
 
-    if (endWordExclusive >= words.length) {
+    const content = normalizedText.slice(startChar, endChar).trim();
+    if (content) {
+      const wordCount = content.split(/\s+/).filter(Boolean).length;
+
+      chunks.push({
+        chunkIndex,
+        content,
+        tokenCount: wordCount,
+        metadata: {
+          startChar,
+          endChar: Math.max(startChar, endChar - 1),
+          charCount: Math.max(0, endChar - startChar),
+          wordCount,
+        },
+      });
+
+      chunkIndex += 1;
+    }
+
+    if (endChar >= textLength) {
       break;
     }
 
-    startWord = Math.max(0, endWordExclusive - overlapWords);
-    chunkIndex += 1;
+    startChar = Math.max(0, endChar - overlapChars);
   }
 
   return chunks;
@@ -80,8 +95,8 @@ const splitTextIntoChunks = (
 module.exports = {
   splitTextIntoChunks,
   normalizeForChunking,
-  DEFAULT_CHUNK_SIZE_WORDS,
-  DEFAULT_CHUNK_OVERLAP_WORDS,
+  DEFAULT_CHUNK_SIZE_CHARS,
+  DEFAULT_CHUNK_OVERLAP_CHARS,
 };
 
 export {};

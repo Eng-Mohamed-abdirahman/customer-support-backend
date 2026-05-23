@@ -1,5 +1,8 @@
 const Organization = require("../models/Organization");
 const Message = require("../models/Message");
+const WebhookLog = require("../models/WebhookLog");
+const CustomerMessage = require("../models/CustomerMessage");
+const AIConversation = require("../models/AIConversation");
 
 const { env } = require("../config/env");
 const { AppError } = require("../utils/appError");
@@ -15,6 +18,7 @@ const {
   getConnectionByPhoneNumberId,
   resolveAccessToken,
 } = require("./whatsapp.service");
+const { sendWhatsAppTextMessage } = require("./whatsappGraph.service");
 const { apiKeyOrganizationSelect } = require("../middlewares/validateApiKey.middleware");
 
 const normalizeText = (value: unknown): string => {
@@ -59,28 +63,27 @@ const fetchMediaDetails = async (accessToken: string, mediaId: string) => {
   });
 };
 
-const sendWhatsAppTextMessage = async (input: {
+const sendWhatsAppMessageWithRetry = async (input: {
   accessToken: string;
   phoneNumberId: string;
   to: string;
   text: string;
 }) => {
-  const url = buildGraphUrl(`${input.phoneNumberId}/messages`);
+  const maxAttempts = 3;
+  let attempt = 0;
 
-  return fetchJson(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: input.to,
-      text: {
-        body: input.text,
-      },
-    }),
-  });
+  while (attempt < maxAttempts) {
+    try {
+      return await sendWhatsAppTextMessage(input);
+    } catch (error) {
+      attempt += 1;
+      if (attempt >= maxAttempts) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250 * Math.pow(2, attempt)));
+    }
+  }
 };
 
 const resolveOrganizationApiKey = async (organization: any) => {
@@ -178,6 +181,7 @@ const toConversationOrganizationContext = (organization: any) => ({
     timezone: organization?.supportSettings?.timezone ?? "",
     language: organization?.supportSettings?.language ?? "",
   },
+  knowledgeBaseReference: organization?.knowledgeBaseReference ?? "",
   aiSettings: {
     aiEnabled: Boolean(organization?.aiSettings?.aiEnabled ?? true),
     autoReplyEnabled: Boolean(organization?.aiSettings?.autoReplyEnabled ?? true),
@@ -301,11 +305,34 @@ const processIncomingMessage = async (input: {
     customerName: contactName,
     metadata: {
       phoneNumberId: input.connection.phoneNumberId,
-      businessAccountId: input.connection.businessAccountId,
+      wabaId: input.connection.wabaId,
     },
   });
 
   const payload = await extractMessagePayload(input.message, input.accessToken);
+
+  await CustomerMessage.updateOne(
+    {
+      organizationId,
+      phoneNumberId: input.connection.phoneNumberId,
+      externalId: normalizeText(input.message?.id),
+    },
+    {
+      $setOnInsert: {
+        organizationId,
+        phoneNumberId: input.connection.phoneNumberId,
+        wabaId: input.connection.wabaId,
+        customerPhone,
+        customerName: contactName,
+        externalId: normalizeText(input.message?.id),
+        messageType: payload.messageType,
+        contentText: payload.contentText,
+        media: payload.media ?? {},
+        rawPayload: input.message ?? {},
+      },
+    },
+    { upsert: true }
+  );
 
   await appendMessage({
     organizationId,
@@ -365,7 +392,27 @@ const processIncomingMessage = async (input: {
     aiGenerated: true,
   });
 
-  await sendWhatsAppTextMessage({
+  try {
+    await AIConversation.create({
+      organizationId,
+      conversationId: String(conversation._id),
+      channel: "whatsapp",
+      customerPhone,
+      prompt: customerMessage,
+      reply: replyResult.reply,
+      modelName: normalizeText(input.organization?.aiSettings?.modelName),
+      usage: {
+        promptTokens: replyResult.usage.promptTokens,
+        completionTokens: replyResult.usage.completionTokens,
+        totalTokens: replyResult.usage.totalTokens,
+      },
+      externalMessageId: normalizeText(input.message?.id),
+    });
+  } catch (error: any) {
+    console.warn(`Failed to log AI conversation: ${error?.message ?? error}`);
+  }
+
+  await sendWhatsAppMessageWithRetry({
     accessToken: input.accessToken,
     phoneNumberId: input.connection.phoneNumberId,
     to: customerPhone,
@@ -409,6 +456,37 @@ const processWebhookPayload = async (payload: any) => {
 
       for (const message of messages) {
         try {
+          const externalId = normalizeText(message?.id);
+          if (!externalId) {
+            continue;
+          }
+
+          const existingLog = await WebhookLog.findOne({
+            externalId,
+            phoneNumberId,
+            status: "processed",
+          }).select("_id");
+
+          if (existingLog) {
+            continue;
+          }
+
+          await WebhookLog.updateOne(
+            { externalId, phoneNumberId },
+            {
+              $setOnInsert: {
+                organizationId: connection.organizationId,
+                phoneNumberId,
+                wabaId: connection.wabaId,
+                externalId,
+                eventType: normalizeText(message?.type) || "message",
+                status: "received",
+                payload: message ?? {},
+              },
+            },
+            { upsert: true }
+          );
+
           await processIncomingMessage({
             organization,
             connection,
@@ -416,7 +494,24 @@ const processWebhookPayload = async (payload: any) => {
             message,
             contacts,
           });
+
+          await WebhookLog.updateOne(
+            { externalId, phoneNumberId },
+            { $set: { status: "processed", errorMessage: "" } }
+          );
         } catch (error: any) {
+          const externalId = normalizeText(message?.id);
+          if (externalId) {
+            await WebhookLog.updateOne(
+              { externalId, phoneNumberId },
+              {
+                $set: {
+                  status: "failed",
+                  errorMessage: String(error?.message ?? error),
+                },
+              }
+            );
+          }
           console.error(
             `Failed to process WhatsApp message ${message?.id ?? ""}: ${error?.message ?? error}`
           );
@@ -428,7 +523,7 @@ const processWebhookPayload = async (payload: any) => {
 
 module.exports = {
   processWebhookPayload,
-  sendWhatsAppTextMessage,
+  sendWhatsAppMessageWithRetry,
 };
 
 export {};

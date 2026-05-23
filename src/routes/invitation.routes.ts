@@ -1,6 +1,7 @@
 const express = require("express");
 
 const { protect } = require("../middlewares/auth.middleware");
+const { authLimiter } = require("../middlewares/rateLimit.middleware");
 const {
   createInvitation,
   completeInvitationRegistration,
@@ -12,6 +13,6 @@ const router = express.Router();
 router.post("/", protect, createInvitation);
 
 // Complete registration from invitation token.
-router.post("/accept", completeInvitationRegistration);
+router.post("/accept", authLimiter, completeInvitationRegistration);
 
 module.exports = router;

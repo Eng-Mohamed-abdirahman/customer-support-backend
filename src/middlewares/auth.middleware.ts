@@ -13,7 +13,11 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
   if (!token) return next(new AppError("Not authorized to access this route", 401));
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as { id?: string };
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: ["HS256"],
+      issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
+    }) as { id?: string };
     if (!decoded.id) {
       return next(new AppError("Not authorized to access this route", 401));
     }

@@ -5,6 +5,7 @@ const multer = require("multer");
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   let statusCode = err?.statusCode || 500;
   let message = err?.message || "Server Error";
+  const requestId = (req as any).requestId;
 
   if (err instanceof AppError) {
     statusCode = err.statusCode;
@@ -28,6 +29,7 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
   res.status(statusCode).json({
     success: false,
-    message
+    message,
+    requestId
   });
 };

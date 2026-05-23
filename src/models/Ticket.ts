@@ -11,7 +11,7 @@ const ticketSchema = new mongoose.Schema(
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
-      required: true,
+      default: null,
       index: true,
     },
     customerName: {
