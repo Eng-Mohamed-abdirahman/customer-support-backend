@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import helmet from "helmet";
 import { randomUUID } from "crypto";
 import authRoutes from "./routes/auth.routes";
@@ -21,29 +20,6 @@ const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
-const allowedOrigins =
-	env.CORS_ORIGINS.length > 0
-		? env.CORS_ORIGINS
-		: [env.frontend.url, "https://techcash.vercel.app/"];
-
-app.use(
-	cors({
-		origin: (origin, callback) => {
-			if (!origin) {
-				callback(null, true);
-				return;
-			}
-
-			if (allowedOrigins.includes(origin)) {
-				callback(null, true);
-				return;
-			}
-
-			callback(new Error("Origin not allowed by CORS"));
-		},
-		credentials: true,
-	})
-);
 app.use(
 	helmet({
 		crossOriginResourcePolicy: { policy: "same-site" },
