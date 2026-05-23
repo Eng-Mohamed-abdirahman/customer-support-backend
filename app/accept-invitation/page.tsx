@@ -3,7 +3,7 @@
 import { AlertCircle, ArrowRight, CheckCircle2, Lock, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -16,7 +16,7 @@ import { acceptInvitation } from "@/services/invitation.service";
 const fieldClassName =
   "h-12 rounded-xl border-white/15 bg-black/20 pl-11 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:border-primary/60 focus-visible:ring-primary/25";
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const searchParams = useSearchParams();
   const invitationToken = useMemo(
     () => (searchParams.get("token") ?? "").trim(),
@@ -236,5 +236,31 @@ export default function AcceptInvitationPage() {
         </form>
       )}
     </AuthShell>
+  );
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell
+          heading="Complete your invitation"
+          description="Loading invitation details..."
+          dividerLabel=""
+          footerPrompt=""
+          footerActionLabel=""
+          footerActionHref="/login"
+          backHref="/login"
+        >
+          <div className="space-y-4">
+            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
+            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
+            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <AcceptInvitationContent />
+    </Suspense>
   );
 }

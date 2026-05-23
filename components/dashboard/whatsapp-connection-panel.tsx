@@ -1,10 +1,16 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { CheckCircle2, Link2, Loader2, PlugZap, RefreshCw, ShieldCheck, Unlink } from "lucide-react"
+import {
+  CheckCircle2,
+  Copy,
+  Link2,
+  Loader2,
+  PlugZap,
+  RefreshCw,
+  ShieldCheck,
+  Unlink,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,30 +22,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
-  connectWhatsApp,
+  completeEmbeddedSignup,
   disconnectWhatsApp,
   getWhatsAppStatus,
 } from "@/services/whatsapp.service"
-import type { ConnectWhatsAppInput, WhatsAppConnection } from "@/types/whatsapp"
+import type { EmbeddedSignupVerifyToken, WhatsAppConnection } from "@/types/whatsapp"
 
-const connectSchema = z.object({
-  phoneNumberId: z.string().trim().min(2, "Phone number ID is required"),
-  businessAccountId: z.string().trim().min(2, "Business account ID is required"),
-  accessToken: z.string().trim().min(10, "Access token is required"),
-  verifyToken: z.string().trim().min(6, "Verify token is required"),
-})
+declare global {
+  interface Window {
+    FB?: {
+      init: (options: Record<string, unknown>) => void
+      login: (callback: (response: any) => void, options: Record<string, unknown>) => void
+    }
+    fbAsyncInit?: () => void
+  }
+}
 
 const statusStyles: Record<string, string> = {
   connected: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
@@ -65,24 +66,19 @@ const formatDateTime = (value?: string | null) => {
 }
 
 export function WhatsAppConnectionPanel() {
-  const [connection, setConnection] = useState<WhatsAppConnection | null>(null)
+  const [connections, setConnections] = useState<WhatsAppConnection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)
-
-  const form = useForm<ConnectWhatsAppInput>({
-    resolver: zodResolver(connectSchema),
-    defaultValues: {
-      phoneNumberId: "",
-      businessAccountId: "",
-      accessToken: "",
-      verifyToken: "",
-    },
-  })
+  const [disconnectTarget, setDisconnectTarget] = useState<WhatsAppConnection | null>(null)
+  const [isSdkReady, setIsSdkReady] = useState(false)
+  const [sdkError, setSdkError] = useState<string | null>(null)
+  const [verifyTokens, setVerifyTokens] = useState<EmbeddedSignupVerifyToken[]>([])
+  const [showVerifyTokens, setShowVerifyTokens] = useState(false)
 
   const loadStatus = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -95,7 +91,7 @@ export function WhatsAppConnectionPanel() {
 
     try {
       const result = await getWhatsAppStatus()
-      setConnection(result.connection)
+      setConnections(result.connections ?? [])
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load WhatsApp status"
       setLoadError(message)
@@ -112,39 +108,114 @@ export function WhatsAppConnectionPanel() {
     void loadStatus(false)
   }, [loadStatus])
 
-  const connectionStatus = connection?.status ?? "disconnected"
+  useEffect(() => {
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID
+    if (!appId) {
+      setSdkError("Missing NEXT_PUBLIC_META_APP_ID")
+      return
+    }
+
+    if (window.FB) {
+      setIsSdkReady(true)
+      return
+    }
+
+    window.fbAsyncInit = () => {
+      window.FB?.init({
+        appId,
+        cookie: true,
+        xfbml: false,
+        version: "v20.0",
+      })
+      setIsSdkReady(true)
+    }
+
+    const scriptId = "facebook-jssdk"
+    if (document.getElementById(scriptId)) {
+      return
+    }
+
+    const script = document.createElement("script")
+    script.id = scriptId
+    script.src = "https://connect.facebook.net/en_US/sdk.js"
+    script.async = true
+    script.defer = true
+    script.onerror = () => setSdkError("Failed to load Facebook SDK")
+    document.body.appendChild(script)
+  }, [])
+
+  const connectionStatus = useMemo(() => {
+    if (!connections.length) {
+      return "disconnected"
+    }
+
+    if (connections.some((item) => item.status === "error")) {
+      return "error"
+    }
+
+    if (connections.some((item) => item.status === "pending")) {
+      return "pending"
+    }
+
+    return "connected"
+  }, [connections])
 
   const statusBadgeClassName = statusStyles[connectionStatus] ?? statusStyles.disconnected
 
-  const hasConnection = connectionStatus === "connected"
-
-  const onSubmit = async (values: ConnectWhatsAppInput) => {
+  const handleConnect = async () => {
     setSuccessMessage(null)
     setLoadError(null)
 
-    try {
-      setIsSubmitting(true)
-      const result = await connectWhatsApp({
-        phoneNumberId: values.phoneNumberId.trim(),
-        businessAccountId: values.businessAccountId.trim(),
-        accessToken: values.accessToken.trim(),
-        verifyToken: values.verifyToken.trim(),
-      })
+    const configId = process.env.NEXT_PUBLIC_WHATSAPP_CONFIG_ID
+    const redirectUri = process.env.NEXT_PUBLIC_WHATSAPP_REDIRECT_URI
 
-      setConnection(result.connection)
-      setSuccessMessage("WhatsApp connection saved successfully.")
-      form.reset({
-        phoneNumberId: "",
-        businessAccountId: "",
-        accessToken: "",
-        verifyToken: "",
-      })
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to connect WhatsApp"
-      setLoadError(message)
-    } finally {
-      setIsSubmitting(false)
+    if (!configId) {
+      setLoadError("Missing NEXT_PUBLIC_WHATSAPP_CONFIG_ID")
+      return
     }
+
+    if (!redirectUri) {
+      setLoadError("Missing NEXT_PUBLIC_WHATSAPP_REDIRECT_URI")
+      return
+    }
+
+    if (!window.FB || !isSdkReady) {
+      setLoadError("Facebook SDK is not ready")
+      return
+    }
+
+    setIsConnecting(true)
+
+    window.FB.login(
+      async (response: any) => {
+        const code = response?.authResponse?.code
+        if (!code) {
+          setIsConnecting(false)
+          setLoadError("Embedded signup was cancelled or failed")
+          return
+        }
+
+        try {
+          const result = await completeEmbeddedSignup({ code, redirectUri })
+          setConnections(result.connections)
+          setVerifyTokens(result.verifyTokens)
+          setShowVerifyTokens(true)
+          setSuccessMessage("WhatsApp Embedded Signup completed successfully.")
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : "Failed to complete signup"
+          setLoadError(message)
+        } finally {
+          setIsConnecting(false)
+        }
+      },
+      {
+        config_id: configId,
+        response_type: "code",
+        override_default_response_type: true,
+        scope: "business_management,whatsapp_business_management,whatsapp_business_messaging",
+        redirect_uri: redirectUri,
+      }
+    )
   }
 
   const handleDisconnect = async () => {
@@ -153,8 +224,17 @@ export function WhatsAppConnectionPanel() {
 
     try {
       setIsDisconnecting(true)
-      const result = await disconnectWhatsApp()
-      setConnection(result.connection)
+      const target = disconnectTarget?.phoneNumberId
+      if (!target) {
+        throw new Error("Phone number ID is missing")
+      }
+
+      const result = await disconnectWhatsApp(target)
+      setConnections((current) =>
+        current.map((item) =>
+          item.phoneNumberId === result.connection.phoneNumberId ? result.connection : item
+        )
+      )
       setSuccessMessage("WhatsApp disconnected successfully.")
       setShowDisconnectConfirm(false)
     } catch (error: unknown) {
@@ -173,11 +253,11 @@ export function WhatsAppConnectionPanel() {
       },
       {
         title: "Verify token",
-        description: "Use the same verify token configured in Meta Developers",
+        description: "Use the verify token shown after Embedded Signup",
       },
       {
-        title: "Phone number ID",
-        description: "Use the WhatsApp Business phone number ID",
+        title: "Required subscriptions",
+        description: "Subscribe to messages, message_status, and messaging_handovers",
       },
     ],
     []
@@ -236,69 +316,89 @@ export function WhatsAppConnectionPanel() {
                     <div>
                       <p className="text-sm font-medium text-foreground">Connection status</p>
                       <p className="text-xs text-muted-foreground">
-                        {hasConnection
-                          ? "Your WhatsApp account is connected and ready."
-                          : "Not connected yet. Complete the form to connect."}
+                        {connections.length
+                          ? `${connections.length} WhatsApp number(s) connected.`
+                          : "Not connected yet. Use Embedded Signup to connect."}
                       </p>
                     </div>
 
-                    {hasConnection ? (
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="h-9 gap-2"
-                        onClick={() => setShowDisconnectConfirm(true)}
-                        disabled={isDisconnecting}
-                      >
-                        {isDisconnecting ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <Unlink className="size-4" />
-                        )}
-                        Disconnect
-                      </Button>
-                    ) : (
+                    {connections.length ? null : (
                       <span className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-xs text-amber-700 dark:text-amber-300">
                         <ShieldCheck className="size-4" />
-                        Awaiting credentials
+                        Awaiting Embedded Signup
                       </span>
                     )}
                   </div>
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                        Phone number ID
-                      </p>
-                      <p className="text-sm font-medium text-foreground">
-                        {connection?.phoneNumberId ?? "-"}
-                      </p>
+                  {connections.length ? (
+                    <div className="mt-4 grid gap-3">
+                      {connections.map((item) => (
+                        <div
+                          key={item.phoneNumberId}
+                          className="rounded-lg border border-border/60 bg-card/80 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {item.displayPhoneNumber || "WhatsApp Number"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.businessName || "Business Account"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold",
+                                  statusStyles[item.status ?? "disconnected"] ?? statusStyles.disconnected
+                                )}
+                              >
+                                <span className="inline-flex size-2 rounded-full bg-current" />
+                                {item.status}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="h-8 gap-2"
+                                onClick={() => {
+                                  setDisconnectTarget(item)
+                                  setShowDisconnectConfirm(true)
+                                }}
+                                disabled={isDisconnecting}
+                              >
+                                {isDisconnecting &&
+                                disconnectTarget?.phoneNumberId === item.phoneNumberId ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Unlink className="size-3" />
+                                )}
+                                Disconnect
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                            <p>
+                              <span className="font-medium text-foreground">Phone number ID:</span>{" "}
+                              {item.phoneNumberId ?? "-"}
+                            </p>
+                            <p>
+                              <span className="font-medium text-foreground">WABA ID:</span>{" "}
+                              {item.wabaId ?? "-"}
+                            </p>
+                            <p>
+                              <span className="font-medium text-foreground">Webhook:</span>{" "}
+                              {item.webhookSubscriptionStatus ?? "unknown"}
+                            </p>
+                            <p>
+                              <span className="font-medium text-foreground">Token expires:</span>{" "}
+                              {formatDateTime(item.accessTokenExpiresAt ?? null)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                        Business account ID
-                      </p>
-                      <p className="text-sm font-medium text-foreground">
-                        {connection?.businessAccountId ?? "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                        Connected at
-                      </p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDateTime(connection?.connectedAt ?? null)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                        Last verified
-                      </p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDateTime(connection?.lastVerifiedAt ?? null)}
-                      </p>
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-xl border border-border/70 bg-card/90 p-4">
@@ -312,7 +412,7 @@ export function WhatsAppConnectionPanel() {
                       /api/webhooks/whatsapp
                     </p>
                     <p>2. Subscribe to messages, message_status, and messaging_handovers</p>
-                    <p>3. Add the verify token from this form inside Meta Developers</p>
+                    <p>3. Add the verify token from the Embedded Signup dialog inside Meta Developers</p>
                     <p>4. Ensure the phone number ID matches the connected WhatsApp account</p>
                   </div>
                 </div>
@@ -325,71 +425,30 @@ export function WhatsAppConnectionPanel() {
                     Connect WhatsApp Business
                   </div>
 
-                  <Form {...form}>
-                    <form className="mt-4 space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
-                      <FormField
-                        control={form.control}
-                        name="phoneNumberId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Phone number ID</FormLabel>
-                            <FormControl>
-                              <Input placeholder="123456789" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="businessAccountId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Business account ID</FormLabel>
-                            <FormControl>
-                              <Input placeholder="987654321" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="accessToken"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Access token</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="WhatsApp access token" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="verifyToken"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Verify token</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Webhook verify token" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button
-                        type="submit"
-                        className="w-full gap-2"
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                        Save connection
-                      </Button>
-                    </form>
-                  </Form>
+                  <div className="mt-4 space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Use Meta Embedded Signup to connect your WhatsApp Business account securely.
+                    </p>
+                    <Button
+                      type="button"
+                      className="w-full gap-2"
+                      onClick={handleConnect}
+                      disabled={isConnecting || !isSdkReady}
+                    >
+                      {isConnecting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="size-4" />
+                      )}
+                      Connect WhatsApp
+                    </Button>
+                    {sdkError ? (
+                      <Alert variant="destructive">
+                        <AlertTitle>SDK error</AlertTitle>
+                        <AlertDescription>{sdkError}</AlertDescription>
+                      </Alert>
+                    ) : null}
+                  </div>
                 </div>
 
                 {successMessage ? (
@@ -433,6 +492,40 @@ export function WhatsAppConnectionPanel() {
               {isDisconnecting ? <Loader2 className="size-4 animate-spin" /> : <Unlink className="size-4" />}
               Disconnect
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showVerifyTokens} onOpenChange={setShowVerifyTokens}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Webhook verify tokens</DialogTitle>
+            <DialogDescription>
+              Copy and store these verify tokens. You will need them to validate the webhook setup in Meta.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {verifyTokens.map((item) => (
+              <div key={item.phoneNumberId} className="space-y-2">
+                <p className="text-xs font-medium text-foreground">
+                  Phone number ID: {item.phoneNumberId}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={item.verifyToken} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(item.verifyToken)
+                      setSuccessMessage("Verify token copied to clipboard.")
+                    }}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>

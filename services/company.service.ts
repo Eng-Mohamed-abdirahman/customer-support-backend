@@ -4,8 +4,11 @@ import type {
   CreateCompanyResult,
   CreateCompanyApiKeyInput,
   CreateCompanyApiKeyResult,
+  CompanyApiKeyRecord,
   ListCompanyApiKeysResult,
   MyCompanyApiKeySettingsResult,
+  MyCompanyUsageResult,
+  GlobalOrganizationUsageRow,
   MyCompanyUsersResult,
   OrganizationAdminSettingsResult,
   RevokeCompanyApiKeyResult,
@@ -119,6 +122,44 @@ export async function getMyCompanyApiKeySettings(): Promise<MyCompanyApiKeySetti
   return extractData<MyCompanyApiKeySettingsResult>(
     response,
     "Failed to load API key settings. Please try again."
+  )
+}
+
+export async function getMyCompanyUsage(): Promise<MyCompanyUsageResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to view usage")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/my-usage`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  return extractData<MyCompanyUsageResult>(
+    response,
+    "Failed to load usage. Please try again."
+  )
+}
+
+export async function listOrganizationsUsage(): Promise<GlobalOrganizationUsageRow[]> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to view global usage")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/organizations/usage`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  return extractData<GlobalOrganizationUsageRow[]>(
+    response,
+    "Failed to load global usage. Please try again."
   )
 }
 

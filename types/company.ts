@@ -126,6 +126,23 @@ export type MyCompanyApiKeySettingsResult = {
   apiSettings: Pick<OrganizationApiSettings, "keyPrefix" | "lastKeyRotatedAt">
 }
 
+export type MyCompanyUsageResult = {
+  organization: {
+    _id: string
+    name: string
+    status: OrganizationStatus
+    plan: string
+  }
+  usage: {
+    totalTokensUsed: number
+    monthlyLimit: number
+  }
+}
+
+export type GlobalOrganizationUsageRow = MyCompanyUsageResult & {
+  createdAt: string
+}
+
 export type RotateCompanyApiKeyResult = {
   apiKey: string
   apiKeyRecord?: CompanyApiKeyRecord
