@@ -22,7 +22,7 @@ const resolveRateLimitKey = (req: Request) => {
     return `org:${orgId}`;
   }
 
-  return req.ip;
+  return req.ip ?? req.socket?.remoteAddress ?? "unknown";
 };
 
 const buildLimiter = (options: { windowMs: number; max: number }) =>
