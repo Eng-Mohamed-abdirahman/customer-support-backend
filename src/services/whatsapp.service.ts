@@ -19,9 +19,14 @@ const toConnectionResponse = (connection: any) => {
   return {
     id: String(plain._id),
     organizationId: String(plain.organizationId),
+    wabaId: plain.wabaId,
+    businessName: plain.businessName,
     phoneNumberId: plain.phoneNumberId,
-    businessAccountId: plain.businessAccountId,
+    displayPhoneNumber: plain.displayPhoneNumber,
     status: plain.status,
+    webhookSubscriptionStatus: plain.webhookSubscriptionStatus,
+    webhookSubscribedAt: plain.webhookSubscribedAt,
+    accessTokenExpiresAt: plain.accessTokenExpiresAt,
     connectedAt: plain.connectedAt,
     disconnectedAt: plain.disconnectedAt,
     lastVerifiedAt: plain.lastVerifiedAt,
@@ -32,25 +37,37 @@ const toConnectionResponse = (connection: any) => {
 
 const upsertConnection = async (input: {
   organizationId: string;
+  wabaId: string;
+  businessName?: string;
   phoneNumberId: string;
-  businessAccountId: string;
+  displayPhoneNumber?: string;
   accessToken: string;
+  accessTokenExpiresAt?: Date | null;
   verifyToken: string;
+  webhookSubscriptionStatus?: "subscribed" | "pending" | "failed" | "unknown";
+  webhookSubscribedAt?: Date | null;
+  lastWebhookError?: string;
 }) => {
   const accessEncrypted = encryptApiKey(input.accessToken);
   const verifyEncrypted = encryptApiKey(input.verifyToken);
   const verifyTokenHash = hashToken(input.verifyToken);
 
   const connection = await WhatsAppConnection.findOneAndUpdate(
-    { organizationId: input.organizationId },
+    { organizationId: input.organizationId, phoneNumberId: input.phoneNumberId },
     {
+      wabaId: input.wabaId,
+      businessName: input.businessName ?? "",
       phoneNumberId: input.phoneNumberId,
-      businessAccountId: input.businessAccountId,
+      displayPhoneNumber: input.displayPhoneNumber ?? "",
       accessTokenEncrypted: accessEncrypted.encryptedKey,
       accessTokenIv: accessEncrypted.iv,
+      accessTokenExpiresAt: input.accessTokenExpiresAt ?? null,
       verifyTokenEncrypted: verifyEncrypted.encryptedKey,
       verifyTokenIv: verifyEncrypted.iv,
       verifyTokenHash,
+      webhookSubscriptionStatus: input.webhookSubscriptionStatus ?? "unknown",
+      webhookSubscribedAt: input.webhookSubscribedAt ?? null,
+      lastWebhookError: input.lastWebhookError ?? "",
       status: "connected",
       connectedAt: new Date(),
       disconnectedAt: null,
@@ -65,18 +82,19 @@ const upsertConnection = async (input: {
   return connection;
 };
 
-const getConnectionByOrganizationId = async (organizationId: string) => {
-  return WhatsAppConnection.findOne({ organizationId });
+const listConnectionsByOrganizationId = async (organizationId: string) => {
+  return WhatsAppConnection.find({ organizationId }).sort({ createdAt: -1 });
 };
 
-const disconnectConnection = async (organizationId: string) => {
+const disconnectConnection = async (organizationId: string, phoneNumberId: string) => {
   return WhatsAppConnection.findOneAndUpdate(
-    { organizationId },
+    { organizationId, phoneNumberId },
     {
       status: "disconnected",
       disconnectedAt: new Date(),
       accessTokenEncrypted: null,
       accessTokenIv: null,
+      accessTokenExpiresAt: null,
       verifyTokenEncrypted: null,
       verifyTokenIv: null,
       verifyTokenHash: null,
@@ -101,6 +119,23 @@ const getConnectionByPhoneNumberId = async (phoneNumberId: string) => {
   }).select("+accessTokenEncrypted +accessTokenIv");
 };
 
+const markWebhookSubscription = async (input: {
+  organizationId: string;
+  phoneNumberId: string;
+  status: "subscribed" | "pending" | "failed" | "unknown";
+  error?: string;
+}) => {
+  return WhatsAppConnection.findOneAndUpdate(
+    { organizationId: input.organizationId, phoneNumberId: input.phoneNumberId },
+    {
+      webhookSubscriptionStatus: input.status,
+      webhookSubscribedAt: input.status === "subscribed" ? new Date() : null,
+      lastWebhookError: input.error ?? "",
+    },
+    { new: true }
+  );
+};
+
 const resolveAccessToken = (connection: any): string => {
   if (!connection?.accessTokenEncrypted || !connection?.accessTokenIv) {
     throw new AppError("WhatsApp access token is missing", 400);
@@ -112,11 +147,12 @@ const resolveAccessToken = (connection: any): string => {
 module.exports = {
   toConnectionResponse,
   upsertConnection,
-  getConnectionByOrganizationId,
+  listConnectionsByOrganizationId,
   disconnectConnection,
   getConnectionByVerifyToken,
   getConnectionByPhoneNumberId,
   resolveAccessToken,
+  markWebhookSubscription,
 };
 
 export {};

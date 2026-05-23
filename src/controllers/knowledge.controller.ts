@@ -170,6 +170,7 @@ const uploadKnowledgeDocument = asyncHandler(async (req: Request, res: Response)
         documentId: knowledgeDocument._id,
         chunkIndex: chunk.chunkIndex,
         content: chunk.content,
+        embedding: embeddings[index],
         embeddingId: vectors[index].id,
         tokenCount: chunk.tokenCount,
         metadata: {

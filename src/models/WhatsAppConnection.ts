@@ -6,19 +6,30 @@ const whatsappConnectionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
-      unique: true,
       index: true,
+    },
+    wabaId: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
+    },
+    businessName: {
+      type: String,
+      trim: true,
+      default: "",
     },
     phoneNumberId: {
       type: String,
       required: true,
       trim: true,
+      unique: true,
       index: true,
     },
-    businessAccountId: {
+    displayPhoneNumber: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     accessTokenEncrypted: {
       type: String,
@@ -27,6 +38,10 @@ const whatsappConnectionSchema = new mongoose.Schema(
     accessTokenIv: {
       type: String,
       select: false,
+    },
+    accessTokenExpiresAt: {
+      type: Date,
+      default: null,
     },
     verifyTokenEncrypted: {
       type: String,
@@ -40,6 +55,21 @@ const whatsappConnectionSchema = new mongoose.Schema(
       type: String,
       select: false,
       index: true,
+    },
+    webhookSubscriptionStatus: {
+      type: String,
+      enum: ["subscribed", "pending", "failed", "unknown"],
+      default: "unknown",
+      index: true,
+    },
+    webhookSubscribedAt: {
+      type: Date,
+      default: null,
+    },
+    lastWebhookError: {
+      type: String,
+      trim: true,
+      default: "",
     },
     status: {
       type: String,

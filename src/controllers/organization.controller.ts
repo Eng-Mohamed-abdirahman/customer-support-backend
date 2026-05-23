@@ -126,6 +126,29 @@ const buildCompanyApiKeyPayload = (organization: any) => ({
   },
 });
 
+const buildCompanyUsagePayload = (organization: any) => ({
+  organization: {
+    _id: String(organization._id),
+    name: organizationName(organization),
+    status: cleanString(organization.status, "trialing"),
+    plan: cleanString(organization?.subscription?.plan, "free"),
+  },
+  usage: {
+    totalTokensUsed:
+      typeof organization?.api_settings?.total_tokens_used === "number"
+        ? organization.api_settings.total_tokens_used
+        : typeof organization?.apiSettings?.totalTokensUsed === "number"
+          ? organization.apiSettings.totalTokensUsed
+          : 0,
+    monthlyLimit:
+      typeof organization?.api_settings?.monthly_limit === "number"
+        ? organization.api_settings.monthly_limit
+        : typeof organization?.apiSettings?.monthlyLimit === "number"
+          ? organization.apiSettings.monthlyLimit
+          : 10000,
+  },
+});
+
 const buildAdminSettingsPayload = (organization: any) => ({
   ...buildCompanyAdminOrganizationPayload(organization),
   aiSettings: {
@@ -688,6 +711,38 @@ const getMyCompanyApiKeySettings = asyncHandler(async (req: Request, res: Respon
   });
 });
 
+const getMyCompanyUsage = asyncHandler(async (req: Request, res: Response) => {
+  const requester = assertCompanyAdmin(req);
+
+  const organization = await Organization.findById(requester.company).select(
+    "_id status profile subscription api_settings"
+  );
+
+  if (!organization) {
+    throw new AppError("Organization not found", 404);
+  }
+
+  apiResponse(res, 200, "Company usage fetched successfully", {
+    ...buildCompanyUsagePayload(organization),
+  });
+});
+
+const listOrganizationsUsage = asyncHandler(async (req: Request, res: Response) => {
+  assertPlatformAdmin(req);
+
+  const organizations = await Organization.find()
+    .sort({ createdAt: -1 })
+    .select("_id status profile subscription api_settings createdAt")
+    .lean();
+
+  const rows = organizations.map((organization: any) => ({
+    ...buildCompanyUsagePayload(organization),
+    createdAt: organization.createdAt,
+  }));
+
+  apiResponse(res, 200, "Organization usage fetched successfully", rows);
+});
+
 const rotateMyCompanyApiKey = asyncHandler(async (req: Request, res: Response) => {
   const requester = assertCompanyAdmin(req);
 
@@ -918,6 +973,8 @@ module.exports = {
   revealMyCompanyApiKey,
   deleteMyCompanyApiKey,
   getMyCompanyApiKeySettings,
+  getMyCompanyUsage,
+  listOrganizationsUsage,
   rotateMyCompanyApiKey,
   getOrganizationAdminSettings,
   updateOrganizationAdminSettings,

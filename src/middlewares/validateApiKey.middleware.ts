@@ -7,7 +7,7 @@ const { getApiKeyPrefix, verifyApiKey } = require("../utils/generateApiKey");
 const { decryptApiKey } = require("../utils/cryptoApiKey");
 
 const apiKeyOrganizationSelect =
-  "_id status profile contact businessInfo supportSettings aiSettings allowedChannels" +
+  "_id status createdBy profile contact businessInfo supportSettings aiSettings allowedChannels" +
   " api_settings.total_tokens_used api_settings.monthly_limit api_settings.last_key_rotated_at" +
   " +api_settings.encrypted_key" +
   " +api_settings.iv" +

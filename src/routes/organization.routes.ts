@@ -12,6 +12,8 @@ const {
   revealMyCompanyApiKey,
   deleteMyCompanyApiKey,
   getMyCompanyApiKeySettings,
+  getMyCompanyUsage,
+  listOrganizationsUsage,
   rotateMyCompanyApiKey,
   getOrganizationAdminSettings,
   updateOrganizationAdminSettings,
@@ -27,6 +29,8 @@ router.post("/my-api-keys/:apiKeyId/revoke", protect, revokeMyCompanyApiKey);
 router.post("/my-api-keys/:apiKeyId/reveal", protect, revealMyCompanyApiKey);
 router.delete("/my-api-keys/:apiKeyId", protect, deleteMyCompanyApiKey);
 router.get("/my-api-key", protect, getMyCompanyApiKeySettings);
+router.get("/my-usage", protect, getMyCompanyUsage);
+router.get("/usage", protect, listOrganizationsUsage);
 router.post("/my-api-key/rotate", protect, rotateMyCompanyApiKey);
 router.patch("/my-profile", protect, updateMyCompanyProfile);
 router.get("/:organizationId/admin-settings", protect, getOrganizationAdminSettings);

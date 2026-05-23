@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { signupUser, loginUser, updateCurrentUser } from "../services/auth.service";
+import { env } from "../config/env";
 import {
   signupSchema,
   loginSchema,
@@ -10,6 +11,10 @@ import { apiResponse } from "../utils/apiResponse";
 import { AppError } from "../utils/appError";
 
 export const signup = asyncHandler(async (req: Request, res: Response) => {
+  if (!env.ALLOW_PUBLIC_SIGNUP) {
+    throw new AppError("Public signup is disabled", 403);
+  }
+
   const result = signupSchema.safeParse(req.body);
   if (!result.success)
     throw new AppError(result.error.issues[0]?.message ?? "Invalid request payload", 400);
