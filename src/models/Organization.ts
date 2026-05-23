@@ -107,6 +107,12 @@ const organizationSchema = new mongoose.Schema(
       },
     },
 
+    knowledgeBaseReference: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     // System/admin controlled
     aiSettings: {
       aiEnabled: {

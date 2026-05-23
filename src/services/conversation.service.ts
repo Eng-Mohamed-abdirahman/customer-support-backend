@@ -41,6 +41,7 @@ type ConversationOrganization = {
     timezone?: string;
     language?: string;
   };
+  knowledgeBaseReference?: string;
   aiSettings?: {
     aiEnabled?: boolean;
     autoReplyEnabled?: boolean;

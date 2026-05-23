@@ -21,9 +21,15 @@ const assertStrongSecret = (name: string, value: string) => {
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const INVITATION_JWT_SECRET = process.env.INVITATION_JWT_SECRET ?? JWT_SECRET;
+const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET ?? "";
 
 assertStrongSecret("JWT_SECRET", JWT_SECRET);
 assertStrongSecret("INVITATION_JWT_SECRET", INVITATION_JWT_SECRET);
+assertStrongSecret("WHATSAPP_APP_SECRET", WHATSAPP_APP_SECRET);
+
+if (IS_PRODUCTION && !process.env.WHATSAPP_APP_ID) {
+  throw new Error("WHATSAPP_APP_ID must be set in production");
+}
 
 export const env = {
   PORT: process.env.PORT || 5000,
@@ -45,7 +51,9 @@ export const env = {
   PINECONE_INDEX_HOST: process.env.PINECONE_INDEX_HOST || "",
   WHATSAPP_GRAPH_BASE_URL: process.env.WHATSAPP_GRAPH_BASE_URL || "https://graph.facebook.com",
   WHATSAPP_GRAPH_VERSION: process.env.WHATSAPP_GRAPH_VERSION || "v20.0",
-  WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET || "",
+  WHATSAPP_APP_ID: process.env.WHATSAPP_APP_ID || "",
+  WHATSAPP_APP_SECRET,
+  WHATSAPP_OAUTH_REDIRECT_URI: process.env.WHATSAPP_OAUTH_REDIRECT_URI || "",
   WHATSAPP_VERIFY_SIGNATURE: process.env.WHATSAPP_VERIFY_SIGNATURE !== "false",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   INVITATION_JWT_SECRET,

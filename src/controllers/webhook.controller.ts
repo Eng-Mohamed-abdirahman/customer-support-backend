@@ -28,13 +28,13 @@ const verifyWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) =
 });
 
 const receiveWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) => {
-  try {
-    await processWebhookPayload(req.body);
-  } catch (error: any) {
-    console.error(`WhatsApp webhook processing failed: ${error?.message ?? error}`);
-  }
-
   res.status(200).json({ status: "received" });
+
+  setImmediate(() => {
+    processWebhookPayload(req.body).catch((error: any) => {
+      console.error(`WhatsApp webhook processing failed: ${error?.message ?? error}`);
+    });
+  });
 });
 
 module.exports = {
