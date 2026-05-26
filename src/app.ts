@@ -21,29 +21,14 @@ const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
-const allowedOrigins =
-	env.CORS_ORIGINS.length > 0
-		? env.CORS_ORIGINS
-		: [env.frontend.url, "https://techcash.vercel.app/"];
-
 app.use(
 	cors({
-		origin: (origin, callback) => {
-			if (!origin) {
-				callback(null, true);
-				return;
-			}
-
-			if (allowedOrigins.includes(origin)) {
-				callback(null, true);
-				return;
-			}
-
-			callback(new Error("Origin not allowed by CORS"));
-		},
-		credentials: true,
+		origin: "*",
+		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
 	})
 );
+
 app.use(
 	helmet({
 		crossOriginResourcePolicy: { policy: "same-site" },
