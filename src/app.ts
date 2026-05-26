@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import helmet from "helmet";
 import { randomUUID } from "crypto";
 import authRoutes from "./routes/auth.routes";
@@ -19,6 +20,14 @@ const app = express();
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
+
+app.use(
+	cors({
+		origin: "*",
+		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+	})
+);
 
 app.use(
 	helmet({
