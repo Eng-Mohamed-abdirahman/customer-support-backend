@@ -17,19 +17,18 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getSocket } from "@/lib/socket"
 import { cn } from "@/lib/utils"
-import { listConversationMessages, listConversations } from "@/services/conversation.service"
-import { createTicket } from "@/services/ticket.service"
+import { getStoredToken } from "@/services/auth.service"
+import {
+  listConversationMessages,
+  listConversations,
+  returnConversationToAi,
+  sendAgentMessage,
+  takeoverConversation,
+} from "@/services/conversation.service"
 import type { ConversationMessageRecord, ConversationRecord } from "@/types/conversation"
 
 const statusFilters = ["all", "open", "pending", "closed"] as const
@@ -77,6 +76,52 @@ const formatTimeAgo = (value?: string) => {
 
   const days = Math.round(diffMs / day)
   return `${days}d ago`
+}
+
+const getDateKey = (value?: string) => {
+  if (!value) {
+    return "unknown"
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "unknown"
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const formatDateTabLabel = (value: string) => {
+  if (value === "unknown") {
+    return "Unknown date"
+  }
+
+  const today = new Date()
+  const todayKey = getDateKey(today.toISOString())
+
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  const yesterdayKey = getDateKey(yesterday.toISOString())
+
+  if (value === todayKey) {
+    return "Today"
+  }
+
+  if (value === yesterdayKey) {
+    return "Yesterday"
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return parsed.toLocaleDateString(undefined, {
+    dateStyle: "medium",
+  })
 }
 
 const formatChannelLabel = (channel?: string) => {
@@ -140,12 +185,15 @@ export default function ConversationsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof statusFilters)[number]>("all")
   const [channelFilter, setChannelFilter] = useState<(typeof channelFilters)[number]>("all")
   const [searchTerm, setSearchTerm] = useState("")
-  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false)
-  const [ticketTitle, setTicketTitle] = useState("")
-  const [ticketDescription, setTicketDescription] = useState("")
-  const [ticketLoading, setTicketLoading] = useState(false)
-  const [ticketError, setTicketError] = useState<string | null>(null)
-  const [ticketBanner, setTicketBanner] = useState<string | null>(null)
+  const [selectedDateKey, setSelectedDateKey] = useState("")
+  const [selectedMessageDateKey, setSelectedMessageDateKey] = useState("")
+  const [takeoverLoading, setTakeoverLoading] = useState(false)
+  const [takeoverError, setTakeoverError] = useState<string | null>(null)
+  const [returnToAiLoading, setReturnToAiLoading] = useState(false)
+  const [returnToAiError, setReturnToAiError] = useState<string | null>(null)
+  const [agentMessage, setAgentMessage] = useState("")
+  const [agentMessageLoading, setAgentMessageLoading] = useState(false)
+  const [agentMessageError, setAgentMessageError] = useState<string | null>(null)
 
   const loadConversations = useCallback(
     async (refresh = false) => {
@@ -220,6 +268,97 @@ export default function ConversationsPage() {
     void loadMessages(selectedConversation._id)
   }, [loadMessages, selectedConversation?._id])
 
+  useEffect(() => {
+    const token = getStoredToken()
+    const socket = getSocket(token)
+    if (!socket) {
+      return
+    }
+
+    const handleMessageNew = (payload: ConversationMessageRecord) => {
+      if (!payload?.conversationId) {
+        return
+      }
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation._id === payload.conversationId
+            ? {
+                ...conversation,
+                lastMessageAt: payload.createdAt ?? conversation.lastMessageAt,
+              }
+            : conversation
+        )
+      )
+
+      setSelectedConversation((current) =>
+        current && current._id === payload.conversationId
+          ? {
+              ...current,
+              lastMessageAt: payload.createdAt ?? current.lastMessageAt,
+            }
+          : current
+      )
+
+      if (selectedConversation?._id !== payload.conversationId) {
+        return
+      }
+
+      setMessages((prev) => {
+        if (prev.some((message) => message._id === payload._id)) {
+          return prev
+        }
+
+        return [...prev, payload]
+      })
+    }
+
+    const handleConversationUpdated = (payload: {
+      conversationId?: string
+      lastMessageAt?: string
+      aiEnabled?: boolean
+      assignedAgent?: string
+    }) => {
+      if (!payload?.conversationId) {
+        return
+      }
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation._id === payload.conversationId
+            ? {
+                ...conversation,
+                lastMessageAt: payload.lastMessageAt ?? conversation.lastMessageAt,
+                aiEnabled:
+                  typeof payload.aiEnabled === "boolean" ? payload.aiEnabled : conversation.aiEnabled,
+                assignedAgent: payload.assignedAgent ?? conversation.assignedAgent,
+              }
+            : conversation
+        )
+      )
+
+      setSelectedConversation((current) =>
+        current && current._id === payload.conversationId
+          ? {
+              ...current,
+              lastMessageAt: payload.lastMessageAt ?? current.lastMessageAt,
+              aiEnabled:
+                typeof payload.aiEnabled === "boolean" ? payload.aiEnabled : current.aiEnabled,
+              assignedAgent: payload.assignedAgent ?? current.assignedAgent,
+            }
+          : current
+      )
+    }
+
+    socket.on("message:new", handleMessageNew)
+    socket.on("conversation:updated", handleConversationUpdated)
+
+    return () => {
+      socket.off("message:new", handleMessageNew)
+      socket.off("conversation:updated", handleConversationUpdated)
+    }
+  }, [selectedConversation?._id])
+
   const filteredConversations = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     if (!term) {
@@ -233,46 +372,180 @@ export default function ConversationsPage() {
     })
   }, [conversations, searchTerm])
 
+  const dateTabs = useMemo(() => {
+    const grouped = new Map<string, ConversationRecord[]>()
+
+    filteredConversations.forEach((conversation) => {
+      const dateKey = getDateKey(conversation.lastMessageAt ?? conversation.createdAt)
+      const current = grouped.get(dateKey) ?? []
+      current.push(conversation)
+      grouped.set(dateKey, current)
+    })
+
+    const sortedKeys = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a))
+
+    return sortedKeys.map((key) => ({
+      key,
+      label: formatDateTabLabel(key),
+      conversations: grouped.get(key) ?? [],
+    }))
+  }, [filteredConversations])
+
+  useEffect(() => {
+    if (!dateTabs.length) {
+      return
+    }
+
+    if (!selectedDateKey || !dateTabs.some((tab) => tab.key === selectedDateKey)) {
+      setSelectedDateKey(dateTabs[0].key)
+    }
+  }, [dateTabs, selectedDateKey])
+
+  const messageDateTabs = useMemo(() => {
+    const grouped = new Map<string, ConversationMessageRecord[]>()
+
+    messages.forEach((message) => {
+      const dateKey = getDateKey(message.createdAt)
+      const current = grouped.get(dateKey) ?? []
+      current.push(message)
+      grouped.set(dateKey, current)
+    })
+
+    const sortedKeys = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a))
+
+    return sortedKeys.map((key) => ({
+      key,
+      label: formatDateTabLabel(key),
+      messages: grouped.get(key) ?? [],
+    }))
+  }, [messages])
+
+  useEffect(() => {
+    if (!messageDateTabs.length) {
+      return
+    }
+
+    const todayKey = getDateKey(new Date().toISOString())
+    
+    if (!selectedMessageDateKey || !messageDateTabs.some((tab) => tab.key === selectedMessageDateKey)) {
+      if (messageDateTabs.some((tab) => tab.key === todayKey)) {
+        setSelectedMessageDateKey(todayKey)
+      } else {
+        setSelectedMessageDateKey(messageDateTabs[0].key)
+      }
+    }
+  }, [messageDateTabs, selectedMessageDateKey])
+
   const handleSelectConversation = (conversation: ConversationRecord) => {
     setSelectedConversation(conversation)
   }
 
-  const handleOpenTicketDialog = () => {
-    setTicketError(null)
-    setTicketTitle("")
-    setTicketDescription("")
-    setIsTicketDialogOpen(true)
-  }
-
-  const handleCreateTicket = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
+  const handleTakeoverConversation = async () => {
     if (!selectedConversation) {
-      setTicketError("Select a conversation before creating a ticket.")
       return
     }
 
-    setTicketError(null)
-    setTicketLoading(true)
+    setTakeoverError(null)
+    setReturnToAiError(null)
+    setTakeoverLoading(true)
 
     try {
-      const result = await createTicket({
-        conversationId: selectedConversation._id,
-        title: ticketTitle,
-        description: ticketDescription,
-        customerName: selectedConversation.customerName,
-        customerPhone: selectedConversation.customerPhone,
-      })
+      const result = await takeoverConversation(selectedConversation._id)
 
-      setTicketBanner(`Ticket ${result.ticketId.slice(-6).toUpperCase()} created.`)
-      setIsTicketDialogOpen(false)
-      setTicketTitle("")
-      setTicketDescription("")
+      setSelectedConversation((current) =>
+        current && current._id === selectedConversation._id
+          ? {
+              ...current,
+              aiEnabled: false,
+              assignedAgent: result.assignedAgent,
+            }
+          : current
+      )
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation._id === selectedConversation._id
+            ? {
+                ...conversation,
+                aiEnabled: false,
+                assignedAgent: result.assignedAgent,
+              }
+            : conversation
+        )
+      )
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to create ticket"
-      setTicketError(message)
+      const message = error instanceof Error ? error.message : "Failed to take over conversation"
+      setTakeoverError(message)
     } finally {
-      setTicketLoading(false)
+      setTakeoverLoading(false)
+    }
+  }
+
+  const handleReturnConversationToAi = async () => {
+    if (!selectedConversation) {
+      return
+    }
+
+    setReturnToAiError(null)
+    setTakeoverError(null)
+    setReturnToAiLoading(true)
+
+    try {
+      await returnConversationToAi(selectedConversation._id)
+
+      setSelectedConversation((current) =>
+        current && current._id === selectedConversation._id
+          ? {
+              ...current,
+              aiEnabled: true,
+              assignedAgent: null,
+            }
+          : current
+      )
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation._id === selectedConversation._id
+            ? {
+                ...conversation,
+                aiEnabled: true,
+                assignedAgent: null,
+              }
+            : conversation
+        )
+      )
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to return conversation to AI"
+      setReturnToAiError(message)
+    } finally {
+      setReturnToAiLoading(false)
+    }
+  }
+
+  const handleSendAgentMessage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!selectedConversation) {
+      return
+    }
+
+    const content = agentMessage.trim()
+    if (!content) {
+      setAgentMessageError("Please enter a message before sending.")
+      return
+    }
+
+    setAgentMessageError(null)
+    setAgentMessageLoading(true)
+
+    try {
+      await sendAgentMessage(selectedConversation._id, content)
+      setAgentMessage("")
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to send message"
+      setAgentMessageError(message)
+    } finally {
+      setAgentMessageLoading(false)
     }
   }
 
@@ -406,7 +679,27 @@ export default function ConversationsPage() {
               </Alert>
             ) : (
               <div className="space-y-3">
-                {filteredConversations.map((conversation) => {
+                <div className="sticky top-0 z-10 -mx-4 -mt-4 flex flex-wrap gap-2 bg-card/95 px-4 pb-3 pt-4 backdrop-blur-sm">
+                  {dateTabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition",
+                        selectedDateKey === tab.key
+                          ? "border border-primary/40 bg-primary/10 text-primary"
+                          : "border border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                      )}
+                      onClick={() => setSelectedDateKey(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+
+                {(dateTabs.find((tab) => tab.key === selectedDateKey)?.conversations ?? []).map(
+                  (conversation) => {
                   const isActive = selectedConversation?._id === conversation._id
                   const name = conversation.customerName || conversation.customerPhone
                   const initials = getInitials(conversation.customerName || conversation.customerPhone)
@@ -455,7 +748,8 @@ export default function ConversationsPage() {
                       </div>
                     </button>
                   )
-                })}
+                }
+                )}
               </div>
             )}
           </div>
@@ -507,11 +801,21 @@ export default function ConversationsPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="h-9 rounded-full bg-rose-500/15 px-4 text-xs font-semibold text-rose-400 hover:bg-rose-500/25"
-                  onClick={handleOpenTicketDialog}
-                  disabled={!selectedConversation}
+                  className="h-9 rounded-full bg-emerald-500/15 px-4 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25"
+                  onClick={handleReturnConversationToAi}
+                  disabled={!selectedConversation || selectedConversation.aiEnabled === true || returnToAiLoading}
                 >
-                  Takeover Chat
+                  {returnToAiLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Return to AI
+                </Button>
+                <Button
+                  type="button"
+                  className="h-9 rounded-full bg-rose-500/15 px-4 text-xs font-semibold text-rose-400 hover:bg-rose-500/25"
+                  onClick={handleTakeoverConversation}
+                  disabled={!selectedConversation || selectedConversation?.aiEnabled === false || takeoverLoading}
+                >
+                  {takeoverLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Take Over Chat
                 </Button>
                 <Button
                   type="button"
@@ -528,10 +832,16 @@ export default function ConversationsPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
-            {ticketBanner ? (
-              <Alert className="mb-4">
-                <AlertTitle>Ticket created</AlertTitle>
-                <AlertDescription>{ticketBanner}</AlertDescription>
+            {takeoverError ? (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Takeover failed</AlertTitle>
+                <AlertDescription>{takeoverError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {returnToAiError ? (
+              <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Return to AI failed</AlertTitle>
+                <AlertDescription>{returnToAiError}</AlertDescription>
               </Alert>
             ) : null}
             {!selectedConversation ? (
@@ -586,7 +896,25 @@ export default function ConversationsPage() {
                   </Alert>
                 ) : (
                   <div className="space-y-5">
-                    {messages.map((message) => {
+                    <div className="sticky top-0 z-10 -mx-6 -mt-2 px-6 py-2 flex flex-wrap gap-2 bg-background/80 backdrop-blur-sm border-b border-border/60">
+                      {messageDateTabs.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          className={cn(
+                            "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition",
+                            selectedMessageDateKey === tab.key
+                              ? "border border-primary/40 bg-primary/10 text-primary"
+                              : "border border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                          )}
+                          onClick={() => setSelectedMessageDateKey(tab.key)}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(messageDateTabs.find((tab) => tab.key === selectedMessageDateKey)?.messages ?? []).map((message) => {
                       const bubbleClass =
                         messageBubbleStyles[message.senderType] ?? messageBubbleStyles.customer
                       const isCustomer = message.senderType === "customer"
@@ -603,7 +931,12 @@ export default function ConversationsPage() {
                               isCustomer ? "rounded-tr-none" : "rounded-tl-none"
                             )}
                           >
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                            <div
+                              className={cn(
+                                "flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.18em]",
+                                isCustomer ? "text-primary-foreground/75" : "text-muted-foreground"
+                              )}
+                            >
                               <span>{message.senderType}</span>
                               <span>{formatDateTime(message.createdAt)}</span>
                             </div>
@@ -663,62 +996,37 @@ export default function ConversationsPage() {
               </div>
             )}
           </div>
+
+          {selectedConversation && selectedConversation.aiEnabled === false ? (
+            <div className="border-t border-border/60 bg-background/80 px-6 py-4">
+              <form onSubmit={handleSendAgentMessage} className="space-y-3">
+                {agentMessageError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Unable to send message</AlertTitle>
+                    <AlertDescription>{agentMessageError}</AlertDescription>
+                  </Alert>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Input
+                    value={agentMessage}
+                    onChange={(event) => setAgentMessage(event.target.value)}
+                    placeholder="Type a reply to the customer..."
+                    className="flex-1"
+                  />
+                  <Button type="submit" className="gap-2" disabled={agentMessageLoading}>
+                    {agentMessageLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+                    Send
+                  </Button>
+                </div>
+              </form>
+            </div>
+          ) : selectedConversation ? (
+            <div className="border-t border-border/60 bg-muted/40 px-6 py-4 text-xs text-muted-foreground">
+              Enable takeover to chat with this customer in real time.
+            </div>
+          ) : null}
         </div>
       </section>
-
-      <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create a human handoff ticket</DialogTitle>
-            <DialogDescription>
-              Add a short title and description so your admin can follow up.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateTicket} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Title
-              </label>
-              <Input
-                value={ticketTitle}
-                onChange={(event) => setTicketTitle(event.target.value)}
-                placeholder="API key reset failed"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Description
-              </label>
-              <textarea
-                value={ticketDescription}
-                onChange={(event) => setTicketDescription(event.target.value)}
-                placeholder="Provide a short summary of the issue and next steps."
-                className="min-h-[120px] w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                required
-              />
-            </div>
-
-            {ticketError ? (
-              <Alert variant="destructive">
-                <AlertTitle>Unable to create ticket</AlertTitle>
-                <AlertDescription>{ticketError}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setIsTicketDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="gap-2" disabled={ticketLoading}>
-                {ticketLoading ? <Loader2 className="size-4 animate-spin" /> : null}
-                Create ticket
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

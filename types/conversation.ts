@@ -70,7 +70,7 @@ export type SendConversationTestMessageInput = {
   }
 }
 
-export type ConversationResponseMode = "rag" | "fallback"
+export type ConversationResponseMode = "rag" | "fallback" | "human_handoff"
 
 export type ConversationRetrievedSource = {
   embeddingId: string

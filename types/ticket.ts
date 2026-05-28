@@ -2,7 +2,7 @@ export type TicketStatus = "open" | "pending" | "closed"
 
 export type TicketRecord = {
   _id: string
-  conversationId: string
+  conversationId: string | null
   title: string
   description: string
   status: TicketStatus
@@ -17,7 +17,7 @@ export type TicketListResult = {
 }
 
 export type CreateTicketInput = {
-  conversationId: string
+  conversationId?: string
   title: string
   description: string
   customerName?: string

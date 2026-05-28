@@ -1,5 +1,5 @@
 import { getStoredToken } from "@/services/auth.service"
-import type { CreateTicketInput, CreateTicketResult, TicketListResult } from "@/types/ticket"
+import type { CreateTicketInput, CreateTicketResult, TicketListResult, TicketRecord } from "@/types/ticket"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
 
@@ -68,6 +68,38 @@ export async function listTickets(params?: {
 
   if (!response.ok || body?.success === false || !body?.data) {
     throw new Error(body?.message ?? "Failed to load tickets.")
+  }
+
+  return body.data
+}
+
+export async function updateTicketStatus(
+  ticketId: string,
+  status: "open" | "pending" | "closed"
+): Promise<{ ticket: TicketRecord }> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to update tickets")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/status`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    }
+  )
+
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<{ ticket: TicketRecord }>
+    | null
+
+  if (!response.ok || body?.success === false || !body?.data) {
+    throw new Error(body?.message ?? "Failed to update ticket status.")
   }
 
   return body.data

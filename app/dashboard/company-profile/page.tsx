@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Users,
+  Zap,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -34,13 +35,14 @@ const DEFAULT_FALLBACK_MESSAGE = "Our team will get back to you shortly."
 const DEFAULT_TIMEZONE = "Africa/Mogadishu"
 const DEFAULT_LANGUAGE = "en"
 
-type TabId = "profile" | "contact" | "business" | "support"
+type TabId = "profile" | "contact" | "business" | "support" | "features"
 
 const tabs: { id: TabId; label: string; icon: React.ElementType; description: string }[] = [
   { id: "profile", label: "Profile", icon: Building2, description: "Company identity and branding" },
   { id: "contact", label: "Contact", icon: Mail, description: "Support email, phone, and address" },
   { id: "business", label: "Business", icon: ShoppingBag, description: "Services, products, and policies" },
   { id: "support", label: "Support", icon: MessageSquare, description: "Fallback messages and preferences" },
+  { id: "features", label: "Features", icon: Zap, description: "Enable optional AI capabilities for your organization" },
 ]
 
 const formatDate = (value: string) => {
@@ -82,6 +84,7 @@ const emptyProfileForm = (): UpdateCompanyProfileInput => ({
     timezone: DEFAULT_TIMEZONE,
     language: DEFAULT_LANGUAGE,
   },
+  enabledFeatures: [],
 })
 
 const mapOrganizationToForm = (
@@ -116,6 +119,7 @@ const mapOrganizationToForm = (
       timezone: organization.supportSettings.timezone || DEFAULT_TIMEZONE,
       language: organization.supportSettings.language || DEFAULT_LANGUAGE,
     },
+    enabledFeatures: Array.isArray(organization.enabledFeatures) ? organization.enabledFeatures : [],
   }
 }
 
@@ -226,6 +230,7 @@ export default function CompanyProfilePage() {
         timezone: formData.supportSettings.timezone.trim() || DEFAULT_TIMEZONE,
         language: formData.supportSettings.language.trim() || DEFAULT_LANGUAGE,
       },
+      enabledFeatures: formData.enabledFeatures,
     }
 
     try {
@@ -701,6 +706,32 @@ export default function CompanyProfilePage() {
             </div>
           ) : null}
 
+          {/* ─── Features Tab ─── */}
+          {activeTab === "features" ? (
+            <div className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Toggle optional AI capabilities for your organization. Core features like support, tickets, and human handoff are always enabled.
+              </p>
+              <FeatureToggle
+                id="orders"
+                label="Orders"
+                description="Allow the AI to collect and create customer orders during conversations."
+                enabled={(formData.enabledFeatures ?? []).includes("orders")}
+                onChange={(checked) => {
+                  setFormData((prev) => {
+                    const current = prev.enabledFeatures ?? []
+                    return {
+                      ...prev,
+                      enabledFeatures: checked
+                        ? [...current.filter((f) => f !== "orders"), "orders"]
+                        : current.filter((f) => f !== "orders"),
+                    }
+                  })
+                }}
+              />
+            </div>
+          ) : null}
+
           {/* ─── Save Button ─── */}
           <div className="mt-8 flex items-center justify-between border-t border-border/50 pt-5">
             <p className="text-xs text-muted-foreground">
@@ -760,6 +791,48 @@ function FieldGroup({
         <p className="text-[11px] text-muted-foreground">{hint}</p>
       ) : null}
       {children}
+    </div>
+  )
+}
+
+/* ─── Reusable feature toggle component ─── */
+function FeatureToggle({
+  id,
+  label,
+  description,
+  enabled,
+  onChange,
+}: {
+  id: string
+  label: string
+  description: string
+  enabled: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+      <div className="flex-1 space-y-1 pr-4">
+        <label htmlFor={id} className="text-sm font-semibold text-foreground cursor-pointer">
+          {label}
+        </label>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+          enabled ? "bg-primary" : "bg-muted-foreground/30"
+        }`}
+      >
+        <span
+          className={`pointer-events-none block size-5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${
+            enabled ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
     </div>
   )
 }
