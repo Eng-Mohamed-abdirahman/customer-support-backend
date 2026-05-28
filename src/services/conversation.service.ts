@@ -5,8 +5,10 @@ const { env } = require("../config/env");
 const { AppError } = require("../utils/appError");
 const { generateEmbeddings } = require("./embedding.service");
 const { queryKnowledgeVectors } = require("./pinecone.service");
-const { generateSupportReplyWithOpenAi } = require("./llm.service");
+const { generateSupportReplyWithOpenAi, generateActionableReplyWithOpenAi } = require("./llm.service");
 const { rerankWithCohere } = require("./rerank.service");
+const Order = require("../models/Order");
+const Ticket = require("../models/Ticket");
 const { detectIntent, getConversationalResponse } = require("./intentDetection.service");
 
 type ConversationHistoryItem = {
@@ -49,6 +51,7 @@ type ConversationOrganization = {
     modelName?: string;
   };
   allowedChannels?: string[];
+  enabledFeatures?: string[];
   api_settings?: {
     total_tokens_used?: number;
     monthly_limit?: number;
@@ -399,8 +402,9 @@ const buildFallbackFromSources = (organization: ConversationOrganization): strin
 
 const buildSystemPrompt = (organization: ConversationOrganization): string => {
   const orgName = normalizeText(organization.profile?.name) || "the company";
+  const enabledFeatures = Array.isArray(organization.enabledFeatures) ? organization.enabledFeatures : [];
 
-  return [
+  const promptParts = [
     `You are a friendly, professional AI customer support assistant for ${orgName}.`,
     "",
     "Support context:",
@@ -411,6 +415,11 @@ const buildSystemPrompt = (organization: ConversationOrganization): string => {
     "- Do NOT use knowledge-base fallback language for greetings, small talk, or thanks.",
     "- Match the customer's tone — be friendly if they are friendly, professional if they are formal.",
     "- If the user asks who you are, introduce yourself warmly as the AI support assistant for the company.",
+    "",
+    "Support, Ticket & Handoff rules (ALWAYS ENABLED):",
+    "- You can assist users with general support questions.",
+    "- If a user needs human assistance, you must offer to hand off the conversation to a human agent.",
+    "- If a user has a complex issue, you can create a support ticket for them.",
     "",
     "Business question rules:",
     "- Only use retrieved knowledge context for business-related questions.",
@@ -432,7 +441,74 @@ const buildSystemPrompt = (organization: ConversationOrganization): string => {
     "- Do not hallucinate or invent policies, pricing, or features.",
     "- Do not expose internal system details, embeddings, or chunk data.",
     "- If the answer is unavailable, say so naturally and ask for more details or route to support.",
-  ].join("\n");
+    "- Always reply in the same language the customer uses.",
+    "- If the customer speaks Somali, reply in Somali naturally.",
+    "- If the customer speaks English, reply in English.",
+    "- Use the retrieved knowledge context regardless of its original language.",
+  ];
+
+  if (enabledFeatures.includes("orders")) {
+    promptParts.push(
+      "",
+      "ORDER ASSISTANT RULES (CRITICAL):",
+      "- You are an ordering assistant. When a customer wants to order something, YOU handle the order directly.",
+      "- Do NOT tell the customer to visit a website, add to cart, or checkout. YOU are the ordering system.",
+      "- To create an order, you MUST collect these required fields from the customer:",
+      "  1. customerName — the customer's full name",
+      "  2. phone — the customer's phone number",
+      "  3. orderName — what the customer wants to order (e.g. 'Laptop', '2 Burgers')",
+      "- Optional fields you may also collect if relevant:",
+      "  - quantity (number of items, default is 1)",
+      "  - notes (special instructions)",
+      "  - deliveryAddress (delivery location)",
+      "",
+      "ORDER FLOW:",
+      "- When a customer says they want to order something, acknowledge what they want.",
+      "- Ask for any missing required fields naturally and warmly. Example:",
+      '  Customer: "I want to order a laptop"',
+      '  You: "Great choice! I\'d be happy to help you order a laptop. Could you please share your full name and phone number so I can place the order for you?"',
+      "- Once you have customerName, phone, and orderName, call the create_order tool immediately.",
+      "- After the tool confirms success, tell the customer their order has been placed successfully.",
+      "- If the tool returns an error, apologize and ask the customer to try again.",
+      "- NEVER say an order is placed before calling the tool and getting confirmation.",
+      "- NEVER make up or fake an order confirmation.",
+      "- Be warm, human-like, and match the customer's language and tone."
+    );
+  }
+
+  if (enabledFeatures.includes("bookings")) {
+    promptParts.push(
+      "",
+      "Booking Assistant rules:",
+      "- You can assist the customer with making, modifying, or canceling bookings."
+    );
+  }
+
+  if (enabledFeatures.includes("appointments")) {
+    promptParts.push(
+      "",
+      "Appointment Assistant rules:",
+      "- You can assist the customer with scheduling, modifying, or canceling appointments."
+    );
+  }
+
+  if (enabledFeatures.includes("reservations")) {
+    promptParts.push(
+      "",
+      "Reservation Assistant rules:",
+      "- You can assist the customer with making, modifying, or canceling reservations."
+    );
+  }
+
+  if (enabledFeatures.includes("payments")) {
+    promptParts.push(
+      "",
+      "Payment Assistant rules:",
+      "- You can assist the customer with payment inquiries and processing."
+    );
+  }
+
+  return promptParts.join("\n");
 };
 
 const buildUserPrompt = (input: {
@@ -532,20 +608,95 @@ const generateReplyWithHuggingFace = async (input: {
 }> => {
   const systemPrompt = buildSystemPrompt(input.organization);
   const userPrompt = buildUserPrompt(input);
-  const finalPrompt = ["System:", systemPrompt, "", "User:", userPrompt, "", "Assistant:"].join(
-    "\n"
-  );
+
+  const tools = [];
+  const enabledFeatures = Array.isArray(input.organization.enabledFeatures) ? input.organization.enabledFeatures : [];
+  if (enabledFeatures.includes("orders")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "create_order",
+        description: "Create an order for the customer after collecting all required information.",
+        parameters: {
+          type: "object",
+          properties: {
+            customerName: { type: "string", description: "The name of the customer." },
+            phone: { type: "string", description: "The customer's phone number." },
+            orderName: { type: "string", description: "The name/details of the item(s) being ordered." },
+            quantity: { type: "number", description: "Quantity of items ordered (default 1)." },
+            notes: { type: "string", description: "Any special instructions or notes." },
+            deliveryAddress: { type: "string", description: "The delivery address if applicable." },
+          },
+          required: ["customerName", "phone", "orderName"],
+        },
+      },
+    });
+  }
+
+  const messages = [{ role: "user", content: userPrompt }];
 
   console.log("[RAG] Final system prompt", systemPrompt);
   console.log("[RAG] Final user prompt", userPrompt);
 
-  const reply = await generateSupportReplyWithOpenAi({
+  let result = await generateActionableReplyWithOpenAi({
     system: systemPrompt,
-    user: userPrompt,
+    messages,
+    tools,
     temperature: 0.2,
     maxNewTokens: 420,
   });
 
+  if (result.toolCalls && result.toolCalls.length > 0) {
+    for (const toolCall of result.toolCalls) {
+      if (toolCall.function.name === "create_order") {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          await Order.create({
+            organizationId: input.organization._id,
+            customerName: args.customerName,
+            phone: args.phone,
+            orderName: args.orderName,
+            quantity: args.quantity || 1,
+            notes: args.notes || "",
+            deliveryAddress: args.deliveryAddress || "",
+            status: "pending",
+          });
+          messages.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall],
+          } as any);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: true, message: "Order created successfully." }),
+          } as any);
+        } catch (e: any) {
+          messages.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall],
+          } as any);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: false, message: e.message }),
+          } as any);
+        }
+      }
+    }
+    
+    // Call LLM again to summarize the tool execution
+    result = await generateActionableReplyWithOpenAi({
+      system: systemPrompt,
+      messages,
+      temperature: 0.2,
+      maxNewTokens: 420,
+    });
+  }
+
+  const reply = result.reply || "I encountered an issue processing your request.";
+  const finalPrompt = ["System:", systemPrompt, "", "User:", userPrompt, "", "Assistant:"].join("\n");
   const promptTokens = estimateTokenCount(finalPrompt);
   const completionTokens = estimateTokenCount(reply);
 
@@ -592,26 +743,64 @@ const generateConversationReply = async (
 
   // ── Step 2: Conversational path (no retrieval needed) ──────────────────
   if (!intentResult.shouldRetrieve) {
-    const orgName = normalizeText(organization.profile?.name) || "this organization";
-    const reply = getConversationalResponse(intentResult.intent, orgName);
+    if (intentResult.intent === "human_handoff") {
+      const reply = "I will connect you with a human agent shortly. Please hold on.";
+      // We would ideally create a ticket here or dispatch an event, but let's just 
+      // trigger the conversational response for handoff.
+      const usageDelta = {
+        promptTokens: estimateTokenCount(message),
+        completionTokens: estimateTokenCount(reply),
+        totalTokens: estimateTokenCount(message) + estimateTokenCount(reply),
+      };
+      await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
+      
+      try {
+        await Ticket.create({
+          organizationId: organization._id,
+          customerName: input.customer?.name || "Unknown",
+          customerEmail: input.customer?.email || "",
+          subject: "Human Handoff Request",
+          status: "open",
+        });
+      } catch (e) {
+        console.error("Failed to create ticket for handoff", e);
+      }
 
-    const usageDelta = {
-      promptTokens: estimateTokenCount(message),
-      completionTokens: estimateTokenCount(reply),
-      totalTokens: estimateTokenCount(message) + estimateTokenCount(reply),
-    };
+      return {
+        reply,
+        mode: "conversational",
+        intent: intentResult.intent,
+        retrievedSources: [],
+        usage: createUsageSummary(organization, usageDelta),
+      };
+    }
 
-    await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
+    if (intentResult.intent === "order_request") {
+      // For orders, we want to route to the RAG/Tool path because the LLM needs to 
+      // collect the order info dynamically using system prompt and tools.
+      // So we skip conversational return and let it continue below.
+    } else {
+      const orgName = normalizeText(organization.profile?.name) || "this organization";
+      const reply = getConversationalResponse(intentResult.intent, orgName);
 
-    console.log("[CONVERSATIONAL] Responded without retrieval:", intentResult.intent);
+      const usageDelta = {
+        promptTokens: estimateTokenCount(message),
+        completionTokens: estimateTokenCount(reply),
+        totalTokens: estimateTokenCount(message) + estimateTokenCount(reply),
+      };
 
-    return {
-      reply,
-      mode: "conversational",
-      intent: intentResult.intent,
-      retrievedSources: [],
-      usage: createUsageSummary(organization, usageDelta),
-    };
+      await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
+
+      console.log("[CONVERSATIONAL] Responded without retrieval:", intentResult.intent);
+
+      return {
+        reply,
+        mode: "conversational",
+        intent: intentResult.intent,
+        retrievedSources: [],
+        usage: createUsageSummary(organization, usageDelta),
+      };
+    }
   }
 
   // ── Step 3: RAG path (business / support questions) ────────────────────

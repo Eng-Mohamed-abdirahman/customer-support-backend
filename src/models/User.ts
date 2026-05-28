@@ -75,3 +75,5 @@ userSchema.pre("validate", function (this: any) {
 // Controller flow rule for company-admin user creation:
 // Never trust companyId from req.body. Always set newUser.company = req.user.company.
 module.exports = mongoose.model("User", userSchema);
+
+export {};
