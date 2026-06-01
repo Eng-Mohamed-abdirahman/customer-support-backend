@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Ticket,
+  ShoppingCart,
   Puzzle,
   ReceiptText,
   Settings,
@@ -95,6 +96,13 @@ const generalNavItems: DashboardNavItem[] = [
     href: "/dashboard/tickets",
     icon: Ticket,
     description: "Human handoff requests",
+    access: { membershipRoles: organizationAdminRoles },
+  },
+  {
+    title: "Orders",
+    href: "/dashboard/orders",
+    icon: ShoppingCart,
+    description: "AI generated orders",
     access: { membershipRoles: organizationAdminRoles },
   },
   {

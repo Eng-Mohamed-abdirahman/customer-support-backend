@@ -236,6 +236,101 @@ export async function listConversationMessages(
   return body.data
 }
 
+export async function takeoverConversation(conversationId: string): Promise<{
+  conversationId: string
+  assignedAgent: string
+}> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to take over conversations")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/takeover`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  )
+
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<{ conversationId: string; assignedAgent: string }>
+    | null
+
+  if (!response.ok || body?.success === false || !body?.data) {
+    throw new Error(body?.message ?? "Failed to take over conversation.")
+  }
+
+  return body.data
+}
+
+export async function returnConversationToAi(conversationId: string): Promise<{
+  conversationId: string
+  assignedAgent: string | null
+}> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to return conversations to AI")
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/return-to-ai`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  )
+
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<{ conversationId: string; assignedAgent: string | null }>
+    | null
+
+  if (!response.ok || body?.success === false || !body?.data) {
+    throw new Error(body?.message ?? "Failed to return conversation to AI.")
+  }
+
+  return body.data
+}
+
+export async function sendAgentMessage(conversationId: string, content: string): Promise<{
+  message: ConversationMessageRecord
+}> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to send messages")
+  }
+
+  const payload = {
+    content,
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  )
+
+  const body = (await response.json().catch(() => null)) as
+    | ApiEnvelope<{ message: ConversationMessageRecord }>
+    | null
+
+  if (!response.ok || body?.success === false || !body?.data) {
+    throw new Error(body?.message ?? "Failed to send message.")
+  }
+
+  return body.data
+}
+
 export async function sendAiChatMessage(input: {
   apiKey: string
   message: string
