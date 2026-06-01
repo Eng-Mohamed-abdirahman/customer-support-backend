@@ -7,6 +7,7 @@ import type {
   ConversationKnowledgeSnapshotResult,
   ConversationUsage,
   ConversationListResult,
+  ConversationMessageRecord,
   ConversationMessagesResult,
   SendConversationTestMessageInput,
   SendConversationTestMessageResult,
