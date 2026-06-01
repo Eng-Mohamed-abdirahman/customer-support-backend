@@ -71,6 +71,7 @@ export type CompanyAdminEditableOrganization = {
   contact: OrganizationContact
   businessInfo: OrganizationBusinessInfo
   supportSettings: OrganizationSupportSettings
+  enabledFeatures: string[]
 }
 
 export type OrganizationMember = {
@@ -183,6 +184,7 @@ export type UpdateCompanyProfileInput = {
   contact: OrganizationContact
   businessInfo: OrganizationBusinessInfo
   supportSettings: OrganizationSupportSettings
+  enabledFeatures?: string[]
 }
 
 export type UpdateCompanyProfileResult = {
