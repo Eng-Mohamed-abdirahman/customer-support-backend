@@ -133,6 +133,10 @@ const organizationSchema = new mongoose.Schema(
         default: "gpt-4o-mini",
       },
     },
+    enabledFeatures: {
+      type: [String],
+      default: [],
+    },
     allowedChannels: {
       type: [String],
       default: ["website"],

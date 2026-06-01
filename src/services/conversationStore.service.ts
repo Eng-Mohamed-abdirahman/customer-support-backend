@@ -1,5 +1,6 @@
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
+const { emitToConversation, emitToOrganization } = require("./socket.service");
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -89,6 +90,28 @@ const appendMessage = async (input: {
     { _id: input.conversationId, organizationId: input.organizationId },
     { $set: { lastMessageAt: new Date() } }
   );
+
+  const messagePayload = {
+    _id: String(message._id),
+    organizationId: String(message.organizationId),
+    conversationId: String(message.conversationId),
+    senderType: message.senderType,
+    messageType: message.messageType,
+    contentText: message.contentText,
+    media: message.media,
+    aiGenerated: message.aiGenerated,
+    externalId: message.externalId,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
+  };
+
+  emitToOrganization(String(input.organizationId), "message:new", messagePayload);
+  emitToConversation(String(input.conversationId), "message:new", messagePayload);
+
+  emitToOrganization(String(input.organizationId), "conversation:updated", {
+    conversationId: String(input.conversationId),
+    lastMessageAt: new Date(),
+  });
 
   return message;
 };

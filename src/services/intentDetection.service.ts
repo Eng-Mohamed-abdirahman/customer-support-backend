@@ -11,7 +11,10 @@ export type IntentType =
   | "goodbye"
   | "smalltalk"
   | "thanks"
+  | "thanks"
   | "identity"
+  | "human_handoff"
+  | "order_request"
   | "support_question";
 
 export type IntentResult = {
@@ -67,6 +70,22 @@ const IDENTITY_PATTERNS: RegExp[] = [
   /introduce\s*yourself/i,
 ];
 
+const ORDER_PATTERNS: RegExp[] = [
+  /i\s*want\s*to\s*(order|buy|purchase|get)/i,
+  /can\s*i\s*(order|buy|purchase|get)/i,
+  /i'?d\s*like\s*to\s*(order|buy|purchase|get)/i,
+  /place\s*(an|my)\s*order/i,
+  /order\s*(some|a|an)/i,
+];
+
+const HANDOFF_PATTERNS: RegExp[] = [
+  /talk\s*to\s*(a\s*)?(human|person|agent|representative|operator)/i,
+  /speak\s*with\s*(a\s*)?(human|person|agent|representative|operator)/i,
+  /real\s*(person|human)/i,
+  /(human|agent)\s*support/i,
+  /escalate/i,
+];
+
 // ── Matching helpers ─────────────────────────────────────────────────────────
 
 const matchesAny = (normalized: string, patterns: RegExp[]): boolean =>
@@ -116,6 +135,14 @@ const detectIntent = (message: string): IntentResult => {
     return { intent: "smalltalk", confidence: 0.9, shouldRetrieve: false };
   }
 
+  if (matchesAny(normalized, HANDOFF_PATTERNS)) {
+    return { intent: "human_handoff", confidence: 0.9, shouldRetrieve: false };
+  }
+
+  if (matchesAny(normalized, ORDER_PATTERNS)) {
+    return { intent: "order_request", confidence: 0.85, shouldRetrieve: false };
+  }
+
   // Everything else is a potential support question → trigger retrieval
   return { intent: "support_question", confidence: 0.8, shouldRetrieve: true };
 };
@@ -124,7 +151,7 @@ const detectIntent = (message: string): IntentResult => {
 // Multiple responses per intent so the assistant doesn't feel repetitive.
 
 type ConversationalResponsePool = Record<
-  Exclude<IntentType, "support_question">,
+  Exclude<IntentType, "support_question" | "human_handoff" | "order_request">,
   string[]
 >;
 
@@ -166,7 +193,7 @@ const RESPONSE_POOLS: ConversationalResponsePool = {
  * For the `identity` intent the organization name is injected.
  */
 const getConversationalResponse = (
-  intent: Exclude<IntentType, "support_question">,
+  intent: Exclude<IntentType, "support_question" | "human_handoff" | "order_request">,
   organizationName?: string
 ): string => {
   if (intent === "identity") {
