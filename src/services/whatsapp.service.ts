@@ -86,6 +86,12 @@ const listConnectionsByOrganizationId = async (organizationId: string) => {
   return WhatsAppConnection.find({ organizationId }).sort({ createdAt: -1 });
 };
 
+const getActiveConnectionByOrganizationId = async (organizationId: string) => {
+  return WhatsAppConnection.findOne({ organizationId, status: { $ne: "disconnected" } })
+    .sort({ connectedAt: -1 })
+    .select("+accessTokenEncrypted +accessTokenIv");
+};
+
 const disconnectConnection = async (organizationId: string, phoneNumberId: string) => {
   return WhatsAppConnection.findOneAndUpdate(
     { organizationId, phoneNumberId },
@@ -148,6 +154,7 @@ module.exports = {
   toConnectionResponse,
   upsertConnection,
   listConnectionsByOrganizationId,
+  getActiveConnectionByOrganizationId,
   disconnectConnection,
   getConnectionByVerifyToken,
   getConnectionByPhoneNumberId,

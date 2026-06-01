@@ -15,6 +15,7 @@ const ticketRoutes = require("./routes/ticket.routes");
 const whatsappRoutes = require("./routes/whatsapp.routes");
 const webhookRoutes = require("./routes/webhook.routes");
 const aiRoutes = require("./routes/ai.routes");
+const orderRoutes = require("./routes/order.routes");
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.disable("x-powered-by");
 app.use(
 	cors({
 		origin: "*",
-		methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
 	})
 );
@@ -61,6 +62,7 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use(errorHandler);
 

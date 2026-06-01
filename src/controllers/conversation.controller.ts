@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 
 const mongoose = require("mongoose");
 const Organization = require("../models/Organization");
+const Conversation = require("../models/Conversation");
+const Ticket = require("../models/Ticket");
 
 const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
@@ -19,6 +21,12 @@ const {
   appendMessage,
   getRecentHistory,
 } = require("../services/conversationStore.service");
+const { emitToOrganization } = require("../services/socket.service");
+const {
+  getActiveConnectionByOrganizationId,
+  resolveAccessToken,
+} = require("../services/whatsapp.service");
+const { sendWhatsAppTextMessage } = require("../services/whatsappGraph.service");
 
 const previewConversationOrganizationSelect =
   "_id status profile contact businessInfo supportSettings aiSettings allowedChannels api_settings";
@@ -28,6 +36,9 @@ type AuthenticatedUser = {
   role: "admin" | "company-admin" | "staff";
   company?: string | null;
   organizationId?: string | null;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 };
 
 const normalizeText = (value: unknown): string => {
@@ -149,6 +160,27 @@ const resolveOrganizationId = (req: Request): string => {
   return String(organizationId);
 };
 
+const resolveAgentDisplayName = (requester?: AuthenticatedUser): string => {
+  const firstName = normalizeText(requester?.firstName);
+  const lastName = normalizeText(requester?.lastName);
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+  return fullName || normalizeText(requester?.email) || "Support agent";
+};
+
+const resolveConversationById = async (organizationId: string, conversationId: string) => {
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    organizationId,
+  });
+
+  if (!conversation) {
+    throw new AppError("Conversation not found", 404);
+  }
+
+  return conversation;
+};
+
 const parseListConversationsPayload = (req: Request) => {
   const parsed = listConversationsSchema.safeParse(req.query);
 
@@ -197,6 +229,26 @@ const askCustomerConversation = asyncHandler(async (req: Request, res: Response)
     contentText: payload.message,
     aiGenerated: false,
   });
+
+  if (!conversation.aiEnabled) {
+    const organizationContext = toConversationOrganizationContext(organization);
+    apiResponse(res, 200, "Conversation reply generated successfully", {
+      reply: "",
+      mode: "human_handoff",
+      intent: "human_handoff",
+      retrievedSources: [],
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        totalTokensUsed: organizationContext.api_settings?.total_tokens_used ?? 0,
+        monthlyLimit: organizationContext.api_settings?.monthly_limit ?? 0,
+      },
+      channel,
+      conversationId: String(conversation._id),
+    });
+    return;
+  }
 
   const storedHistory = await getRecentHistory({
     organizationId,
@@ -294,11 +346,152 @@ const listConversationMessages = asyncHandler(async (req: Request, res: Response
   });
 });
 
+const takeoverConversation = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+  const conversationId = normalizeText(req.params?.id);
+  const requester = (req as any).user as AuthenticatedUser | undefined;
+
+  if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+    throw new AppError("Conversation not found", 404);
+  }
+
+  if (!requester?._id) {
+    throw new AppError("Not authorized to take over this conversation", 401);
+  }
+
+  const conversation = await resolveConversationById(organizationId, conversationId);
+  conversation.aiEnabled = false;
+  conversation.assignedAgent = requester._id;
+  await conversation.save();
+
+  await Ticket.findOneAndUpdate(
+    { organizationId, conversationId, status: "open" },
+    { $set: { assignedTo: requester._id, status: "pending" } },
+    { new: true }
+  );
+
+  const agentName = resolveAgentDisplayName(requester);
+  await appendMessage({
+    organizationId,
+    conversationId: String(conversation._id),
+    senderType: "system",
+    messageType: "text",
+    contentText: `Support agent ${agentName} has taken over the chat.`,
+    aiGenerated: false,
+  });
+
+  emitToOrganization(organizationId, "conversation:updated", {
+    conversationId: String(conversation._id),
+    aiEnabled: false,
+    assignedAgent: String(requester._id),
+    lastMessageAt: new Date(),
+  });
+
+  apiResponse(res, 200, "Conversation takeover completed", {
+    conversationId: String(conversation._id),
+    assignedAgent: String(requester._id),
+  });
+});
+
+const returnConversationToAi = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+  const conversationId = normalizeText(req.params?.id);
+  const requester = (req as any).user as AuthenticatedUser | undefined;
+
+  if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+    throw new AppError("Conversation not found", 404);
+  }
+
+  if (!requester?._id) {
+    throw new AppError("Not authorized to return this conversation", 401);
+  }
+
+  const conversation = await resolveConversationById(organizationId, conversationId);
+  conversation.aiEnabled = true;
+  conversation.assignedAgent = null;
+  await conversation.save();
+
+  await Ticket.findOneAndUpdate(
+    { organizationId, conversationId, status: "pending" },
+    { $set: { assignedTo: null, status: "open" } },
+    { new: true }
+  );
+
+  const agentName = resolveAgentDisplayName(requester);
+  await appendMessage({
+    organizationId,
+    conversationId: String(conversation._id),
+    senderType: "system",
+    messageType: "text",
+    contentText: `Support agent ${agentName} returned the chat to AI.`,
+    aiGenerated: false,
+  });
+
+  emitToOrganization(organizationId, "conversation:updated", {
+    conversationId: String(conversation._id),
+    aiEnabled: true,
+    assignedAgent: null,
+    lastMessageAt: new Date(),
+  });
+
+  apiResponse(res, 200, "Conversation returned to AI", {
+    conversationId: String(conversation._id),
+    assignedAgent: null,
+  });
+});
+
+const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+  const conversationId = normalizeText(req.params?.id);
+  const contentText = normalizeText(req.body?.content);
+
+  if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+    throw new AppError("Conversation not found", 404);
+  }
+
+  if (!contentText) {
+    throw new AppError("Message content is required", 400);
+  }
+
+  const conversation = await resolveConversationById(organizationId, conversationId);
+
+  const message = await appendMessage({
+    organizationId,
+    conversationId: String(conversation._id),
+    senderType: "agent",
+    messageType: "text",
+    contentText,
+    aiGenerated: false,
+  });
+
+  if (normalizeText(conversation.channel).toLowerCase() === "whatsapp") {
+    const connection = await getActiveConnectionByOrganizationId(organizationId);
+    if (!connection) {
+      throw new AppError("WhatsApp connection not found", 404);
+    }
+
+    const accessToken = resolveAccessToken(connection);
+    await sendWhatsAppTextMessage({
+      accessToken,
+      phoneNumberId: connection.phoneNumberId,
+      to: normalizeText(conversation.customerPhone),
+      text: contentText,
+    });
+  }
+
+  apiResponse(res, 200, "Message sent successfully", {
+    message,
+  });
+});
+
 module.exports = {
   askCustomerConversation,
   previewConversation,
   listOrganizationConversations,
   listConversationMessages,
+  takeoverConversation,
+  returnConversationToAi,
+  sendAgentMessage,
 };
 
 export {};

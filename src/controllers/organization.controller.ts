@@ -95,6 +95,9 @@ const buildCompanyAdminOrganizationPayload = (organization: any) => ({
     timezone: cleanString(organization?.supportSettings?.timezone, DEFAULT_TIMEZONE),
     language: cleanString(organization?.supportSettings?.language, DEFAULT_LANGUAGE),
   },
+  enabledFeatures: Array.isArray(organization?.enabledFeatures)
+    ? organization.enabledFeatures.filter((f: unknown) => typeof f === "string")
+    : [],
 });
 
 const buildApiKeyRecordPayload = (record: any) => {
@@ -466,7 +469,7 @@ const listMyCompanyUsers = asyncHandler(async (req: Request, res: Response) => {
   const requester = assertCompanyAdmin(req);
 
   const organization = await Organization.findById(requester.company)
-    .select("_id slug status profile contact businessInfo supportSettings createdAt")
+    .select("_id slug status profile contact businessInfo supportSettings enabledFeatures createdAt")
     .lean();
 
   if (!organization) {
@@ -502,7 +505,7 @@ const updateMyCompanyProfile = asyncHandler(async (req: Request, res: Response) 
   }
 
   const organization = await Organization.findById(requester.company).select(
-    "_id slug status profile contact businessInfo supportSettings createdAt +normalizedName"
+    "_id slug status profile contact businessInfo supportSettings enabledFeatures createdAt +normalizedName"
   );
 
   if (!organization) {
@@ -592,6 +595,12 @@ const updateMyCompanyProfile = asyncHandler(async (req: Request, res: Response) 
       cleanString(organization.supportSettings?.language, DEFAULT_LANGUAGE)
     ),
   };
+
+  if (parsed.data.enabledFeatures !== undefined) {
+    organization.enabledFeatures = Array.isArray(parsed.data.enabledFeatures)
+      ? parsed.data.enabledFeatures.filter((f: unknown) => typeof f === "string")
+      : [];
+  }
 
   organization.normalizedName = nextNormalizedName;
 
@@ -788,7 +797,17 @@ const getOrganizationAdminSettings = asyncHandler(async (req: Request, res: Resp
 const updateOrganizationAdminSettings = asyncHandler(async (req: Request, res: Response) => {
   assertPlatformAdmin(req);
 
-  const parsed = updateOrganizationAdminSettingsSchema.safeParse(req.body);
+  const payload = { ...(req.body ?? {}) } as Record<string, unknown>;
+
+  if (payload.iSettings && !payload.aiSettings) {
+    payload.aiSettings = payload.iSettings;
+  }
+
+  if (payload.iSettings) {
+    delete payload.iSettings;
+  }
+
+  const parsed = updateOrganizationAdminSettingsSchema.safeParse(payload);
   if (!parsed.success) {
     throw new AppError(parsed.error.issues[0]?.message ?? "Invalid request payload", 400);
   }

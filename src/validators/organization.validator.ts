@@ -61,8 +61,18 @@ const superAdminSettingsSchema = z
       .object({
         apiKeyHash: optionalShortText("API key hash", 300),
         keyPrefix: optionalShortText("Key prefix", 80),
-        totalTokensUsed: z.number().int().nonnegative("Total tokens used must be >= 0").optional(),
-        monthlyLimit: z.number().int().nonnegative("Monthly limit must be >= 0").optional(),
+        totalTokensUsed: z
+          .coerce
+          .number()
+          .int()
+          .nonnegative("Total tokens used must be >= 0")
+          .optional(),
+        monthlyLimit: z
+          .coerce
+          .number()
+          .int()
+          .nonnegative("Monthly limit must be >= 0")
+          .optional(),
       })
       .optional(),
     subscription: z
@@ -91,6 +101,9 @@ const updateMyOrganizationProfileSchema = z.object({
   contact: companyAdminProfileSchema.shape.contact,
   businessInfo: companyAdminProfileSchema.shape.businessInfo,
   supportSettings: companyAdminProfileSchema.shape.supportSettings,
+  enabledFeatures: z
+    .array(z.string().trim().min(1, "Feature name cannot be empty"))
+    .optional(),
 }).strict();
 
 const createApiKeySchema = z.object({

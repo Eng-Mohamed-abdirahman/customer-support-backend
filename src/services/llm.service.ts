@@ -38,17 +38,17 @@ const generateSupportReplyWithOpenAi = async (input: {
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
   });
 
-  const response = (await client.responses.create({
+  const response = await client.chat.completions.create({
     model,
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
-    max_output_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
-    input: [
+    max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
+    messages: [
       ...(input.system ? [{ role: "system", content: input.system }] : []),
       { role: "user", content: input.user || "" },
     ],
-  })) as any;
+  });
 
-  const generatedText = (response?.output_text || "").trim();
+  const generatedText = (response.choices[0]?.message?.content || "").trim();
 
   console.log("[LLM] Response", {
     responseType: typeof response,
@@ -62,8 +62,60 @@ const generateSupportReplyWithOpenAi = async (input: {
   return generatedText;
 };
 
+const generateActionableReplyWithOpenAi = async (input: {
+  system?: string;
+  messages: any[];
+  tools?: any[];
+  temperature?: number;
+  maxNewTokens?: number;
+}): Promise<{
+  reply: string | null;
+  toolCalls?: any[];
+}> => {
+  const client = getOpenAiClient();
+  const model = env.OPENAI_LLM_MODEL || "gpt-4o-mini";
+
+  console.log("[LLM Actionable] Request", {
+    model,
+    mode: "openai_tools",
+    messageCount: input.messages.length,
+    tools: input.tools?.map((t) => t.function.name) || [],
+  });
+
+  const requestBody: any = {
+    model,
+    temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
+    max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
+    messages: [
+      ...(input.system ? [{ role: "system", content: input.system }] : []),
+      ...input.messages,
+    ],
+  };
+
+  if (input.tools && input.tools.length > 0) {
+    requestBody.tools = input.tools;
+    requestBody.tool_choice = "auto";
+  }
+
+  const response = await client.chat.completions.create(requestBody);
+
+  const message = response.choices[0]?.message;
+
+  if (message?.tool_calls && message.tool_calls.length > 0) {
+    return {
+      reply: message.content,
+      toolCalls: message.tool_calls,
+    };
+  }
+
+  return {
+    reply: (message?.content || "").trim(),
+  };
+};
+
 module.exports = {
   generateSupportReplyWithOpenAi,
+  generateActionableReplyWithOpenAi,
 };
 
 export {};
