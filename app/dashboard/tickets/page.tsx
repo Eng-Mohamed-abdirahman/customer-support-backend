@@ -85,7 +85,7 @@ const formatSessionId = (value?: string | null) => {
   return `#SESS-${value.slice(-4).toUpperCase()}`
 }
 
-const isValidConversationId = (value?: string | null) => Boolean(value && value !== "null")
+const isValidConversationId = (value?: string | null): value is string => Boolean(value && value !== "null")
 
 export default function TicketsPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -230,19 +230,20 @@ export default function TicketsPage() {
       aiEnabled?: boolean
       assignedAgent?: string
     }) => {
-      if (!payload?.conversationId) {
+      const conversationId = payload?.conversationId
+      if (!conversationId) {
         return
       }
 
       setConversationLookup((prev) => {
-        const current = prev[payload.conversationId]
+        const current = prev[conversationId]
         if (!current) {
           return prev
         }
 
         return {
           ...prev,
-          [payload.conversationId]: {
+          [conversationId]: {
             ...current,
             lastMessageAt: payload.lastMessageAt ?? current.lastMessageAt,
             aiEnabled:
@@ -271,7 +272,8 @@ export default function TicketsPage() {
   }
 
   const handleTakeoverConversation = async () => {
-    if (!isValidConversationId(selectedTicket?.conversationId)) {
+    const conversationId = selectedTicket?.conversationId
+    if (!isValidConversationId(conversationId)) {
       return
     }
 
@@ -280,16 +282,16 @@ export default function TicketsPage() {
     setTakeoverLoading(true)
 
     try {
-      const result = await takeoverConversation(selectedTicket.conversationId)
+      const result = await takeoverConversation(conversationId)
       setConversationLookup((prev) => {
-        const current = prev[selectedTicket.conversationId]
+        const current = prev[conversationId]
         if (!current) {
           return prev
         }
 
         return {
           ...prev,
-          [selectedTicket.conversationId]: {
+          [conversationId]: {
             ...current,
             aiEnabled: false,
             assignedAgent: result.assignedAgent,
@@ -305,7 +307,8 @@ export default function TicketsPage() {
   }
 
   const handleReturnConversationToAi = async () => {
-    if (!isValidConversationId(selectedTicket?.conversationId)) {
+    const conversationId = selectedTicket?.conversationId
+    if (!isValidConversationId(conversationId)) {
       return
     }
 
@@ -314,16 +317,16 @@ export default function TicketsPage() {
     setReturnToAiLoading(true)
 
     try {
-      await returnConversationToAi(selectedTicket.conversationId as string)
+      await returnConversationToAi(conversationId)
       setConversationLookup((prev) => {
-        const current = prev[selectedTicket.conversationId as string]
+        const current = prev[conversationId]
         if (!current) {
           return prev
         }
 
         return {
           ...prev,
-          [selectedTicket.conversationId as string]: {
+          [conversationId]: {
             ...current,
             aiEnabled: true,
             assignedAgent: null,
@@ -370,7 +373,8 @@ export default function TicketsPage() {
   const handleSendAgentMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!isValidConversationId(selectedTicket?.conversationId)) {
+    const conversationId = selectedTicket?.conversationId
+    if (!isValidConversationId(conversationId)) {
       return
     }
 
@@ -384,7 +388,7 @@ export default function TicketsPage() {
     setAgentMessageLoading(true)
 
     try {
-      await sendAgentMessage(selectedTicket.conversationId, content)
+      await sendAgentMessage(conversationId, content)
       setAgentMessage("")
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to send message"
@@ -400,11 +404,12 @@ export default function TicketsPage() {
       return null
     }
 
-    if (!isValidConversationId(selectedTicket.conversationId)) {
+    const conversationId = selectedTicket.conversationId
+    if (!isValidConversationId(conversationId)) {
       return null
     }
 
-    return conversationLookup[selectedTicket.conversationId] ?? null
+    return conversationLookup[conversationId] ?? null
   }, [conversationLookup, selectedTicket])
 
   return (
