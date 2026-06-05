@@ -367,7 +367,7 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
   await Ticket.findOneAndUpdate(
     { organizationId, conversationId, status: "open" },
     { $set: { assignedTo: requester._id, status: "pending" } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   const agentName = resolveAgentDisplayName(requester);
@@ -414,7 +414,7 @@ const returnConversationToAi = asyncHandler(async (req: Request, res: Response) 
   await Ticket.findOneAndUpdate(
     { organizationId, conversationId, status: "pending" },
     { $set: { assignedTo: null, status: "open" } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   const agentName = resolveAgentDisplayName(requester);

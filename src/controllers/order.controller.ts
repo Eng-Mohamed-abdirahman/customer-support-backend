@@ -45,7 +45,7 @@ const updateOrderStatus = async (req: any, res: any, next: any) => {
     const order = await Order.findOneAndUpdate(
       { _id: orderId, organizationId: req.user.company },
       { status },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!order) {
