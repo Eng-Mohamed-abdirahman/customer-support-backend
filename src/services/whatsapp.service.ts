@@ -53,8 +53,9 @@ const upsertConnection = async (input: {
   const verifyTokenHash = hashToken(input.verifyToken);
 
   const connection = await WhatsAppConnection.findOneAndUpdate(
-    { organizationId: input.organizationId, phoneNumberId: input.phoneNumberId },
+    { phoneNumberId: input.phoneNumberId },
     {
+      organizationId: input.organizationId,
       wabaId: input.wabaId,
       businessName: input.businessName ?? "",
       phoneNumberId: input.phoneNumberId,
@@ -73,7 +74,7 @@ const upsertConnection = async (input: {
       disconnectedAt: null,
     },
     {
-      new: true,
+      returnDocument: "after",
       upsert: true,
       setDefaultsOnInsert: true,
     }
@@ -105,7 +106,7 @@ const disconnectConnection = async (organizationId: string, phoneNumberId: strin
       verifyTokenIv: null,
       verifyTokenHash: null,
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 
@@ -138,7 +139,7 @@ const markWebhookSubscription = async (input: {
       webhookSubscribedAt: input.status === "subscribed" ? new Date() : null,
       lastWebhookError: input.error ?? "",
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 
