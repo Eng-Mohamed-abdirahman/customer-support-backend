@@ -112,10 +112,6 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
   const organizationId = resolveOrganizationId(req);
   const payload = parseEmbeddedSignupPayload(req);
 
-  if (env.WHATSAPP_OAUTH_REDIRECT_URI && payload.redirectUri !== env.WHATSAPP_OAUTH_REDIRECT_URI) {
-    throw new AppError("Invalid redirect URI", 400);
-  }
-
   const shortToken = await exchangeCodeForToken({
     code: payload.code,
     redirectUri: payload.redirectUri,
