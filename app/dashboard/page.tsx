@@ -188,7 +188,7 @@ const resolveDashboardContent = (role: DashboardRoleContext): DashboardContent =
         {
           title: "Open conversation inbox",
           description: "Review unresolved tickets and assign priorities.",
-          href: "/dashboard/conversations",
+          href: "/dashboard/inbox",
           icon: MessageSquareText,
         },
         {
@@ -237,7 +237,7 @@ const resolveDashboardContent = (role: DashboardRoleContext): DashboardContent =
       {
         title: "Open conversation inbox",
         description: "Work assigned tickets and follow-up threads.",
-        href: "/dashboard/conversations",
+        href: "/dashboard/inbox",
         icon: MessageSquareText,
       },
       {

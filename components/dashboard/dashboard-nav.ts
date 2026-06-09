@@ -18,6 +18,7 @@ import {
   UserCog,
   UserPlus,
   Users,
+  ContactRound,
 } from "lucide-react"
 
 import type { MembershipRole, SafeUser } from "@/types/auth"
@@ -85,10 +86,17 @@ const generalNavItems: DashboardNavItem[] = [
     access: {},
   },
   {
-    title: "Conversations",
-    href: "/dashboard/conversations",
+    title: "Inbox",
+    href: "/dashboard/inbox",
     icon: MessageSquareText,
-    description: "Inbox and live threads",
+    description: "WhatsApp inbox and live threads",
+    access: { membershipRoles: organizationRoles },
+  },
+  {
+    title: "Contacts",
+    href: "/dashboard/contacts",
+    icon: ContactRound,
+    description: "Customer contact list",
     access: { membershipRoles: organizationRoles },
   },
   {

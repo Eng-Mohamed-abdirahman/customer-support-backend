@@ -44,7 +44,11 @@ import {
   disconnectWhatsApp,
   getWhatsAppStatus,
 } from "@/services/whatsapp.service"
-import type { EmbeddedSignupVerifyToken, WhatsAppConnection } from "@/types/whatsapp"
+import type {
+  EmbeddedSignupVerifyToken,
+  WhatsAppConnection,
+  WhatsAppWebhookStatus,
+} from "@/types/whatsapp"
 
 declare global {
   interface Window {
@@ -121,8 +125,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
 
 /* ---------- component ---------- */
 
-export function WhatsAppConnectionPanel() {
+export function WhatsAppConnectionPanel({ organizationId }: { organizationId?: string } = {}) {
   const [connections, setConnections] = useState<WhatsAppConnection[]>([])
+  const [webhookStatus, setWebhookStatus] = useState<WhatsAppWebhookStatus | null>(null)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -152,6 +158,18 @@ export function WhatsAppConnectionPanel() {
 
   /* ---------- load ---------- */
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const rawUser = localStorage.getItem("user")
+    if (!rawUser) return
+    try {
+      const parsed = JSON.parse(rawUser)
+      setIsSuperAdmin(parsed.platformRole === "super_admin")
+    } catch {
+      setIsSuperAdmin(false)
+    }
+  }, [])
+
   const loadStatus = useCallback(async (refresh = false) => {
     if (refresh) setIsRefreshing(true)
     else setIsLoading(true)
@@ -159,8 +177,9 @@ export function WhatsAppConnectionPanel() {
     setLoadError(null)
 
     try {
-      const result = await getWhatsAppStatus()
+      const result = await getWhatsAppStatus(organizationId)
       setConnections(result.connections ?? [])
+      setWebhookStatus(result.webhook ?? null)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load WhatsApp status"
       setLoadError(message)
@@ -168,7 +187,7 @@ export function WhatsAppConnectionPanel() {
       if (refresh) setIsRefreshing(false)
       else setIsLoading(false)
     }
-  }, [])
+  }, [organizationId])
 
   useEffect(() => {
     void loadStatus(false)
@@ -225,7 +244,12 @@ export function WhatsAppConnectionPanel() {
     process.env.NEXT_PUBLIC_WHATSAPP_REDIRECT_URI
   )
 
-  const webhookUrl = `${API_BASE_URL}/api/webhooks/whatsapp`
+  const webhookUrl =
+    webhookStatus?.callbackUrl ||
+    process.env.NEXT_PUBLIC_WEBHOOK_PUBLIC_URL ||
+    `${API_BASE_URL}/api/webhooks/whatsapp`
+
+  const webhookUsesLocalhost = /localhost|127\.0\.0\.1/i.test(webhookUrl)
 
   /* ---------- copy helper ---------- */
 
@@ -267,7 +291,7 @@ export function WhatsAppConnectionPanel() {
           }
 
           try {
-            const result = await completeEmbeddedSignup({ code, redirectUri })
+            const result = await completeEmbeddedSignup({ code, redirectUri }, organizationId)
             setConnections(result.connections)
             setVerifyTokens(result.verifyTokens)
             setShowVerifyTokens(true)
@@ -320,7 +344,7 @@ export function WhatsAppConnectionPanel() {
         displayPhoneNumber: manualForm.displayPhoneNumber.trim() || undefined,
         accessToken: manualForm.accessToken.trim(),
         verifyToken: manualForm.verifyToken.trim(),
-      })
+      }, organizationId)
 
       setConnections((prev) => {
         const exists = prev.some(
@@ -365,7 +389,7 @@ export function WhatsAppConnectionPanel() {
       const target = disconnectTarget?.phoneNumberId
       if (!target) throw new Error("Phone number ID is missing")
 
-      const result = await disconnectWhatsApp(target)
+      const result = await disconnectWhatsApp(target, organizationId)
       setConnections((current) =>
         current.map((item) =>
           item.phoneNumberId === result.connection.phoneNumberId
@@ -553,20 +577,22 @@ export function WhatsAppConnectionPanel() {
                                 <span className={cn("size-1.5 rounded-full", st.dot)} />
                                 {st.label}
                               </Badge>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1.5 rounded-full px-3 text-[11px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
-                                onClick={() => {
-                                  setDisconnectTarget(conn)
-                                  setShowDisconnectConfirm(true)
-                                }}
-                                disabled={isDisconnecting}
-                              >
-                                <Unlink className="size-3" />
-                                Disconnect
-                              </Button>
+                              {isSuperAdmin && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 gap-1.5 rounded-full px-3 text-[11px] text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
+                                  onClick={() => {
+                                    setDisconnectTarget(conn)
+                                    setShowDisconnectConfirm(true)
+                                  }}
+                                  disabled={isDisconnecting}
+                                >
+                                  <Unlink className="size-3" />
+                                  Disconnect
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -576,86 +602,271 @@ export function WhatsAppConnectionPanel() {
                 </div>
               )}
 
-              {/* ─── Connection Methods ─── */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Zap className="size-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {activeConnections.length > 0 ? "Add Another Number" : "Connect WhatsApp"}
-                  </h3>
-                </div>
-
-                <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-background to-muted/10 p-6 flex flex-col items-center text-center">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-4">
-                    <Globe className="size-6" />
+              {/* ─── Connection Methods (Super Admin Only) ─── */}
+              {isSuperAdmin && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Zap className="size-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {activeConnections.length > 0 ? "Add Another Number" : "Connect WhatsApp"}
+                    </h3>
                   </div>
-                  <h4 className="text-base font-semibold text-foreground mb-1">
-                    Meta Embedded Signup
-                  </h4>
-                  <p className="text-xs text-muted-foreground max-w-sm mb-6">
-                    Connect your account in seconds using Meta&apos;s unified v4 flow. This will automatically provision credentials and link your WhatsApp Business Account.
-                  </p>
 
-                  {!hasMetaEnvVars ? (
-                    <div className="w-full text-left rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-                      <div className="flex items-start gap-3">
-                        <Shield className="mt-0.5 size-4 shrink-0 text-amber-500" />
-                        <div className="space-y-2 text-xs text-amber-700 dark:text-amber-300">
-                          <p className="font-semibold">Configuration Required</p>
-                          <p>
-                            To use Embedded Signup, please add the following environment variables to your{" "}
-                            <code className="rounded bg-amber-500/10 px-1 py-0.5 font-mono text-[10px]">
-                              .env
-                            </code>{" "}
-                            file:
-                          </p>
-                          <ul className="ml-4 list-disc space-y-1 text-[11px]">
-                            <li>
-                              <code className="font-mono">NEXT_PUBLIC_META_APP_ID</code>
-                            </li>
-                            <li>
-                              <code className="font-mono">NEXT_PUBLIC_WHATSAPP_CONFIG_ID</code>
-                            </li>
-                            <li>
-                              <code className="font-mono">
-                                NEXT_PUBLIC_WHATSAPP_REDIRECT_URI
-                              </code>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full space-y-4">
-                      <Button
-                        type="button"
-                        size="lg"
-                        className="w-full gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
-                        onClick={handleEmbeddedSignup}
-                        disabled={isConnecting || !isSdkReady}
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-muted p-1">
+                      <TabsTrigger
+                        value="embedded"
+                        className="rounded-xl py-2 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
                       >
-                        {isConnecting ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="size-4" />
-                        )}
-                        Connect with Meta
-                      </Button>
+                        Meta Embedded Signup
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="manual"
+                        className="rounded-xl py-2 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                      >
+                        Manual Configuration
+                      </TabsTrigger>
+                    </TabsList>
 
-                      <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
-                        <ShieldCheck className="size-4 text-emerald-500" />
-                        <span>Meta SDK Ready &middot; Embedded Signup v4</span>
-                      </div>
-
-                      {sdkError && (
-                        <p className="text-xs text-rose-500 mt-2">
-                          {sdkError}
+                    <TabsContent value="embedded" className="mt-4">
+                      <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-background to-muted/10 p-6 flex flex-col items-center text-center">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mb-4">
+                          <Globe className="size-6" />
+                        </div>
+                        <h4 className="text-base font-semibold text-foreground mb-1">
+                          Meta Embedded Signup
+                        </h4>
+                        <p className="text-xs text-muted-foreground max-w-sm mb-6">
+                          Connect your account in seconds using Meta&apos;s unified v4 flow. This will automatically provision credentials and link your WhatsApp Business Account.
                         </p>
-                      )}
-                    </div>
-                  )}
+
+                        {!hasMetaEnvVars ? (
+                          <div className="w-full text-left rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                            <div className="flex items-start gap-3">
+                              <Shield className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                              <div className="space-y-2 text-xs text-amber-700 dark:text-amber-300">
+                                <p className="font-semibold">Configuration Required</p>
+                                <p>
+                                  To use Embedded Signup, please add the following environment variables to your{" "}
+                                  <code className="rounded bg-amber-500/10 px-1 py-0.5 font-mono text-[10px]">
+                                    .env
+                                  </code>{" "}
+                                  file:
+                                </p>
+                                <ul className="ml-4 list-disc space-y-1 text-[11px]">
+                                  <li>
+                                    <code className="font-mono">NEXT_PUBLIC_META_APP_ID</code>
+                                  </li>
+                                  <li>
+                                    <code className="font-mono">NEXT_PUBLIC_WHATSAPP_CONFIG_ID</code>
+                                  </li>
+                                  <li>
+                                    <code className="font-mono">
+                                      NEXT_PUBLIC_WHATSAPP_REDIRECT_URI
+                                    </code>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full space-y-4">
+                            <Button
+                              type="button"
+                              size="lg"
+                              className="w-full gap-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                              onClick={handleEmbeddedSignup}
+                              disabled={isConnecting || !isSdkReady}
+                            >
+                              {isConnecting ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="size-4" />
+                              )}
+                              Connect with Meta
+                            </Button>
+
+                            <div className="flex justify-center items-center gap-2 text-xs text-muted-foreground">
+                              <ShieldCheck className="size-4 text-emerald-500" />
+                              <span>Meta SDK Ready &middot; Embedded Signup v4</span>
+                            </div>
+
+                            {sdkError && (
+                              <p className="text-xs text-rose-500 mt-2">
+                                {sdkError}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="manual" className="mt-4">
+                      <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-background to-muted/10 p-6 space-y-4 text-left">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <KeyRound className="size-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-foreground">
+                              Manual Credentials
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              Input your WhatsApp Cloud API credentials manually if you prefer not to use the automated signup.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="wabaId" className="text-xs font-semibold">WhatsApp Business Account ID (WABA ID) *</Label>
+                            <Input
+                              id="wabaId"
+                              placeholder="e.g. 1098237492374"
+                              value={manualForm.wabaId}
+                              onChange={(e) => setManualForm({ ...manualForm, wabaId: e.target.value })}
+                              className={cn("h-9 rounded-xl text-xs", manualErrors.wabaId && "border-rose-500")}
+                            />
+                            {manualErrors.wabaId && <p className="text-[10px] text-rose-500 font-medium">{manualErrors.wabaId}</p>}
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="businessName" className="text-xs font-semibold">Business Display Name</Label>
+                            <Input
+                              id="businessName"
+                              placeholder="e.g. Acme Support"
+                              value={manualForm.businessName}
+                              onChange={(e) => setManualForm({ ...manualForm, businessName: e.target.value })}
+                              className="h-9 rounded-xl text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="phoneNumberId" className="text-xs font-semibold">Phone Number ID *</Label>
+                            <Input
+                              id="phoneNumberId"
+                              placeholder="e.g. 1023948290384"
+                              value={manualForm.phoneNumberId}
+                              onChange={(e) => setManualForm({ ...manualForm, phoneNumberId: e.target.value })}
+                              className={cn("h-9 rounded-xl text-xs", manualErrors.phoneNumberId && "border-rose-500")}
+                            />
+                            {manualErrors.phoneNumberId && <p className="text-[10px] text-rose-500 font-medium">{manualErrors.phoneNumberId}</p>}
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="displayPhoneNumber" className="text-xs font-semibold">Display Phone Number</Label>
+                            <Input
+                              id="displayPhoneNumber"
+                              placeholder="e.g. +1 (555) 019-2834"
+                              value={manualForm.displayPhoneNumber}
+                              onChange={(e) => setManualForm({ ...manualForm, displayPhoneNumber: e.target.value })}
+                              className="h-9 rounded-xl text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <Label htmlFor="accessToken" className="text-xs font-semibold">Permanent System User Access Token *</Label>
+                            <Input
+                              id="accessToken"
+                              type="password"
+                              placeholder="EAAGz..."
+                              value={manualForm.accessToken}
+                              onChange={(e) => setManualForm({ ...manualForm, accessToken: e.target.value })}
+                              className={cn("h-9 rounded-xl text-xs", manualErrors.accessToken && "border-rose-500")}
+                            />
+                            {manualErrors.accessToken && <p className="text-[10px] text-rose-500 font-medium">{manualErrors.accessToken}</p>}
+                          </div>
+
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <Label htmlFor="verifyToken" className="text-xs font-semibold">Webhook Verify Token *</Label>
+                            <Input
+                              id="verifyToken"
+                              placeholder="Choose a secure string (min 6 chars)"
+                              value={manualForm.verifyToken}
+                              onChange={(e) => setManualForm({ ...manualForm, verifyToken: e.target.value })}
+                              className={cn("h-9 rounded-xl text-xs", manualErrors.verifyToken && "border-rose-500")}
+                            />
+                            {manualErrors.verifyToken && <p className="text-[10px] text-rose-500 font-medium">{manualErrors.verifyToken}</p>}
+                          </div>
+                        </div>
+
+                        {/* ─── Webhook Configuration URL ─── */}
+                        <div className="sm:col-span-2 rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Globe className="size-4 text-muted-foreground" />
+                            <h5 className="text-xs font-semibold text-foreground">
+                              Webhook Configuration
+                            </h5>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Copy this URL as the <span className="font-semibold text-foreground">Callback URL</span> in
+                            Meta Developer Console → WhatsApp → Configuration → Webhook. Then subscribe to the{" "}
+                            <span className="font-semibold text-foreground">messages</span> field — without it,
+                            incoming WhatsApp texts will not appear in your inbox.
+                          </p>
+                          {webhookUsesLocalhost ? (
+                            <Alert variant="destructive" className="py-2">
+                              <AlertTitle className="text-xs">Public URL required</AlertTitle>
+                              <AlertDescription className="text-[11px]">
+                                Meta cannot reach localhost. Use a tunnel (ngrok) or set{" "}
+                                <code className="font-mono">PUBLIC_API_URL</code> on the backend to your public API URL.
+                              </AlertDescription>
+                            </Alert>
+                          ) : null}
+                          {webhookStatus && webhookStatus.failedCount > 0 ? (
+                            <Alert className="py-2 border-amber-500/30 bg-amber-500/10">
+                              <AlertTitle className="text-xs text-amber-200">
+                                {webhookStatus.failedCount} webhook delivery
+                                {webhookStatus.failedCount === 1 ? "" : "s"} failed
+                              </AlertTitle>
+                              <AlertDescription className="text-[11px] text-amber-100/90">
+                                {webhookStatus.recentLogs.find((log) => log.status === "failed")?.errorMessage ||
+                                  "Check backend logs and Meta webhook configuration."}
+                              </AlertDescription>
+                            </Alert>
+                          ) : null}
+                          <div className="flex items-center gap-2">
+                            <Input
+                              readOnly
+                              value={webhookUrl}
+                              className="h-9 rounded-xl font-mono text-xs bg-background"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="size-9 shrink-0 rounded-xl"
+                              onClick={() =>
+                                void copyToClipboard(webhookUrl, "webhook-url")
+                              }
+                            >
+                              {copiedField === "webhook-url" ? (
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                              ) : (
+                                <ClipboardCopy className="size-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          className="w-full gap-2 rounded-xl mt-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                          onClick={handleManualConnect}
+                          disabled={isManualConnecting}
+                        >
+                          {isManualConnecting ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Link2 className="size-4" />
+                          )}
+                          Save WhatsApp Connection
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
-              </div>
+              )}
             </>
           )}
         </CardContent>
