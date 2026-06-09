@@ -41,9 +41,31 @@ export type WhatsAppWebhookLog = {
 
 export type WhatsAppWebhookStatus = {
   callbackUrl: string
+  callbackIsPublic?: boolean
+  messagesFieldSubscribed?: boolean
+  metaCallbackUrl?: string | null
+  subscribedFields?: string[]
+  metaError?: string | null
   recentLogs: WhatsAppWebhookLog[]
   processedCount: number
   failedCount: number
+}
+
+export type WhatsAppWebhookSetupResult = {
+  callbackUrl: string
+  allSucceeded: boolean
+  results: Array<{
+    phoneNumberId: string
+    wabaId: string
+    status: "subscribed" | "failed"
+    error?: string
+  }>
+  metaSubscriptions?: {
+    active?: boolean
+    callbackUrl?: string | null
+    fields?: string[]
+    messagesSubscribed?: boolean
+  } | null
 }
 
 export type WhatsAppStatusResult = {
