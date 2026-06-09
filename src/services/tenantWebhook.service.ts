@@ -4,6 +4,7 @@
  */
 const Organization = require("../models/Organization");
 const { AppError } = require("../utils/appError");
+const { whatsappLog } = require("../utils/whatsappLogger");
 const {
   getConnectionByPhoneNumberId,
   resolveAccessToken,
@@ -77,20 +78,45 @@ const toTenantOrganizationContext = (organization: any) => ({
 const loadTenantByPhoneNumberId = async (phoneNumberId: string) => {
   const normalizedPhoneNumberId = normalizeText(phoneNumberId);
 
+  whatsappLog.debug("TENANT_RESOLVE", "Resolving tenant by phone_number_id", {
+    phoneNumberId: normalizedPhoneNumberId,
+  });
+
   if (!normalizedPhoneNumberId) {
+    whatsappLog.warn("TENANT_RESOLVE", "Missing phone_number_id in webhook metadata");
     throw new AppError("phone_number_id is required in webhook metadata", 400);
   }
 
   const connection = await getConnectionByPhoneNumberId(normalizedPhoneNumberId);
 
   if (!connection) {
+    whatsappLog.warn("TENANT_RESOLVE", "No WhatsApp connection found for phone_number_id", {
+      phoneNumberId: normalizedPhoneNumberId,
+    });
     throw new AppError(`WhatsApp config not found for phone_number_id ${normalizedPhoneNumberId}`, 404);
   }
+
+  whatsappLog.debug("TENANT_RESOLVE", "Connection found", {
+    phoneNumberId: normalizedPhoneNumberId,
+    organizationId: String(connection.organizationId),
+    wabaId: connection.wabaId,
+    status: connection.status,
+    webhookSubscriptionStatus: connection.webhookSubscriptionStatus,
+  });
 
   let accessToken: string;
   try {
     accessToken = resolveAccessToken(connection);
+    whatsappLog.debug("TENANT_RESOLVE", "Access token decrypted", {
+      phoneNumberId: normalizedPhoneNumberId,
+      accessToken,
+    });
   } catch (error: any) {
+    whatsappLog.error("TENANT_RESOLVE", "Failed to decrypt access token", {
+      phoneNumberId: normalizedPhoneNumberId,
+      organizationId: String(connection.organizationId),
+      error: String(error?.message ?? error),
+    });
     throw new AppError(
       `Failed to decrypt WhatsApp access token: ${error?.message ?? "unknown error"}`,
       500
@@ -102,12 +128,28 @@ const loadTenantByPhoneNumberId = async (phoneNumberId: string) => {
   );
 
   if (!organization) {
+    whatsappLog.error("TENANT_RESOLVE", "Organization not found for connection", {
+      phoneNumberId: normalizedPhoneNumberId,
+      organizationId: String(connection.organizationId),
+    });
     throw new AppError(`Organization not found for WhatsApp config ${normalizedPhoneNumberId}`, 404);
   }
 
   if (organization.status === "suspended" || organization.status === "cancelled") {
+    whatsappLog.warn("TENANT_RESOLVE", "Organization is not active", {
+      phoneNumberId: normalizedPhoneNumberId,
+      organizationId: String(organization._id),
+      status: organization.status,
+    });
     throw new AppError("Organization is not active", 403);
   }
+
+  whatsappLog.info("TENANT_RESOLVE", "Tenant resolved successfully", {
+    phoneNumberId: normalizedPhoneNumberId,
+    organizationId: String(organization._id),
+    organizationName: organization?.profile?.name ?? "",
+    wabaId: connection.wabaId,
+  });
 
   return {
     connection,

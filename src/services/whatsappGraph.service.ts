@@ -1,5 +1,6 @@
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
 
 const graphBaseUrl = env.WHATSAPP_GRAPH_BASE_URL || "https://graph.facebook.com";
 const graphVersion = env.WHATSAPP_GRAPH_VERSION || "v20.0";
@@ -9,13 +10,52 @@ const buildGraphUrl = (path: string) => {
   return `${graphBaseUrl}/${graphVersion}/${normalizedPath}`;
 };
 
+const redactUrl = (url: string) => url.replace(/access_token=[^&]+/gi, "access_token=***");
+
 const fetchJson = async (url: string, options: any) => {
-  const response = await fetch(url, options);
+  const method = options?.method ?? "GET";
+  const startMs = Date.now();
+
+  whatsappLog.debug("GRAPH_API", "Outgoing Graph API request", {
+    method,
+    url: redactUrl(url),
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch (error: any) {
+    whatsappLog.error("GRAPH_API", "Network error calling Graph API", {
+      method,
+      url: redactUrl(url),
+      error: String(error?.message ?? error),
+      durationMs: Date.now() - startMs,
+    });
+    throw error;
+  }
+
   const text = await response.text();
+  const durationMs = Date.now() - startMs;
 
   if (!response.ok) {
+    whatsappLog.error("GRAPH_API", "Graph API returned error", {
+      method,
+      url: redactUrl(url),
+      status: response.status,
+      statusText: response.statusText,
+      responseBody: text.slice(0, 500),
+      durationMs,
+    });
     throw new AppError(`WhatsApp API error: ${text || response.statusText}`, response.status);
   }
+
+  whatsappLog.info("GRAPH_API", "Graph API request succeeded", {
+    method,
+    url: redactUrl(url),
+    status: response.status,
+    durationMs,
+    responsePreview: text.slice(0, 200),
+  });
 
   try {
     return JSON.parse(text);
@@ -74,11 +114,101 @@ export const fetchOwnedWabaAccounts = async (accessToken: string) => {
   }) as Promise<{ data: Array<any> }>;
 };
 
+export const buildAppAccessToken = () => {
+  if (!env.WHATSAPP_APP_ID || !env.WHATSAPP_APP_SECRET) {
+    throw new AppError("WHATSAPP_APP_ID and WHATSAPP_APP_SECRET are required", 500);
+  }
+
+  return `${env.WHATSAPP_APP_ID}|${env.WHATSAPP_APP_SECRET}`;
+};
+
+export const subscribeAppWebhookFields = async (input: {
+  callbackUrl: string;
+  verifyToken: string;
+  fields?: string[];
+}) => {
+  const appAccessToken = buildAppAccessToken();
+  const url = `${buildGraphUrl(`${env.WHATSAPP_APP_ID}/subscriptions`)}?access_token=${encodeURIComponent(appAccessToken)}`;
+  const fields = (input.fields ?? ["messages"]).join(",");
+
+  whatsappLog.info("WEBHOOK_SETUP", "Subscribing Meta app to webhook fields", {
+    callbackUrl: input.callbackUrl,
+    fields,
+  });
+
+  return fetchJson(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      object: "whatsapp_business_account",
+      callback_url: input.callbackUrl,
+      verify_token: input.verifyToken,
+      fields,
+    }).toString(),
+  });
+};
+
+export const getAppWebhookSubscriptions = async () => {
+  const appAccessToken = buildAppAccessToken();
+  const url = `${buildGraphUrl(`${env.WHATSAPP_APP_ID}/subscriptions`)}?access_token=${encodeURIComponent(appAccessToken)}`;
+
+  const result = (await fetchJson(url, { method: "GET" })) as {
+    data?: Array<{
+      object?: string;
+      callback_url?: string;
+      active?: boolean;
+      fields?: Array<{ name?: string }>;
+    }>;
+  };
+
+  const entries = Array.isArray(result?.data) ? result.data : [];
+  const wabaSubscription = entries.find((entry) => entry.object === "whatsapp_business_account");
+  const fieldNames = Array.isArray(wabaSubscription?.fields)
+    ? wabaSubscription.fields.map((field) => String(field?.name ?? "").trim()).filter(Boolean)
+    : [];
+
+  return {
+    active: Boolean(wabaSubscription?.active),
+    callbackUrl: wabaSubscription?.callback_url ?? null,
+    fields: fieldNames,
+    messagesSubscribed: fieldNames.includes("messages"),
+    raw: result,
+  };
+};
+
+export const getWabaSubscribedApps = async (input: {
+  wabaId: string;
+  accessToken: string;
+}) => {
+  const url = buildGraphUrl(`${input.wabaId}/subscribed_apps`);
+
+  const result = (await fetchJson(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+  })) as { data?: unknown[] };
+
+  const entries = Array.isArray(result?.data) ? result.data : [];
+
+  return {
+    subscribed: entries.length > 0,
+    count: entries.length,
+    raw: result,
+  };
+};
+
 export const subscribeAppToWaba = async (input: {
   wabaId: string;
   accessToken: string;
 }) => {
   const url = buildGraphUrl(`${input.wabaId}/subscribed_apps`);
+
+  whatsappLog.info("WEBHOOK_SETUP", "Subscribing app to WABA", {
+    wabaId: input.wabaId,
+  });
 
   return fetchJson(url, {
     method: "POST",
@@ -89,15 +219,58 @@ export const subscribeAppToWaba = async (input: {
   });
 };
 
+export const ensureAppSubscribedToWaba = async (input: {
+  wabaId: string;
+  accessToken: string;
+}) => {
+  const before = await getWabaSubscribedApps(input);
+
+  if (before.subscribed) {
+    whatsappLog.debug("WEBHOOK_SETUP", "App already subscribed to WABA", {
+      wabaId: input.wabaId,
+      subscribedAppCount: before.count,
+    });
+    return { alreadySubscribed: true, ...before };
+  }
+
+  whatsappLog.warn("WEBHOOK_SETUP", "App NOT subscribed to WABA — inbound messages will not arrive", {
+    wabaId: input.wabaId,
+  });
+
+  await subscribeAppToWaba(input);
+
+  const after = await getWabaSubscribedApps(input);
+  if (!after.subscribed) {
+    throw new AppError(
+      `Meta app is still not subscribed to WABA ${input.wabaId}. Inbound WhatsApp messages will not be delivered.`,
+      502
+    );
+  }
+
+  whatsappLog.info("WEBHOOK_SETUP", "App subscribed to WABA successfully", {
+    wabaId: input.wabaId,
+    subscribedAppCount: after.count,
+  });
+
+  return { alreadySubscribed: false, ...after };
+};
+
 export const sendWhatsAppTextMessage = async (input: {
   accessToken: string;
   phoneNumberId: string;
   to: string;
   text: string;
 }) => {
+  whatsappLog.info("MESSAGE_SEND", "Sending text message via Graph API (webhook/AI path)", {
+    phoneNumberId: input.phoneNumberId,
+    to: input.to,
+    text: input.text,
+    accessToken: input.accessToken,
+  });
+
   const url = buildGraphUrl(`${input.phoneNumberId}/messages`);
 
-  return fetchJson(url, {
+  const result = await fetchJson(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
@@ -111,4 +284,12 @@ export const sendWhatsAppTextMessage = async (input: {
       },
     }),
   });
+
+  whatsappLog.info("MESSAGE_SEND", "Text message sent successfully (webhook/AI path)", {
+    phoneNumberId: input.phoneNumberId,
+    to: input.to,
+    graphMessageId: (result as any)?.messages?.[0]?.id ?? null,
+  });
+
+  return result;
 };

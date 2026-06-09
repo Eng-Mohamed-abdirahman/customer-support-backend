@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
 
 const resolveSignature = (req: Request) => {
   const signatureHeader = req.headers["x-hub-signature-256"];
@@ -36,6 +37,7 @@ export const verifyWhatsAppSignature = (
 
   const signature = resolveSignature(req);
   if (!signature) {
+    whatsappLog.warn("WEBHOOK_RECEIVE", "Rejected webhook — missing x-hub-signature-256 header");
     next(new AppError("Missing WhatsApp webhook signature", 401));
     return;
   }
@@ -58,9 +60,9 @@ export const verifyWhatsAppSignature = (
     expectedBuffer.length !== signatureBuffer.length ||
     !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
   ) {
-    console.error(
-      "[Webhook] Signature verification failed. Check WHATSAPP_APP_SECRET matches your Meta app."
-    );
+    whatsappLog.error("WEBHOOK_RECEIVE", "Rejected webhook — invalid signature", {
+      hint: "Check WHATSAPP_APP_SECRET matches your Meta app",
+    });
     next(new AppError("Invalid WhatsApp webhook signature", 401));
     return;
   }

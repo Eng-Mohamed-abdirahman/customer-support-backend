@@ -20,8 +20,16 @@ const {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
   fetchOwnedWabaAccounts,
-  subscribeAppToWaba,
+  ensureAppSubscribedToWaba,
 } = require("../services/whatsappGraph.service");
+const { whatsappLog } = require("../utils/whatsappLogger");
+const {
+  ensureInboundWebhooks,
+  fetchMetaWebhookDiagnostics,
+  isPublicCallbackUrl,
+  buildCallbackUrl,
+} = require("../services/whatsappWebhookSetup.service");
+const { probeUrl } = require("../services/whatsappWebhookStartup.service");
 
 type AuthenticatedUser = {
   _id: string;
@@ -84,6 +92,12 @@ const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const payload = parseConnectPayload(req);
 
+  whatsappLog.info("CONNECTION", "Manual WhatsApp connect requested", {
+    organizationId,
+    phoneNumberId: payload.phoneNumberId,
+    wabaId: payload.wabaId,
+  });
+
   const connection = await upsertConnection({
     organizationId,
     wabaId: payload.wabaId,
@@ -96,14 +110,46 @@ const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
 
   await enableWhatsAppChannelForOrganization(organizationId);
 
+  let webhookSetup: any = null;
+  try {
+    webhookSetup = await ensureInboundWebhooks(organizationId, {
+      verifyToken: payload.verifyToken,
+    });
+  } catch (error: any) {
+    whatsappLog.warn("CONNECTION", "Inbound webhook setup failed after manual connect", {
+      organizationId,
+      error: String(error?.message ?? error),
+    });
+    await markWebhookSubscription({
+      organizationId,
+      phoneNumberId: payload.phoneNumberId,
+      status: "failed",
+      error: String(error?.message ?? error),
+    });
+  }
+
+  whatsappLog.info("CONNECTION", "WhatsApp connection saved", {
+    organizationId,
+    phoneNumberId: connection.phoneNumberId,
+    wabaId: connection.wabaId,
+    status: connection.status,
+    inboundWebhooksReady: webhookSetup?.allSucceeded ?? false,
+  });
+
   apiResponse(res, 200, "WhatsApp connection saved", {
     connection: toConnectionResponse(connection),
+    webhookSetup,
   });
 });
 
 const getWhatsAppStatus = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const connections = await listConnectionsByOrganizationId(organizationId);
+
+  whatsappLog.debug("CONNECTION", "WhatsApp status requested", {
+    organizationId,
+    connectionCount: connections.length,
+  });
   const WebhookLog = require("../models/WebhookLog");
 
   const recentWebhookLogs = await WebhookLog.find({ organizationId })
@@ -121,15 +167,63 @@ const getWhatsAppStatus = asyncHandler(async (req: Request, res: Response) => {
     status: "failed",
   });
 
+  const callbackUrl = buildCallbackUrl();
+  const metaWebhook = await fetchMetaWebhookDiagnostics();
+
   apiResponse(res, 200, "WhatsApp connection status", {
     connections: connections.map(toConnectionResponse),
     webhook: {
-      callbackUrl: `${env.publicApiUrl.replace(/\/$/, "")}/api/webhooks/whatsapp`,
+      callbackUrl,
+      callbackIsPublic: isPublicCallbackUrl(callbackUrl),
+      messagesFieldSubscribed: metaWebhook.messagesSubscribed,
+      metaCallbackUrl: metaWebhook.callbackUrl,
+      subscribedFields: metaWebhook.fields,
       recentLogs: recentWebhookLogs,
       processedCount,
       failedCount,
+      metaError: (metaWebhook as any).error ?? null,
     },
   });
+});
+
+const diagnoseInboundWebhooks = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+  const callbackUrl = buildCallbackUrl();
+  const metaWebhook = await fetchMetaWebhookDiagnostics();
+  const metaCallbackUrl = metaWebhook.callbackUrl ?? null;
+  const urlsMatch = Boolean(metaCallbackUrl && metaCallbackUrl === callbackUrl);
+
+  apiResponse(res, 200, "WhatsApp webhook diagnostics", {
+    organizationId,
+    publicApiUrl: env.publicApiUrl,
+    callbackUrl,
+    callbackIsPublic: isPublicCallbackUrl(callbackUrl),
+    configuredCallbackReachable: await probeUrl(callbackUrl),
+    metaCallbackUrl,
+    metaCallbackReachable: metaCallbackUrl ? await probeUrl(metaCallbackUrl) : false,
+    urlsMatch,
+    messagesFieldSubscribed: metaWebhook.messagesSubscribed,
+    subscribedFields: metaWebhook.fields,
+    metaError: (metaWebhook as any).error ?? null,
+    fixSteps: [
+      "Run: ngrok http 5000 (or use your production API URL)",
+      "Set PUBLIC_API_URL=https://YOUR-PUBLIC-URL in backend/.env",
+      "Restart backend, then click Enable inbound messages in WhatsApp settings",
+      "Send a WhatsApp message — you should see [Webhook] POST in backend logs",
+    ],
+  });
+});
+
+const setupInboundWebhooks = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+
+  whatsappLog.info("WEBHOOK_SETUP", "Manual inbound webhook setup requested", {
+    organizationId,
+  });
+
+  const result = await ensureInboundWebhooks(organizationId);
+
+  apiResponse(res, 200, "Inbound WhatsApp webhooks configured", result);
 });
 
 const disconnectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
@@ -154,6 +248,11 @@ const disconnectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
 const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const payload = parseEmbeddedSignupPayload(req);
+
+  whatsappLog.info("CONNECTION", "Embedded signup started", {
+    organizationId,
+    redirectUri: payload.redirectUri,
+  });
 
   const shortToken = await exchangeCodeForToken({
     code: payload.code,
@@ -211,7 +310,7 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
 
       if (wabaId && !subscribedWabas.has(wabaId)) {
         try {
-          await subscribeAppToWaba({ wabaId, accessToken });
+          await ensureAppSubscribedToWaba({ wabaId, accessToken });
           subscribedWabas.add(wabaId);
         } catch (error: any) {
           await markWebhookSubscription({
@@ -242,9 +341,33 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
 
   await enableWhatsAppChannelForOrganization(organizationId);
 
+  let webhookSetup: any = null;
+  const primaryVerifyToken = verifyTokens[0]?.verifyToken;
+  if (primaryVerifyToken) {
+    try {
+      webhookSetup = await ensureInboundWebhooks(organizationId, {
+        verifyToken: primaryVerifyToken,
+      });
+    } catch (error: any) {
+      whatsappLog.warn("CONNECTION", "Inbound webhook setup failed after embedded signup", {
+        organizationId,
+        error: String(error?.message ?? error),
+      });
+    }
+  }
+
+  whatsappLog.info("CONNECTION", "Embedded signup completed", {
+    organizationId,
+    connectionCount: connections.length,
+    phoneNumberIds: connections.map((c: any) => c.phoneNumberId),
+    subscribedWabaCount: subscribedWabas.size,
+    inboundWebhooksReady: webhookSetup?.allSucceeded ?? false,
+  });
+
   apiResponse(res, 200, "WhatsApp Embedded Signup completed", {
     connections,
     verifyTokens,
+    webhookSetup,
   });
 });
 
@@ -253,6 +376,8 @@ module.exports = {
   getWhatsAppStatus,
   disconnectWhatsApp,
   completeEmbeddedSignup,
+  diagnoseInboundWebhooks,
+  setupInboundWebhooks,
 };
 
 export {};

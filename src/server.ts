@@ -4,6 +4,8 @@ import { connectDB } from "./config/db";
 import { env } from "./config/env";
 import { initSocketServer } from "./services/socket.service";
 
+const { logWebhookStartupDiagnostics } = require("./services/whatsappWebhookStartup.service");
+
 const startServer = async () => {
   await connectDB();
   const httpServer = createServer(app);
@@ -11,6 +13,7 @@ const startServer = async () => {
 
   httpServer.listen(env.PORT, () => {
     console.log(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+    void logWebhookStartupDiagnostics();
   });
 };
 
