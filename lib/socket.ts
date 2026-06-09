@@ -24,7 +24,8 @@ export const getSocket = (token: string | null) => {
     auth: {
       token,
     },
-    transports: ["websocket"],
+    transports: ["websocket", "polling"],
+    reconnection: true,
   })
 
   return socket

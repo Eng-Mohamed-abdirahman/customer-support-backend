@@ -13,6 +13,9 @@ export type ConversationRecord = {
   status: ConversationStatus
   assignedAgent?: string | null
   aiEnabled?: boolean
+  responderType?: "ai" | "agent"
+  lastMessageText?: string
+  lastMessageSender?: string
   lastMessageAt?: string
   createdAt?: string
   updatedAt?: string
