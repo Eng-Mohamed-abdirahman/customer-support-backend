@@ -2,6 +2,7 @@ import axios from "axios";
 import { env } from "../config/env";
 import { decryptApiKey } from "../utils/cryptoApiKey";
 import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
 
 const WhatsAppConnection = require("../models/WhatsAppConnection");
 
@@ -20,11 +21,19 @@ export const sendMessage = async (
   receiverPhone: string,
   messageData: any
 ) => {
+  whatsappLog.info("AGENT_SEND", "Dashboard send message requested", {
+    organizationId: accountId,
+    receiverPhone,
+    messageType: typeof messageData === "string" ? "text" : "custom",
+  });
+
   if (!accountId) {
+    whatsappLog.warn("AGENT_SEND", "Missing organization ID");
     throw new AppError("Account ID is required to resolve WhatsApp configuration", 400);
   }
 
   if (!receiverPhone) {
+    whatsappLog.warn("AGENT_SEND", "Missing receiver phone", { organizationId: accountId });
     throw new AppError("Receiver phone number is required", 400);
   }
 
@@ -35,10 +44,25 @@ export const sendMessage = async (
   }).select("+accessTokenEncrypted +accessTokenIv");
 
   if (!connection) {
+    whatsappLog.error("AGENT_SEND", "No active WhatsApp connection for organization", {
+      organizationId: accountId,
+    });
     throw new AppError("Active WhatsApp configuration not found for this organization", 404);
   }
 
+  whatsappLog.debug("AGENT_SEND", "WhatsApp connection resolved", {
+    organizationId: accountId,
+    phoneNumberId: connection.phoneNumberId,
+    wabaId: connection.wabaId,
+    status: connection.status,
+    displayPhoneNumber: connection.displayPhoneNumber,
+  });
+
   if (!connection.accessTokenEncrypted || !connection.accessTokenIv) {
+    whatsappLog.error("AGENT_SEND", "Access token not configured on connection", {
+      organizationId: accountId,
+      phoneNumberId: connection.phoneNumberId,
+    });
     throw new AppError("WhatsApp access token is missing or not configured", 400);
   }
 
@@ -46,7 +70,16 @@ export const sendMessage = async (
   let accessToken: string;
   try {
     accessToken = decryptApiKey(connection.accessTokenEncrypted, connection.accessTokenIv);
+    whatsappLog.debug("AGENT_SEND", "Access token decrypted", {
+      organizationId: accountId,
+      accessToken,
+    });
   } catch (error: any) {
+    whatsappLog.error("AGENT_SEND", "Failed to decrypt access token", {
+      organizationId: accountId,
+      phoneNumberId: connection.phoneNumberId,
+      error: String(error?.message ?? error),
+    });
     throw new AppError("Failed to decrypt WhatsApp access token", 500);
   }
 
@@ -69,12 +102,32 @@ export const sendMessage = async (
 
   const url = `${graphBaseUrl}/${graphVersion}/${connection.phoneNumberId}/messages`;
 
+  whatsappLog.info("AGENT_SEND", "Calling Meta Graph API to send message", {
+    organizationId: accountId,
+    phoneNumberId: connection.phoneNumberId,
+    receiverPhone,
+    graphVersion,
+    url,
+    payloadType: payload.type ?? "custom",
+    text: typeof messageData === "string" ? messageData : undefined,
+  });
+
+  const startMs = Date.now();
+
   try {
     const response = await axios.post(url, payload, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+    });
+
+    whatsappLog.info("AGENT_SEND", "Message sent to Meta successfully", {
+      organizationId: accountId,
+      phoneNumberId: connection.phoneNumberId,
+      receiverPhone,
+      graphMessageId: response.data?.messages?.[0]?.id ?? null,
+      durationMs: Date.now() - startMs,
     });
 
     return response.data;
@@ -84,6 +137,16 @@ export const sendMessage = async (
         ? JSON.stringify(error.response.data)
         : String(error.response.data)
       : error.message;
+
+    whatsappLog.error("AGENT_SEND", "Meta Graph API rejected the message", {
+      organizationId: accountId,
+      phoneNumberId: connection.phoneNumberId,
+      receiverPhone,
+      status: error.response?.status ?? null,
+      error: errorMsg,
+      durationMs: Date.now() - startMs,
+    });
+
     throw new AppError(`WhatsApp Graph API error: ${errorMsg}`, error.response?.status || 500);
   }
 };

@@ -5,6 +5,7 @@ const AIConversation = require("../models/AIConversation");
 
 const { env } = require("../config/env");
 const { AppError } = require("../utils/appError");
+const { whatsappLog } = require("../utils/whatsappLogger");
 const { generateConversationReply } = require("./conversation.service");
 const {
   getOrCreateConversation,
@@ -69,11 +70,27 @@ const sendWhatsAppMessageWithRetry = async (input: {
   let attempt = 0;
 
   while (attempt < maxAttempts) {
+    attempt += 1;
+
     try {
+      whatsappLog.debug("MESSAGE_SEND", `Send attempt ${attempt}/${maxAttempts}`, {
+        phoneNumberId: input.phoneNumberId,
+        to: input.to,
+      });
       return await sendWhatsAppTextMessage(input);
-    } catch (error) {
-      attempt += 1;
+    } catch (error: any) {
+      whatsappLog.warn("MESSAGE_SEND", `Send attempt ${attempt}/${maxAttempts} failed`, {
+        phoneNumberId: input.phoneNumberId,
+        to: input.to,
+        error: String(error?.message ?? error),
+      });
+
       if (attempt >= maxAttempts) {
+        whatsappLog.error("MESSAGE_SEND", "All send attempts exhausted", {
+          phoneNumberId: input.phoneNumberId,
+          to: input.to,
+          attempts: maxAttempts,
+        });
         throw error;
       }
 
@@ -157,8 +174,23 @@ const processIncomingMessage = async (input: {
   const organizationId = String(input.organizationContext._id);
   const customerPhone = normalizeText(input.message?.from);
   const contactName = normalizeText(input.contacts?.[0]?.profile?.name);
+  const externalMessageId = normalizeText(input.message?.id);
+  const messageType = normalizeText(input.message?.type) || "text";
+
+  whatsappLog.info("MESSAGE_RECEIVE", "Processing incoming customer message", {
+    organizationId,
+    phoneNumberId: input.connection.phoneNumberId,
+    externalMessageId,
+    messageType,
+    customerPhone,
+    customerName: contactName,
+  });
 
   if (!customerPhone) {
+    whatsappLog.warn("MESSAGE_RECEIVE", "Skipping message — missing customer phone", {
+      organizationId,
+      externalMessageId,
+    });
     return;
   }
 
@@ -169,6 +201,10 @@ const processIncomingMessage = async (input: {
     }).select("_id");
 
     if (existing) {
+      whatsappLog.debug("MESSAGE_RECEIVE", "Duplicate message skipped", {
+        organizationId,
+        externalMessageId,
+      });
       return;
     }
   }
@@ -192,6 +228,14 @@ const processIncomingMessage = async (input: {
   });
 
   const payload = await extractMessagePayload(input.message, input.accessToken);
+
+  whatsappLog.debug("MESSAGE_RECEIVE", "Message payload extracted", {
+    organizationId,
+    externalMessageId,
+    messageType: payload.messageType,
+    hasText: Boolean(payload.contentText),
+    hasMedia: Boolean(payload.media),
+  });
 
   await CustomerMessage.updateOne(
     {
@@ -227,6 +271,13 @@ const processIncomingMessage = async (input: {
     externalId: normalizeText(input.message?.id),
   });
 
+  whatsappLog.info("MESSAGE_RECEIVE", "Customer message saved and broadcast to dashboard", {
+    organizationId,
+    conversationId: String(conversation._id),
+    externalMessageId,
+    customerPhone,
+  });
+
   // --- Hybrid Chat Management (Human Takeover) ---
   // Determine the responder type. Use the new `responderType` field first,
   // falling back to the legacy `aiEnabled` boolean for backward compatibility.
@@ -238,15 +289,20 @@ const processIncomingMessage = async (input: {
     // Human agent is handling this conversation — do NOT trigger AI.
     // The message has already been persisted and streamed via WebSocket
     // by `appendMessage` (which calls emitToOrganization and emitToConversation).
-    console.log(
-      `[Webhook] Message routed to human agent for org=${organizationId} conv=${conversation._id}`
-    );
+    whatsappLog.info("MESSAGE_PROCESS", "Routed to human agent — AI auto-reply skipped", {
+      organizationId,
+      conversationId: String(conversation._id),
+      responderType,
+    });
     return;
   }
 
   // --- Multi-tenant RAG + AI auto-reply (spec section 4) ---
   if (!isAiAutoReplyEnabled(input.organizationContext)) {
-    console.log(`[Webhook] AI auto-reply disabled for org=${organizationId}`);
+    whatsappLog.info("MESSAGE_PROCESS", "AI auto-reply disabled for organization", {
+      organizationId,
+      conversationId: String(conversation._id),
+    });
     return;
   }
 
@@ -258,6 +314,12 @@ const processIncomingMessage = async (input: {
   const customerMessage = buildCustomerMessageText(payload.messageType, payload.contentText);
 
   try {
+    whatsappLog.info("MESSAGE_PROCESS", "Generating AI auto-reply", {
+      organizationId,
+      conversationId: String(conversation._id),
+      customerMessageLength: customerMessage.length,
+    });
+
     const replyResult = await generateConversationReply({
       organization: input.organizationContext,
       message: customerMessage,
@@ -298,21 +360,43 @@ const processIncomingMessage = async (input: {
       console.warn(`Failed to log AI conversation: ${error?.message ?? error}`);
     }
 
+    whatsappLog.info("MESSAGE_SEND", "Sending AI auto-reply to customer via WhatsApp", {
+      organizationId,
+      conversationId: String(conversation._id),
+      phoneNumberId: input.connection.phoneNumberId,
+      customerPhone,
+      replyLength: replyResult.reply.length,
+    });
+
     await sendWhatsAppMessageWithRetry({
       accessToken: input.accessToken,
       phoneNumberId: input.connection.phoneNumberId,
       to: customerPhone,
       text: replyResult.reply,
     });
+
+    whatsappLog.info("MESSAGE_SEND", "AI auto-reply delivered to customer", {
+      organizationId,
+      conversationId: String(conversation._id),
+      customerPhone,
+    });
   } catch (error: any) {
-    console.error(
-      `[Webhook] AI auto-reply failed for org=${organizationId}: ${error?.message ?? error}`
-    );
+    whatsappLog.error("MESSAGE_PROCESS", "AI auto-reply pipeline failed", {
+      organizationId,
+      conversationId: String(conversation._id),
+      externalMessageId,
+      error: String(error?.message ?? error),
+      stack: error?.stack,
+    });
   }
 };
 
 const processWebhookPayload = async (payload: any) => {
   const entries = Array.isArray(payload?.entry) ? payload.entry : [];
+
+  whatsappLog.debug("WEBHOOK_PROCESS", "Processing webhook entries", {
+    entryCount: entries.length,
+  });
 
   for (const entry of entries) {
     const changes = Array.isArray(entry?.changes) ? entry.changes : [];
@@ -320,8 +404,18 @@ const processWebhookPayload = async (payload: any) => {
     for (const change of changes) {
       const value = change?.value ?? {};
       const phoneNumberId = normalizeText(value?.metadata?.phone_number_id);
+      const changeField = normalizeText(change?.field);
+
+      whatsappLog.debug("WEBHOOK_PROCESS", "Processing webhook change", {
+        phoneNumberId: phoneNumberId || "(missing)",
+        field: changeField,
+        wabaId: normalizeText(entry?.id),
+      });
 
       if (!phoneNumberId) {
+        whatsappLog.warn("WEBHOOK_PROCESS", "Skipping change — no phone_number_id in metadata", {
+          field: changeField,
+        });
         continue;
       }
 
@@ -329,9 +423,10 @@ const processWebhookPayload = async (payload: any) => {
       try {
         tenantContext = await loadTenantByPhoneNumberId(phoneNumberId);
       } catch (error: any) {
-        console.warn(
-          `WhatsApp webhook ignored for ${phoneNumberId}: ${error?.message ?? error}`
-        );
+        whatsappLog.warn("WEBHOOK_PROCESS", "Tenant resolution failed — webhook ignored", {
+          phoneNumberId,
+          error: String(error?.message ?? error),
+        });
         continue;
       }
 
@@ -342,15 +437,24 @@ const processWebhookPayload = async (payload: any) => {
       const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
 
       if (!messages.length && statuses.length) {
-        console.log(
-          `[Webhook] Delivery status update for ${phoneNumberId} (${statuses.length} statuses)`
-        );
+        for (const status of statuses) {
+          whatsappLog.info("WEBHOOK_STATUS", "Delivery status update from Meta", {
+            phoneNumberId,
+            organizationId: String(connection.organizationId),
+            messageId: normalizeText(status?.id),
+            status: normalizeText(status?.status),
+            recipientPhone: normalizeText(status?.recipient_id),
+            timestamp: status?.timestamp ?? null,
+            errors: status?.errors ?? null,
+          });
+        }
       }
 
       if (!messages.length && !statuses.length) {
-        console.log(
-          `[Webhook] No messages or statuses in payload for ${phoneNumberId} (field=${normalizeText(change?.field)})`
-        );
+        whatsappLog.debug("WEBHOOK_PROCESS", "No messages or statuses in payload", {
+          phoneNumberId,
+          field: changeField,
+        });
       }
 
       for (const message of messages) {
@@ -398,6 +502,12 @@ const processWebhookPayload = async (payload: any) => {
             { externalId, phoneNumberId },
             { $set: { status: "processed", errorMessage: "" } }
           );
+
+          whatsappLog.info("MESSAGE_RECEIVE", "Webhook message processed successfully", {
+            phoneNumberId,
+            organizationId: String(connection.organizationId),
+            externalId,
+          });
         } catch (error: any) {
           const externalId = normalizeText(message?.id);
           if (externalId) {
@@ -411,9 +521,14 @@ const processWebhookPayload = async (payload: any) => {
               }
             );
           }
-          console.error(
-            `Failed to process WhatsApp message ${message?.id ?? ""}: ${error?.message ?? error}`
-          );
+          whatsappLog.error("MESSAGE_RECEIVE", "Failed to process incoming message", {
+            phoneNumberId,
+            organizationId: String(connection.organizationId),
+            externalId: externalId || message?.id,
+            messageType: normalizeText(message?.type),
+            error: String(error?.message ?? error),
+            stack: error?.stack,
+          });
         }
       }
     }

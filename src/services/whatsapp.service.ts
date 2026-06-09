@@ -169,6 +169,14 @@ const resolveAccessToken = (connection: any): string => {
   return decryptApiKey(connection.accessTokenEncrypted, connection.accessTokenIv);
 };
 
+const resolveVerifyToken = (connection: any): string => {
+  if (!connection?.verifyTokenEncrypted || !connection?.verifyTokenIv) {
+    throw new AppError("WhatsApp verify token is missing", 400);
+  }
+
+  return decryptApiKey(connection.verifyTokenEncrypted, connection.verifyTokenIv);
+};
+
 module.exports = {
   toConnectionResponse,
   upsertConnection,
@@ -178,6 +186,7 @@ module.exports = {
   getConnectionByVerifyToken,
   getConnectionByPhoneNumberId,
   resolveAccessToken,
+  resolveVerifyToken,
   markWebhookSubscription,
 };
 
