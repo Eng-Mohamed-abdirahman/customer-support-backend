@@ -138,11 +138,32 @@ const listConversations = async (input: {
   const limit = typeof input.limit === "number" ? input.limit : 50;
   const skip = typeof input.skip === "number" ? input.skip : 0;
 
-  return Conversation.find(filter)
+  const conversations = await Conversation.find(filter)
     .sort({ lastMessageAt: -1 })
     .skip(skip)
     .limit(limit)
     .lean();
+
+  return Promise.all(
+    conversations.map(async (conversation: any) => {
+      const lastMessage = await Message.findOne({
+        conversationId: String(conversation._id),
+      })
+        .sort({ createdAt: -1 })
+        .select("contentText senderType messageType")
+        .lean();
+
+      return {
+        ...conversation,
+        lastMessageText: lastMessage
+          ? lastMessage.messageType === "text"
+            ? lastMessage.contentText
+            : `[Media: ${lastMessage.messageType}]`
+          : "",
+        lastMessageSender: lastMessage ? lastMessage.senderType : "",
+      };
+    })
+  );
 };
 
 const listMessages = async (input: {

@@ -24,6 +24,12 @@ export const verifyWhatsAppSignature = (
   }
 
   if (!env.WHATSAPP_APP_SECRET) {
+    if (env.NODE_ENV !== "production") {
+      console.warn("WhatsApp webhook signature verification skipped: WHATSAPP_APP_SECRET is not set");
+      next();
+      return;
+    }
+
     next(new AppError("WhatsApp webhook signature verification is not configured", 500));
     return;
   }
@@ -52,6 +58,9 @@ export const verifyWhatsAppSignature = (
     expectedBuffer.length !== signatureBuffer.length ||
     !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
   ) {
+    console.error(
+      "[Webhook] Signature verification failed. Check WHATSAPP_APP_SECRET matches your Meta app."
+    );
     next(new AppError("Invalid WhatsApp webhook signature", 401));
     return;
   }

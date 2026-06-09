@@ -14,8 +14,15 @@ const conversationRoutes = require("./routes/conversation.routes");
 const ticketRoutes = require("./routes/ticket.routes");
 const whatsappRoutes = require("./routes/whatsapp.routes");
 const webhookRoutes = require("./routes/webhook.routes");
+const {
+	verifyWhatsAppWebhook,
+	receiveWhatsAppWebhook,
+} = require("./controllers/webhook.controller");
+const { webhookLimiter } = require("./middlewares/rateLimit.middleware");
+const { verifyWhatsAppSignature } = require("./middlewares/whatsappSignature.middleware");
 const aiRoutes = require("./routes/ai.routes");
 const orderRoutes = require("./routes/order.routes");
+const contactRoutes = require("./routes/contact.routes");
 
 const app = express();
 
@@ -26,7 +33,7 @@ app.use(
 	cors({
 		origin: "*",
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+		allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-organization-id"],
 	})
 );
 
@@ -42,7 +49,6 @@ app.use((req, res, next) => {
 	res.setHeader("x-request-id", requestId);
 	next();
 });
-app.use(generalApiLimiter);
 app.use(
 	express.json({
 		limit: "1mb",
@@ -52,6 +58,34 @@ app.use(
 	})
 );
 
+const logWebhookRequest = (req: express.Request, _res: express.Response, next: express.NextFunction) => {
+	const body = (req as any).body;
+	const entry = Array.isArray(body?.entry) ? body.entry[0] : null;
+	const change = Array.isArray(entry?.changes) ? entry.changes[0] : null;
+	const value = change?.value ?? {};
+	const messageCount = Array.isArray(value?.messages) ? value.messages.length : 0;
+	const statusCount = Array.isArray(value?.statuses) ? value.statuses.length : 0;
+
+	console.log(
+		`[Webhook] ${req.method} ${req.path} messages=${messageCount} statuses=${statusCount} field=${change?.field ?? "-"}`
+	);
+	next();
+};
+
+// WhatsApp webhooks must be registered before the general API rate limiter.
+app.use("/api/webhooks", logWebhookRequest, webhookRoutes);
+app.use("/api/webhook", logWebhookRequest, webhookRoutes);
+app.get("/api/whatsapp/webhook", verifyWhatsAppWebhook);
+app.post(
+	"/api/whatsapp/webhook",
+	logWebhookRequest,
+	webhookLimiter,
+	verifyWhatsAppSignature,
+	receiveWhatsAppWebhook
+);
+
+app.use(generalApiLimiter);
+
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/invitations", invitationRoutes);
@@ -60,9 +94,9 @@ app.use("/api/knowledge", knowledgeRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
-app.use("/api/webhooks", webhookRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/contacts", contactRoutes);
 
 app.use(errorHandler);
 

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import crypto from "crypto";
 
 const mongoose = require("mongoose");
+const Organization = require("../models/Organization");
 const { env } = require("../config/env");
 
 const { apiResponse } = require("../utils/apiResponse");
@@ -24,12 +25,24 @@ const {
 
 type AuthenticatedUser = {
   _id: string;
+  role?: string;
   company?: string | null;
   organizationId?: string | null;
 };
 
 const resolveOrganizationId = (req: Request): string => {
   const user = (req as any).user as AuthenticatedUser | undefined;
+
+  if (user?.role === "admin") {
+    const targetOrgId =
+      req.headers["x-organization-id"] ||
+      req.query.organizationId ||
+      req.body.organizationId;
+    if (targetOrgId && mongoose.Types.ObjectId.isValid(targetOrgId)) {
+      return String(targetOrgId);
+    }
+  }
+
   const organizationId = user?.organizationId ?? user?.company;
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
@@ -61,6 +74,12 @@ const parseEmbeddedSignupPayload = (req: Request) => {
 
 const generateVerifyToken = () => crypto.randomBytes(24).toString("hex");
 
+const enableWhatsAppChannelForOrganization = async (organizationId: string) => {
+  await Organization.findByIdAndUpdate(organizationId, {
+    $addToSet: { allowedChannels: "whatsapp" },
+  });
+};
+
 const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const payload = parseConnectPayload(req);
@@ -75,6 +94,8 @@ const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
     verifyToken: payload.verifyToken,
   });
 
+  await enableWhatsAppChannelForOrganization(organizationId);
+
   apiResponse(res, 200, "WhatsApp connection saved", {
     connection: toConnectionResponse(connection),
   });
@@ -83,9 +104,31 @@ const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
 const getWhatsAppStatus = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const connections = await listConnectionsByOrganizationId(organizationId);
+  const WebhookLog = require("../models/WebhookLog");
+
+  const recentWebhookLogs = await WebhookLog.find({ organizationId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select("status externalId eventType errorMessage createdAt phoneNumberId")
+    .lean();
+
+  const processedCount = await WebhookLog.countDocuments({
+    organizationId,
+    status: "processed",
+  });
+  const failedCount = await WebhookLog.countDocuments({
+    organizationId,
+    status: "failed",
+  });
 
   apiResponse(res, 200, "WhatsApp connection status", {
     connections: connections.map(toConnectionResponse),
+    webhook: {
+      callbackUrl: `${env.publicApiUrl.replace(/\/$/, "")}/api/webhooks/whatsapp`,
+      recentLogs: recentWebhookLogs,
+      processedCount,
+      failedCount,
+    },
   });
 });
 
@@ -196,6 +239,8 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
   if (connections.length === 0) {
     throw new AppError("No WhatsApp phone numbers found in this account", 400);
   }
+
+  await enableWhatsAppChannelForOrganization(organizationId);
 
   apiResponse(res, 200, "WhatsApp Embedded Signup completed", {
     connections,

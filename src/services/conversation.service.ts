@@ -27,6 +27,8 @@ type ConversationOrganization = {
   status: string;
   profile?: {
     name?: string;
+    businessType?: string;
+    description?: string;
   };
   contact?: {
     supportEmail?: string;
@@ -322,6 +324,8 @@ const buildOrganizationContext = (organization: ConversationOrganization): strin
 
   return [
     `Organization: ${normalizeText(organization.profile?.name) || "Unknown"}`,
+    `Business type: ${normalizeText(organization.profile?.businessType) || "Not configured"}`,
+    `Description: ${normalizeText(organization.profile?.description) || "Not configured"}`,
     `Support email: ${normalizeText(contact.supportEmail) || "Not configured"}`,
     `Working hours: ${normalizeText(businessInfo.workingHours) || "Not configured"}`,
     `Services: ${normalizeText(businessInfo.services) || "Not configured"}`,

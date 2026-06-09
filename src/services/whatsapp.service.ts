@@ -52,6 +52,24 @@ const upsertConnection = async (input: {
   const verifyEncrypted = encryptApiKey(input.verifyToken);
   const verifyTokenHash = hashToken(input.verifyToken);
 
+  await WhatsAppConnection.updateMany(
+    {
+      organizationId: input.organizationId,
+      phoneNumberId: { $ne: input.phoneNumberId },
+      status: { $ne: "disconnected" },
+    },
+    {
+      status: "disconnected",
+      disconnectedAt: new Date(),
+      accessTokenEncrypted: null,
+      accessTokenIv: null,
+      accessTokenExpiresAt: null,
+      verifyTokenEncrypted: null,
+      verifyTokenIv: null,
+      verifyTokenHash: null,
+    }
+  );
+
   const connection = await WhatsAppConnection.findOneAndUpdate(
     { phoneNumberId: input.phoneNumberId },
     {

@@ -1,4 +1,3 @@
-const Organization = require("../models/Organization");
 const Message = require("../models/Message");
 const WebhookLog = require("../models/WebhookLog");
 const CustomerMessage = require("../models/CustomerMessage");
@@ -6,8 +5,6 @@ const AIConversation = require("../models/AIConversation");
 
 const { env } = require("../config/env");
 const { AppError } = require("../utils/appError");
-const { decryptApiKey } = require("../utils/cryptoApiKey");
-const { getApiKeyPrefix } = require("../utils/generateApiKey");
 const { generateConversationReply } = require("./conversation.service");
 const {
   getOrCreateConversation,
@@ -15,11 +12,10 @@ const {
   getRecentHistory,
 } = require("./conversationStore.service");
 const {
-  getConnectionByPhoneNumberId,
-  resolveAccessToken,
-} = require("./whatsapp.service");
+  loadTenantByPhoneNumberId,
+  isAiAutoReplyEnabled,
+} = require("./tenantWebhook.service");
 const { sendWhatsAppTextMessage } = require("./whatsappGraph.service");
-const { apiKeyOrganizationSelect } = require("../middlewares/validateApiKey.middleware");
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -85,127 +81,6 @@ const sendWhatsAppMessageWithRetry = async (input: {
     }
   }
 };
-
-const resolveOrganizationApiKey = async (organization: any) => {
-  if (!organization) {
-    throw new AppError("Organization not found", 404);
-  }
-
-  if (organization.status === "suspended" || organization.status === "cancelled") {
-    throw new AppError("Organization is not active", 403);
-  }
-
-  const candidates: Array<{
-    keyPrefix: string;
-    encryptedKey: string;
-    iv: string;
-    record?: any;
-  }> = [];
-
-  if (organization?.api_settings?.encrypted_key && organization?.api_settings?.iv) {
-    candidates.push({
-      keyPrefix: organization.api_settings.key_prefix,
-      encryptedKey: organization.api_settings.encrypted_key,
-      iv: organization.api_settings.iv,
-    });
-  }
-
-  if (organization?.apiSettings?.encryptedKey && organization?.apiSettings?.iv) {
-    candidates.push({
-      keyPrefix: organization.apiSettings.keyPrefix,
-      encryptedKey: organization.apiSettings.encryptedKey,
-      iv: organization.apiSettings.iv,
-    });
-  }
-
-  if (Array.isArray(organization.api_keys)) {
-    organization.api_keys.forEach((record: any) => {
-      if (!record?.encrypted_key || !record?.iv || record?.revoked_at) {
-        return;
-      }
-
-      candidates.push({
-        keyPrefix: record.key_prefix,
-        encryptedKey: record.encrypted_key,
-        iv: record.iv,
-        record,
-      });
-    });
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const decrypted = decryptApiKey(candidate.encryptedKey, candidate.iv);
-      const prefix = getApiKeyPrefix(decrypted);
-
-      if (!prefix || prefix.length < 16) {
-        continue;
-      }
-
-      if (candidate.keyPrefix && candidate.keyPrefix !== prefix) {
-        continue;
-      }
-
-      if (candidate.record) {
-        candidate.record.last_used_at = new Date();
-        await organization.save();
-      }
-
-      return decrypted;
-    } catch {
-      continue;
-    }
-  }
-
-  throw new AppError("Invalid API key for organization", 401);
-};
-
-const toConversationOrganizationContext = (organization: any) => ({
-  _id: String(organization._id),
-  status: typeof organization.status === "string" ? organization.status : "active",
-  profile: {
-    name: organization?.profile?.name ?? "",
-  },
-  contact: {
-    supportEmail: organization?.contact?.supportEmail ?? "",
-  },
-  businessInfo: {
-    workingHours: organization?.businessInfo?.workingHours ?? "",
-    services: organization?.businessInfo?.services ?? "",
-    products: organization?.businessInfo?.products ?? "",
-    policies: organization?.businessInfo?.policies ?? "",
-    location: organization?.businessInfo?.location ?? "",
-  },
-  supportSettings: {
-    fallbackMessage: organization?.supportSettings?.fallbackMessage ?? "",
-    timezone: organization?.supportSettings?.timezone ?? "",
-    language: organization?.supportSettings?.language ?? "",
-  },
-  knowledgeBaseReference: organization?.knowledgeBaseReference ?? "",
-  aiSettings: {
-    aiEnabled: Boolean(organization?.aiSettings?.aiEnabled ?? true),
-    autoReplyEnabled: Boolean(organization?.aiSettings?.autoReplyEnabled ?? true),
-    humanHandoffEnabled: Boolean(organization?.aiSettings?.humanHandoffEnabled ?? true),
-    modelName: organization?.aiSettings?.modelName ?? "gpt-4o-mini",
-  },
-  allowedChannels: Array.isArray(organization?.allowedChannels)
-    ? organization.allowedChannels
-    : ["website"],
-  api_settings: {
-    total_tokens_used:
-      typeof organization?.api_settings?.total_tokens_used === "number"
-        ? organization.api_settings.total_tokens_used
-        : typeof organization?.apiSettings?.totalTokensUsed === "number"
-          ? organization.apiSettings.totalTokensUsed
-          : 0,
-    monthly_limit:
-      typeof organization?.api_settings?.monthly_limit === "number"
-        ? organization.api_settings.monthly_limit
-        : typeof organization?.apiSettings?.monthlyLimit === "number"
-          ? organization.apiSettings.monthlyLimit
-          : 10000,
-  },
-});
 
 const buildCustomerMessageText = (messageType: string, contentText: string) => {
   if (contentText) {
@@ -273,13 +148,13 @@ const extractMessagePayload = async (message: any, accessToken: string) => {
 };
 
 const processIncomingMessage = async (input: {
-  organization: any;
+  organizationContext: any;
   connection: any;
   accessToken: string;
   message: any;
   contacts?: any[];
 }) => {
-  const organizationId = String(input.organization._id);
+  const organizationId = String(input.organizationContext._id);
   const customerPhone = normalizeText(input.message?.from);
   const contactName = normalizeText(input.contacts?.[0]?.profile?.name);
 
@@ -307,6 +182,13 @@ const processIncomingMessage = async (input: {
       phoneNumberId: input.connection.phoneNumberId,
       wabaId: input.connection.wabaId,
     },
+  });
+
+  const { upsertWhatsAppContact } = require("./contact.service");
+  await upsertWhatsAppContact({
+    organizationId,
+    phone: customerPhone,
+    name: contactName,
   });
 
   const payload = await extractMessagePayload(input.message, input.accessToken);
@@ -345,25 +227,28 @@ const processIncomingMessage = async (input: {
     externalId: normalizeText(input.message?.id),
   });
 
-  if (!conversation.aiEnabled) {
+  // --- Hybrid Chat Management (Human Takeover) ---
+  // Determine the responder type. Use the new `responderType` field first,
+  // falling back to the legacy `aiEnabled` boolean for backward compatibility.
+  const responderType: string =
+    conversation.responderType ||
+    (conversation.aiEnabled === false ? "agent" : "ai");
+
+  if (responderType === "agent") {
+    // Human agent is handling this conversation — do NOT trigger AI.
+    // The message has already been persisted and streamed via WebSocket
+    // by `appendMessage` (which calls emitToOrganization and emitToConversation).
+    console.log(
+      `[Webhook] Message routed to human agent for org=${organizationId} conv=${conversation._id}`
+    );
     return;
   }
 
-  const aiEnabled = Boolean(input.organization?.aiSettings?.aiEnabled ?? true);
-  const autoReplyEnabled = Boolean(input.organization?.aiSettings?.autoReplyEnabled ?? true);
-  const allowedChannels = Array.isArray(input.organization?.allowedChannels)
-    ? input.organization.allowedChannels
-    : ["website"];
-
-  const whatsappAllowed = allowedChannels
-    .map((channel: any) => normalizeText(channel).toLowerCase())
-    .includes("whatsapp");
-
-  if (!aiEnabled || !autoReplyEnabled || !whatsappAllowed) {
+  // --- Multi-tenant RAG + AI auto-reply (spec section 4) ---
+  if (!isAiAutoReplyEnabled(input.organizationContext)) {
+    console.log(`[Webhook] AI auto-reply disabled for org=${organizationId}`);
     return;
   }
-
-  await resolveOrganizationApiKey(input.organization);
 
   const history = await getRecentHistory({
     organizationId,
@@ -372,52 +257,58 @@ const processIncomingMessage = async (input: {
 
   const customerMessage = buildCustomerMessageText(payload.messageType, payload.contentText);
 
-  const replyResult = await generateConversationReply({
-    organization: toConversationOrganizationContext(input.organization),
-    message: customerMessage,
-    channel: "whatsapp",
-    history,
-    customer: {
-      id: customerPhone,
-      name: contactName,
-    },
-  });
-
-  await appendMessage({
-    organizationId,
-    conversationId: String(conversation._id),
-    senderType: "assistant",
-    messageType: "text",
-    contentText: replyResult.reply,
-    aiGenerated: true,
-  });
-
   try {
-    await AIConversation.create({
+    const replyResult = await generateConversationReply({
+      organization: input.organizationContext,
+      message: customerMessage,
+      channel: "whatsapp",
+      history,
+      customer: {
+        id: customerPhone,
+        name: contactName,
+      },
+    });
+
+    await appendMessage({
       organizationId,
       conversationId: String(conversation._id),
-      channel: "whatsapp",
-      customerPhone,
-      prompt: customerMessage,
-      reply: replyResult.reply,
-      modelName: normalizeText(input.organization?.aiSettings?.modelName),
-      usage: {
-        promptTokens: replyResult.usage.promptTokens,
-        completionTokens: replyResult.usage.completionTokens,
-        totalTokens: replyResult.usage.totalTokens,
-      },
-      externalMessageId: normalizeText(input.message?.id),
+      senderType: "assistant",
+      messageType: "text",
+      contentText: replyResult.reply,
+      aiGenerated: true,
+    });
+
+    try {
+      await AIConversation.create({
+        organizationId,
+        conversationId: String(conversation._id),
+        channel: "whatsapp",
+        customerPhone,
+        prompt: customerMessage,
+        reply: replyResult.reply,
+        modelName: normalizeText(input.organizationContext?.aiSettings?.modelName),
+        usage: {
+          promptTokens: replyResult.usage.promptTokens,
+          completionTokens: replyResult.usage.completionTokens,
+          totalTokens: replyResult.usage.totalTokens,
+        },
+        externalMessageId: normalizeText(input.message?.id),
+      });
+    } catch (error: any) {
+      console.warn(`Failed to log AI conversation: ${error?.message ?? error}`);
+    }
+
+    await sendWhatsAppMessageWithRetry({
+      accessToken: input.accessToken,
+      phoneNumberId: input.connection.phoneNumberId,
+      to: customerPhone,
+      text: replyResult.reply,
     });
   } catch (error: any) {
-    console.warn(`Failed to log AI conversation: ${error?.message ?? error}`);
+    console.error(
+      `[Webhook] AI auto-reply failed for org=${organizationId}: ${error?.message ?? error}`
+    );
   }
-
-  await sendWhatsAppMessageWithRetry({
-    accessToken: input.accessToken,
-    phoneNumberId: input.connection.phoneNumberId,
-    to: customerPhone,
-    text: replyResult.reply,
-  });
 };
 
 const processWebhookPayload = async (payload: any) => {
@@ -434,25 +325,33 @@ const processWebhookPayload = async (payload: any) => {
         continue;
       }
 
-      const connection = await getConnectionByPhoneNumberId(phoneNumberId);
-
-      if (!connection) {
-        console.warn(`WhatsApp webhook ignored: no connection for ${phoneNumberId}`);
+      let tenantContext;
+      try {
+        tenantContext = await loadTenantByPhoneNumberId(phoneNumberId);
+      } catch (error: any) {
+        console.warn(
+          `WhatsApp webhook ignored for ${phoneNumberId}: ${error?.message ?? error}`
+        );
         continue;
       }
 
-      const accessToken = resolveAccessToken(connection);
-      const organization = await Organization.findById(connection.organizationId).select(
-        apiKeyOrganizationSelect
-      );
-
-      if (!organization) {
-        console.warn(`WhatsApp webhook ignored: organization missing for ${phoneNumberId}`);
-        continue;
-      }
+      const { connection, organizationContext, accessToken } = tenantContext;
 
       const messages = Array.isArray(value?.messages) ? value.messages : [];
       const contacts = Array.isArray(value?.contacts) ? value.contacts : [];
+      const statuses = Array.isArray(value?.statuses) ? value.statuses : [];
+
+      if (!messages.length && statuses.length) {
+        console.log(
+          `[Webhook] Delivery status update for ${phoneNumberId} (${statuses.length} statuses)`
+        );
+      }
+
+      if (!messages.length && !statuses.length) {
+        console.log(
+          `[Webhook] No messages or statuses in payload for ${phoneNumberId} (field=${normalizeText(change?.field)})`
+        );
+      }
 
       for (const message of messages) {
         try {
@@ -488,7 +387,7 @@ const processWebhookPayload = async (payload: any) => {
           );
 
           await processIncomingMessage({
-            organization,
+            organizationContext,
             connection,
             accessToken,
             message,
