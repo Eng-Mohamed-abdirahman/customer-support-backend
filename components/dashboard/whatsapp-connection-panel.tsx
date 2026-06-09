@@ -43,6 +43,7 @@ import {
   connectWhatsApp,
   disconnectWhatsApp,
   getWhatsAppStatus,
+  setupInboundWebhooks,
 } from "@/services/whatsapp.service"
 import type {
   EmbeddedSignupVerifyToken,
@@ -155,6 +156,7 @@ export function WhatsAppConnectionPanel({ organizationId }: { organizationId?: s
   })
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({})
   const [isManualConnecting, setIsManualConnecting] = useState(false)
+  const [isSettingUpWebhooks, setIsSettingUpWebhooks] = useState(false)
 
   /* ---------- load ---------- */
 
@@ -250,6 +252,33 @@ export function WhatsAppConnectionPanel({ organizationId }: { organizationId?: s
     `${API_BASE_URL}/api/webhooks/whatsapp`
 
   const webhookUsesLocalhost = /localhost|127\.0\.0\.1/i.test(webhookUrl)
+  const inboundMessagesEnabled = webhookStatus?.messagesFieldSubscribed === true
+
+  const handleSetupInboundWebhooks = useCallback(async () => {
+    setIsSettingUpWebhooks(true)
+    setLoadError(null)
+    setSuccessMessage(null)
+
+    try {
+      const result = await setupInboundWebhooks(organizationId)
+      if (result.allSucceeded && result.metaSubscriptions?.messagesSubscribed !== false) {
+        setSuccessMessage(
+          "Inbound WhatsApp messages enabled. Send a test message from your phone and watch for [Webhook] POST in backend logs."
+        )
+      } else {
+        setLoadError(
+          "Webhook setup completed with issues. Check backend logs and ensure PUBLIC_API_URL is a public URL Meta can reach."
+        )
+      }
+      await loadStatus(true)
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to enable inbound WhatsApp messages"
+      setLoadError(message)
+    } finally {
+      setIsSettingUpWebhooks(false)
+    }
+  }, [loadStatus, organizationId])
 
   /* ---------- copy helper ---------- */
 
@@ -495,7 +524,7 @@ export function WhatsAppConnectionPanel({ organizationId }: { organizationId?: s
               {/* ─── Connected Numbers ─── */}
               {activeConnections.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Phone className="size-4 text-muted-foreground" />
                     <h3 className="text-sm font-semibold text-foreground">
                       Connected Numbers
@@ -503,7 +532,63 @@ export function WhatsAppConnectionPanel({ organizationId }: { organizationId?: s
                     <Badge variant="outline" className="rounded-full text-[10px]">
                       {activeConnections.length}
                     </Badge>
+                    <div className="ml-auto flex items-center gap-2">
+                      {!inboundMessagesEnabled ? (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                        >
+                          Inbound messages off
+                        </Badge>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 rounded-full text-[11px]"
+                        onClick={() => void handleSetupInboundWebhooks()}
+                        disabled={isSettingUpWebhooks || webhookUsesLocalhost}
+                      >
+                        {isSettingUpWebhooks ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Zap className="size-3.5" />
+                        )}
+                        Enable inbound messages
+                      </Button>
+                    </div>
                   </div>
+
+                  {webhookUsesLocalhost || !inboundMessagesEnabled ? (
+                    <Alert className="py-2 border-amber-500/30 bg-amber-500/10">
+                      <AlertTitle className="text-xs text-amber-200">
+                        Incoming WhatsApp texts are not reaching this server
+                      </AlertTitle>
+                      <AlertDescription className="text-[11px] text-amber-100/90 space-y-2">
+                        <p>
+                          Outbound works, but Meta delivers inbound messages to your{" "}
+                          <span className="font-semibold">public webhook URL</span>, not localhost.
+                          If you use ngrok, its URL changes every restart — Meta may still be sending to an
+                          old dead URL.
+                        </p>
+                        <ol className="list-decimal pl-4 space-y-1">
+                          <li>
+                            Run <code className="font-mono">ngrok http 5000</code> (or use{" "}
+                            <code className="font-mono">https://api.technov.me</code> in production)
+                          </li>
+                          <li>
+                            Set <code className="font-mono">PUBLIC_API_URL</code> in backend{" "}
+                            <code className="font-mono">.env</code> to that https URL
+                          </li>
+                          <li>Restart backend, then click Enable inbound messages</li>
+                          <li>
+                            Text your business number — look for{" "}
+                            <code className="font-mono">[Webhook] POST</code> in backend logs
+                          </li>
+                        </ol>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     {activeConnections.map((conn) => {

@@ -5,6 +5,7 @@ import type {
   WhatsAppConnectResult,
   WhatsAppDisconnectResult,
   WhatsAppStatusResult,
+  WhatsAppWebhookSetupResult,
 } from "@/types/whatsapp"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
@@ -123,6 +124,36 @@ export async function completeEmbeddedSignup(
   return extractData<EmbeddedSignupResult>(
     response,
     "Failed to complete WhatsApp Embedded Signup"
+  )
+}
+
+export async function setupInboundWebhooks(
+  organizationId?: string
+): Promise<WhatsAppWebhookSetupResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to configure WhatsApp webhooks")
+  }
+
+  const searchParams = new URLSearchParams()
+  if (organizationId) {
+    searchParams.set("organizationId", organizationId)
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/whatsapp/webhook/setup${searchParams.size ? `?${searchParams}` : ""}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(organizationId ? { "x-organization-id": organizationId } : {}),
+      },
+    }
+  )
+
+  return extractData<WhatsAppWebhookSetupResult>(
+    response,
+    "Failed to enable inbound WhatsApp messages"
   )
 }
 
