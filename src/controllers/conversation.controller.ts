@@ -27,6 +27,7 @@ const {
   resolveAccessToken,
 } = require("../services/whatsapp.service");
 const { sendWhatsAppTextMessage } = require("../services/whatsappGraph.service");
+const { sendMessage } = require("../services/whatsappSender.service");
 
 const previewConversationOrganizationSelect =
   "_id status profile contact businessInfo supportSettings aiSettings allowedChannels api_settings";
@@ -150,8 +151,11 @@ const resolveOrganizationFromRequester = async (req: Request) => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
-  const organizationId = normalizeText(requester?.organizationId) || normalizeText(requester?.company);
+  const requester = (req as any).user as any;
+  const organizationId =
+    normalizeText(requester?.accountId) ||
+    normalizeText(requester?.organizationId) ||
+    normalizeText(requester?.company);
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
     throw new AppError("Organization context is missing for this user", 400);
@@ -360,8 +364,8 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const conversation = await resolveConversationById(organizationId, conversationId);
-  conversation.aiEnabled = false;
-  conversation.assignedAgent = requester._id;
+  conversation.responderType = "agent";
+  conversation.assignedAgentId = requester._id;
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -383,13 +387,16 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
   emitToOrganization(organizationId, "conversation:updated", {
     conversationId: String(conversation._id),
     aiEnabled: false,
+    responderType: "agent",
     assignedAgent: String(requester._id),
+    assignedAgentId: String(requester._id),
     lastMessageAt: new Date(),
   });
 
   apiResponse(res, 200, "Conversation takeover completed", {
     conversationId: String(conversation._id),
-    assignedAgent: String(requester._id),
+    responderType: "agent",
+    assignedAgentId: String(requester._id),
   });
 });
 
@@ -407,8 +414,8 @@ const returnConversationToAi = asyncHandler(async (req: Request, res: Response) 
   }
 
   const conversation = await resolveConversationById(organizationId, conversationId);
-  conversation.aiEnabled = true;
-  conversation.assignedAgent = null;
+  conversation.responderType = "ai";
+  conversation.assignedAgentId = null;
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -430,13 +437,16 @@ const returnConversationToAi = asyncHandler(async (req: Request, res: Response) 
   emitToOrganization(organizationId, "conversation:updated", {
     conversationId: String(conversation._id),
     aiEnabled: true,
+    responderType: "ai",
     assignedAgent: null,
+    assignedAgentId: null,
     lastMessageAt: new Date(),
   });
 
   apiResponse(res, 200, "Conversation returned to AI", {
     conversationId: String(conversation._id),
-    assignedAgent: null,
+    responderType: "ai",
+    assignedAgentId: null,
   });
 });
 
@@ -465,18 +475,12 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (normalizeText(conversation.channel).toLowerCase() === "whatsapp") {
-    const connection = await getActiveConnectionByOrganizationId(organizationId);
-    if (!connection) {
-      throw new AppError("WhatsApp connection not found", 404);
-    }
-
-    const accessToken = resolveAccessToken(connection);
-    await sendWhatsAppTextMessage({
-      accessToken,
-      phoneNumberId: connection.phoneNumberId,
-      to: normalizeText(conversation.customerPhone),
-      text: contentText,
-    });
+    // Send message using the unified, dynamic WhatsApp sender service
+    await sendMessage(
+      organizationId,
+      normalizeText(conversation.customerPhone),
+      contentText
+    );
   }
 
   apiResponse(res, 200, "Message sent successfully", {

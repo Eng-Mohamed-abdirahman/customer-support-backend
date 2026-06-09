@@ -24,7 +24,17 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
   if (err.code === 11000) {
     statusCode = 400;
-    message = "Duplicate field value entered";
+    const duplicateField = Object.keys(err.keyPattern ?? {})[0];
+    if (duplicateField === "phoneNumberId") {
+      message = "This WhatsApp phone number is already connected to another workspace";
+    } else if (duplicateField === "organizationId") {
+      message =
+        "This organization already has a WhatsApp connection. Disconnect the old number first or restart the backend to apply the latest database fix.";
+    } else {
+      message = duplicateField
+        ? `Duplicate value for ${duplicateField}`
+        : "Duplicate field value entered";
+    }
   }
 
   res.status(statusCode).json({

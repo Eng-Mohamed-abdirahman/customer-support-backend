@@ -76,4 +76,8 @@ export const env = {
   frontend: {
     url: process.env.FRONTEND_URL || "http://localhost:3000",
   },
+  publicApiUrl:
+    process.env.PUBLIC_API_URL ||
+    process.env.WEBHOOK_PUBLIC_URL ||
+    `http://localhost:${process.env.PORT || 5000}`,
 };

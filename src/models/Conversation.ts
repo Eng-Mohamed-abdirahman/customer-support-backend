@@ -35,10 +35,17 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+      alias: "assignedAgentId",
     },
     aiEnabled: {
       type: Boolean,
       default: true,
+    },
+    responderType: {
+      type: String,
+      enum: ["ai", "agent"],
+      default: "ai",
+      index: true,
     },
     lastMessageAt: {
       type: Date,
@@ -54,6 +61,14 @@ const conversationSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+conversationSchema.pre("save", function (this: any) {
+  if (this.isModified("aiEnabled")) {
+    this.responderType = this.aiEnabled ? "ai" : "agent";
+  } else if (this.isModified("responderType")) {
+    this.aiEnabled = this.responderType === "ai";
+  }
+});
 
 conversationSchema.index({ organizationId: 1, channel: 1, customerPhone: 1 }, { unique: true });
 
