@@ -35,6 +35,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
       role: user.role,
       organizationId: user.company ? String(user.company) : null,
       company: user.company ? String(user.company) : null,
+      accountId: user.company ? String(user.company) : null,
     };
     next();
   } catch (err) {
