@@ -5,6 +5,8 @@ import { useParams } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { WhatsAppConnectionPanel } from "@/components/dashboard/whatsapp-connection-panel"
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -536,6 +538,10 @@ export default function OrganizationAdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {organizationId && (
+        <WhatsAppConnectionPanel organizationId={organizationId} />
+      )}
     </div>
   )
 }

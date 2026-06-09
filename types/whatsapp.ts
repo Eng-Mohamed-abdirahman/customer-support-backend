@@ -29,8 +29,26 @@ export type ConnectWhatsAppInput = {
   verifyToken: string
 }
 
+export type WhatsAppWebhookLog = {
+  _id?: string
+  status?: string
+  externalId?: string
+  eventType?: string
+  errorMessage?: string
+  createdAt?: string
+  phoneNumberId?: string
+}
+
+export type WhatsAppWebhookStatus = {
+  callbackUrl: string
+  recentLogs: WhatsAppWebhookLog[]
+  processedCount: number
+  failedCount: number
+}
+
 export type WhatsAppStatusResult = {
   connections: WhatsAppConnection[]
+  webhook?: WhatsAppWebhookStatus
 }
 
 export type WhatsAppConnectResult = {
