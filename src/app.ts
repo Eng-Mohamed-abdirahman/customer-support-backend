@@ -65,10 +65,18 @@ const logWebhookRequest = (req: express.Request, _res: express.Response, next: e
 	const value = change?.value ?? {};
 	const messageCount = Array.isArray(value?.messages) ? value.messages.length : 0;
 	const statusCount = Array.isArray(value?.statuses) ? value.statuses.length : 0;
+	const hasSignature = Boolean(req.headers["x-hub-signature-256"]);
 
 	console.log(
-		`[Webhook] ${req.method} ${req.path} messages=${messageCount} statuses=${statusCount} field=${change?.field ?? "-"}`
+		`[Webhook] ${req.method} ${req.originalUrl} messages=${messageCount} statuses=${statusCount} field=${change?.field ?? "-"} signed=${hasSignature}`
 	);
+
+	if (req.method === "POST" && messageCount === 0 && statusCount === 0) {
+		console.log(
+			`[Webhook] POST received but no messages/statuses in payload — check Meta app is subscribed to the "messages" field`
+		);
+	}
+
 	next();
 };
 

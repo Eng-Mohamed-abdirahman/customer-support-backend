@@ -28,6 +28,7 @@ const {
 } = require("../services/whatsapp.service");
 const { sendWhatsAppTextMessage } = require("../services/whatsappGraph.service");
 const { sendMessage } = require("../services/whatsappSender.service");
+const { whatsappLog } = require("../utils/whatsappLogger");
 
 const previewConversationOrganizationSelect =
   "_id status profile contact businessInfo supportSettings aiSettings allowedChannels api_settings";
@@ -455,15 +456,30 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
   const conversationId = normalizeText(req.params?.id);
   const contentText = normalizeText(req.body?.content);
 
+  whatsappLog.info("AGENT_SEND", "Agent message API called from dashboard", {
+    organizationId,
+    conversationId,
+    contentLength: contentText.length,
+  });
+
   if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+    whatsappLog.warn("AGENT_SEND", "Invalid conversation ID", { organizationId, conversationId });
     throw new AppError("Conversation not found", 404);
   }
 
   if (!contentText) {
+    whatsappLog.warn("AGENT_SEND", "Empty message content", { organizationId, conversationId });
     throw new AppError("Message content is required", 400);
   }
 
   const conversation = await resolveConversationById(organizationId, conversationId);
+
+  whatsappLog.debug("AGENT_SEND", "Conversation resolved", {
+    organizationId,
+    conversationId: String(conversation._id),
+    channel: conversation.channel,
+    customerPhone: conversation.customerPhone,
+  });
 
   const message = await appendMessage({
     organizationId,
@@ -474,13 +490,35 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
     aiGenerated: false,
   });
 
+  whatsappLog.info("AGENT_SEND", "Agent message saved to database and broadcast", {
+    organizationId,
+    conversationId: String(conversation._id),
+    messageId: String(message._id),
+  });
+
   if (normalizeText(conversation.channel).toLowerCase() === "whatsapp") {
-    // Send message using the unified, dynamic WhatsApp sender service
-    await sendMessage(
+    try {
+      await sendMessage(
+        organizationId,
+        normalizeText(conversation.customerPhone),
+        contentText
+      );
+    } catch (error: any) {
+      whatsappLog.error("AGENT_SEND", "Failed to deliver agent message to WhatsApp", {
+        organizationId,
+        conversationId: String(conversation._id),
+        customerPhone: conversation.customerPhone,
+        messageId: String(message._id),
+        error: String(error?.message ?? error),
+      });
+      throw error;
+    }
+  } else {
+    whatsappLog.debug("AGENT_SEND", "Skipping WhatsApp delivery — non-WhatsApp channel", {
       organizationId,
-      normalizeText(conversation.customerPhone),
-      contentText
-    );
+      conversationId: String(conversation._id),
+      channel: conversation.channel,
+    });
   }
 
   apiResponse(res, 200, "Message sent successfully", {
