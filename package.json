@@ -45,6 +45,8 @@
     "pdf-parse": "^2.4.5",
     "socket.io": "^4.8.3",
     "uuid": "^14.0.0",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@aws-sdk/client-s3": "^3.546.0",
+    "@aws-sdk/s3-request-presigner": "^3.546.0"
   }
 }
