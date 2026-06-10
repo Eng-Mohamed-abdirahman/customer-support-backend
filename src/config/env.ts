@@ -76,6 +76,12 @@ export const env = {
   frontend: {
     url: process.env.FRONTEND_URL || "http://localhost:3000",
   },
+  B2_ACCESS_KEY_ID: process.env.B2_ACCESS_KEY_ID || "",
+  B2_SECRET_ACCESS_KEY: process.env.B2_SECRET_ACCESS_KEY || "",
+  B2_REGION: process.env.B2_REGION || "us-west-004",
+  B2_S3_ENDPOINT: process.env.B2_S3_ENDPOINT || "",
+  B2_BUCKET_NAME: process.env.B2_BUCKET_NAME || "",
+  B2_PUBLIC_URL_BASE: process.env.B2_PUBLIC_URL_BASE || "",
   publicApiUrl:
     process.env.PUBLIC_API_URL ||
     process.env.WEBHOOK_PUBLIC_URL ||
