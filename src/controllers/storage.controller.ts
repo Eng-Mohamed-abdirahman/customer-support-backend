@@ -3,10 +3,13 @@ import path from "path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+const multer = require("multer");
 const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { env } = require("../config/env");
+
+const uploadMiddleware = multer({ storage: multer.memoryStorage() }).single("file");
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -122,8 +125,58 @@ const getPresignedUploadUrl = asyncHandler(async (req: Request, res: Response) =
   });
 });
 
+const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
+  const organizationId = resolveOrganizationId(req);
+  const type = normalizeText(String(req.query.type ?? "")).toLowerCase();
+
+  if (type !== "logo") {
+    throw new AppError("type query parameter must be set to 'logo'", 400);
+  }
+
+  const file = (req as any).file;
+  if (!file || !file.buffer || !file.originalname || !file.mimetype) {
+    throw new AppError("A file must be uploaded under the 'file' field", 400);
+  }
+
+  const allowedContentTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+  if (!allowedContentTypes.includes(file.mimetype)) {
+    throw new AppError("Only PNG, JPEG, and SVG files are supported", 400);
+  }
+
+  const extension = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = [".png", ".jpg", ".jpeg", ".svg"];
+  if (!allowedExtensions.includes(extension)) {
+    throw new AppError("Unsupported file extension. Only .png, .jpg, .jpeg, and .svg are allowed", 400);
+  }
+
+  validateBackblazeConfig();
+
+  const sanitizedFilename = sanitizeFilename(path.basename(file.originalname, extension)) + extension;
+  const objectKey = `logos/${organizationId}/${Date.now()}-${sanitizedFilename}`;
+
+  const s3Client = buildS3Client();
+  const command = new PutObjectCommand({
+    Bucket: env.B2_BUCKET_NAME,
+    Key: objectKey,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+  });
+
+  await s3Client.send(command);
+
+  const publicUrlBase = normalizeUrl(env.B2_PUBLIC_URL_BASE);
+  const publicUrl = `${publicUrlBase}/${env.B2_BUCKET_NAME}/${objectKey}`;
+
+  apiResponse(res, 200, "Logo uploaded successfully", {
+    publicUrl,
+    objectKey,
+  });
+});
+
 module.exports = {
   getPresignedUploadUrl,
+  uploadLogo,
+  uploadMiddleware,
 };
 
 export {};
