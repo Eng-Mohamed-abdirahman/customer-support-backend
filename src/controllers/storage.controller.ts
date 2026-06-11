@@ -111,7 +111,6 @@ const getPresignedUploadUrl = asyncHandler(async (req: Request, res: Response) =
     Bucket: env.B2_BUCKET_NAME,
     Key: objectKey,
     ContentType: contentType,
-    ACL: "public-read",
   });
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
   const publicUrlBase = normalizeUrl(env.B2_PUBLIC_URL_BASE);
