@@ -1,15 +1,12 @@
 import { Request, Response } from "express";
 import path from "path";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const multer = require("multer");
 const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
 const { asyncHandler } = require("../utils/asyncHandler");
-const { env } = require("../config/env");
-
-const uploadMiddleware = multer({ storage: multer.memoryStorage() }).single("file");
+const { getUploadPresignedUrl, uploadFile, getFileUrl } = require("../services/storage.service");
+const { BACKBLAZE_PUBLIC_URL_BASE, B2_BUCKET_NAME } = require("../config/backblaze");
+const upload = require("../middlewares/upload").default;
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -31,42 +28,6 @@ const resolveOrganizationId = (req: Request): string => {
   }
 
   return String(organizationId);
-};
-
-const validateBackblazeConfig = () => {
-  if (
-    !env.B2_S3_ENDPOINT ||
-    !env.B2_BUCKET_NAME ||
-    !env.B2_PUBLIC_URL_BASE ||
-    !env.B2_ACCESS_KEY_ID ||
-    !env.B2_SECRET_ACCESS_KEY
-  ) {
-    throw new AppError(
-      "Backblaze B2 storage is not configured. Please set the required environment variables.",
-      500
-    );
-  }
-};
-
-const normalizeUrl = (url: string): string => {
-  const trimmed = url.trim();
-  if (!trimmed) {
-    return trimmed;
-  }
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  return withScheme.replace(/\/+$/, "");
-};
-
-const buildS3Client = () => {
-  return new S3Client({
-    endpoint: normalizeUrl(env.B2_S3_ENDPOINT),
-    region: env.B2_REGION || "us-west-004",
-    credentials: {
-      accessKeyId: env.B2_ACCESS_KEY_ID,
-      secretAccessKey: env.B2_SECRET_ACCESS_KEY,
-    },
-    forcePathStyle: true,
-  });
 };
 
 const sanitizeFilename = (filename: string): string => {
@@ -104,24 +65,18 @@ const getPresignedUploadUrl = asyncHandler(async (req: Request, res: Response) =
     throw new AppError("Unsupported file extension. Only .png, .jpg, .jpeg, and .svg are allowed", 400);
   }
 
-  validateBackblazeConfig();
-
   const sanitizedFilename = sanitizeFilename(path.basename(filename, extension)) + extension;
   const objectKey = `logos/${organizationId}/${Date.now()}-${sanitizedFilename}`;
 
-  const s3Client = buildS3Client();
-  const command = new PutObjectCommand({
-    Bucket: env.B2_BUCKET_NAME,
-    Key: objectKey,
-    ContentType: contentType,
-  });
-  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-  const publicUrlBase = normalizeUrl(env.B2_PUBLIC_URL_BASE);
-  const publicUrl = `${publicUrlBase}/${env.B2_BUCKET_NAME}/${objectKey}`;
+  const uploadUrl = await getUploadPresignedUrl(objectKey, contentType);
+  const publicUrl = `${BACKBLAZE_PUBLIC_URL_BASE}/${B2_BUCKET_NAME}/${objectKey}`;
+  const downloadUrl = await getFileUrl(objectKey);
 
   apiResponse(res, 200, "Presigned upload URL created successfully", {
     uploadUrl,
     publicUrl,
+    downloadUrl,
+    objectKey,
   });
 });
 
@@ -149,34 +104,23 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Unsupported file extension. Only .png, .jpg, .jpeg, and .svg are allowed", 400);
   }
 
-  validateBackblazeConfig();
-
   const sanitizedFilename = sanitizeFilename(path.basename(file.originalname, extension)) + extension;
   const objectKey = `logos/${organizationId}/${Date.now()}-${sanitizedFilename}`;
 
-  const s3Client = buildS3Client();
-  const command = new PutObjectCommand({
-    Bucket: env.B2_BUCKET_NAME,
-    Key: objectKey,
-    Body: file.buffer,
-    ContentType: file.mimetype,
-  });
-
-  await s3Client.send(command);
-
-  const publicUrlBase = normalizeUrl(env.B2_PUBLIC_URL_BASE);
-  const publicUrl = `${publicUrlBase}/${env.B2_BUCKET_NAME}/${objectKey}`;
+  const result = await uploadFile(file.buffer, objectKey, file.mimetype);
+  const downloadUrl = await getFileUrl(result.publicId);
 
   apiResponse(res, 200, "Logo uploaded successfully", {
-    publicUrl,
-    objectKey,
+    publicUrl: result.publicUrl,
+    downloadUrl,
+    objectKey: result.publicId,
   });
 });
 
 module.exports = {
   getPresignedUploadUrl,
   uploadLogo,
-  uploadMiddleware,
+  uploadMiddleware: upload.single("file"),
 };
 
 export {};
