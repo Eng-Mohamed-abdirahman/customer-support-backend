@@ -10,7 +10,8 @@ const normalizeUrl = (url: string): string => {
   return withScheme.replace(/\/+$|\s+$/g, "");
 };
 
-const endpoint = normalizeUrl(env.B2_S3_ENDPOINT || env.B2_ENDPOINT || "");
+const rawEndpoint = env.B2_S3_ENDPOINT || env.B2_ENDPOINT || "";
+const endpoint = normalizeUrl(rawEndpoint);
 if (!endpoint) {
   throw new Error("B2 endpoint is not configured. Set B2_S3_ENDPOINT or B2_ENDPOINT in .env.");
 }
@@ -23,7 +24,7 @@ if (!env.B2_ACCESS_KEY_ID || !env.B2_SECRET_ACCESS_KEY) {
   throw new Error("B2 credentials are not configured. Set B2_ACCESS_KEY_ID and B2_SECRET_ACCESS_KEY in .env.");
 }
 
-export const s3Client = new S3Client({
+const s3Client = new S3Client({
   endpoint,
   region: env.B2_REGION || "us-west-004",
   credentials: {
@@ -33,5 +34,8 @@ export const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
+export default s3Client;
 export const B2_BUCKET_NAME = env.B2_BUCKET_NAME;
-export const BACKBLAZE_PUBLIC_URL_BASE = normalizeUrl(env.B2_PUBLIC_URL_BASE || endpoint);
+export const BACKBLAZE_PUBLIC_URL_BASE = normalizeUrl(
+  env.B2_PUBLIC_URL_BASE || `${endpoint}/${env.B2_BUCKET_NAME}`
+);

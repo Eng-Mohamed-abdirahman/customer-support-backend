@@ -3,8 +3,10 @@ import {
   GetObjectCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { s3Client, B2_BUCKET_NAME, BACKBLAZE_PUBLIC_URL_BASE } from "../config/backblaze";
+import crypto from "crypto";
+import s3Client, { B2_BUCKET_NAME, BACKBLAZE_PUBLIC_URL_BASE } from "../config/backblaze";
 import { AppError } from "../utils/appError";
 
 const ensureBackblazeConfigured = () => {
@@ -15,23 +17,37 @@ const ensureBackblazeConfigured = () => {
 
 export async function uploadFile(
   buffer: Buffer,
-  key: string,
-  contentType: string
-): Promise<{ publicUrl: string; publicId: string }> {
+  folder: string,
+  mimetype: string
+): Promise<{ url: string; publicId: string; publicUrl: string }> {
   ensureBackblazeConfigured();
 
-  const command = new PutObjectCommand({
-    Bucket: B2_BUCKET_NAME,
-    Key: key,
-    Body: buffer,
-    ContentType: contentType,
-  });
+  const filename = crypto.randomUUID();
+  const key = folder ? `${folder}/${filename}` : filename;
 
-  await s3Client.send(command);
+  try {
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: B2_BUCKET_NAME,
+        Key: key,
+        Body: buffer,
+        ContentType: mimetype,
+      },
+    });
+
+    await upload.done();
+  } catch (error) {
+    console.error("B2 Upload Failed:", error);
+    throw new Error(`B2 Upload Failed: ${(error as any).message}`);
+  }
+
+  const url = await getFileUrl(key);
 
   return {
-    publicUrl: `${BACKBLAZE_PUBLIC_URL_BASE}/${B2_BUCKET_NAME}/${key}`,
+    url,
     publicId: key,
+    publicUrl: `${BACKBLAZE_PUBLIC_URL_BASE}/${key}`,
   };
 }
 
@@ -51,25 +67,26 @@ export async function getUploadPresignedUrl(
 }
 
 export async function getFileUrl(
-  key: string,
+  publicId: string,
   expiresIn = 86400
 ): Promise<string> {
+  if (!publicId) return "";
   ensureBackblazeConfigured();
 
   const command = new GetObjectCommand({
     Bucket: B2_BUCKET_NAME,
-    Key: key,
+    Key: publicId,
   });
 
   return await getSignedUrl(s3Client, command, { expiresIn });
 }
 
-export async function deleteFile(key: string): Promise<void> {
+export async function deleteFile(publicId: string): Promise<void> {
   ensureBackblazeConfigured();
 
   const command = new DeleteObjectCommand({
     Bucket: B2_BUCKET_NAME,
-    Key: key,
+    Key: publicId,
   });
 
   await s3Client.send(command);

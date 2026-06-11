@@ -47,6 +47,7 @@
     "uuid": "^14.0.0",
     "zod": "^4.3.6",
     "@aws-sdk/client-s3": "^3.546.0",
+    "@aws-sdk/lib-storage": "^3.546.0",
     "@aws-sdk/s3-request-presigner": "^3.546.0"
   }
 }
