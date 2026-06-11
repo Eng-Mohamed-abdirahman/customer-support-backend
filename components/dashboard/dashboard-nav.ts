@@ -19,6 +19,8 @@ import {
   UserPlus,
   Users,
   ContactRound,
+  Palette,
+  Sparkles,
 } from "lucide-react"
 
 import type { MembershipRole, SafeUser } from "@/types/auth"
@@ -84,6 +86,20 @@ const generalNavItems: DashboardNavItem[] = [
     icon: LayoutDashboard,
     description: "Workspace overview",
     access: {},
+  },
+  {
+    title: "Organization Brand",
+    href: "/dashboard/brand",
+    icon: Palette,
+    description: "Configure organization brand guidelines",
+    access: { membershipRoles: organizationAdminRoles },
+  },
+  {
+    title: "Studio Canvas",
+    href: "/dashboard/studio",
+    icon: Sparkles,
+    description: "Create marketing graphic designs with AI",
+    access: { membershipRoles: organizationAdminRoles },
   },
   {
     title: "Inbox",
