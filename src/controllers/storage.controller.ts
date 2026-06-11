@@ -45,9 +45,18 @@ const validateBackblazeConfig = () => {
   }
 };
 
+const normalizeUrl = (url: string): string => {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withScheme.replace(/\/+$/, "");
+};
+
 const buildS3Client = () => {
   return new S3Client({
-    endpoint: env.B2_S3_ENDPOINT,
+    endpoint: normalizeUrl(env.B2_S3_ENDPOINT),
     region: env.B2_REGION || "us-west-004",
     credentials: {
       accessKeyId: env.B2_ACCESS_KEY_ID,
@@ -105,7 +114,8 @@ const getPresignedUploadUrl = asyncHandler(async (req: Request, res: Response) =
     ACL: "public-read",
   });
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
-  const publicUrl = `${env.B2_PUBLIC_URL_BASE}/${env.B2_BUCKET_NAME}/${objectKey}`;
+  const publicUrlBase = normalizeUrl(env.B2_PUBLIC_URL_BASE);
+  const publicUrl = `${publicUrlBase}/${env.B2_BUCKET_NAME}/${objectKey}`;
 
   apiResponse(res, 200, "Presigned upload URL created successfully", {
     uploadUrl,
