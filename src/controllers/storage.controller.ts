@@ -104,16 +104,12 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Unsupported file extension. Only .png, .jpg, .jpeg, and .svg are allowed", 400);
   }
 
-  const sanitizedFilename = sanitizeFilename(path.basename(file.originalname, extension)) + extension;
-  const objectKey = `logos/${organizationId}/${Date.now()}-${sanitizedFilename}`;
-
-  const result = await uploadFile(file.buffer, objectKey, file.mimetype);
-  const downloadUrl = await getFileUrl(result.publicId);
+  const result = await uploadFile(file.buffer, `logos/${organizationId}`, file.mimetype);
 
   apiResponse(res, 200, "Logo uploaded successfully", {
+    url: result.url,
     publicUrl: result.publicUrl,
-    downloadUrl,
-    objectKey: result.publicId,
+    publicId: result.publicId,
   });
 });
 
