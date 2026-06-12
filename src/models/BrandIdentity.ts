@@ -1,49 +1,47 @@
 const mongoose = require("mongoose");
 
-const brandIdentitySchema = new mongoose.Schema(
+const BrandIdentitySchema = new mongoose.Schema(
   {
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
       required: true,
-      unique: true,
       index: true,
     },
     brandName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     primaryColor: {
       type: String,
-      required: true,
       trim: true,
-      match: /^#[0-9A-Fa-f]{6}$/,
+      default: "",
     },
     secondaryColor: {
       type: String,
-      required: true,
       trim: true,
-      match: /^#[0-9A-Fa-f]{6}$/,
+      default: "",
     },
     fontStyle: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     logoUrl: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
+    },
+    // Optional fields for future use
+    brandDescription: {
+      type: String,
+      trim: true,
+      default: "",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-brandIdentitySchema.index({ organizationId: 1 }, { unique: true });
-
-module.exports = mongoose.model("BrandIdentity", brandIdentitySchema);
+module.exports = mongoose.model("BrandIdentity", BrandIdentitySchema);
 
 export {};
