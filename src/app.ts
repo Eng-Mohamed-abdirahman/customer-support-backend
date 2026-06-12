@@ -23,8 +23,8 @@ const { verifyWhatsAppSignature } = require("./middlewares/whatsappSignature.mid
 const aiRoutes = require("./routes/ai.routes");
 const orderRoutes = require("./routes/order.routes");
 const contactRoutes = require("./routes/contact.routes");
-const brandRoutes = require("./routes/brand.routes");
-const storageRoutes = require("./routes/storage.routes");
+const designRoutes = require("./routes/design.routes");
+const inngestRoutes = require("./routes/inngest.routes");
 
 const app = express();
 
@@ -107,8 +107,8 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/contacts", contactRoutes);
-app.use("/api/v1/storage", storageRoutes);
-app.use("/api/v1/brands", brandRoutes);
+app.use("/api/designs", designRoutes);
+app.use("/api/inngest", inngestRoutes);
 
 app.use(errorHandler);
 
