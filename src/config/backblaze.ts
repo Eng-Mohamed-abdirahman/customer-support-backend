@@ -32,6 +32,9 @@ const s3Client = new S3Client({
     secretAccessKey: env.B2_SECRET_ACCESS_KEY,
   },
   forcePathStyle: true,
+  // Browser PUT uploads cannot send SDK checksum headers; avoid embedding them in presigned URLs.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export default s3Client;
@@ -39,3 +42,24 @@ export const B2_BUCKET_NAME = env.B2_BUCKET_NAME;
 export const BACKBLAZE_PUBLIC_URL_BASE = normalizeUrl(
   env.B2_PUBLIC_URL_BASE || `${endpoint}/${env.B2_BUCKET_NAME}`
 );
+
+/** Path-style S3 URL: {endpoint}/{bucket}/{objectKey} */
+export function buildPublicObjectUrl(objectKey: string): string {
+  const key = objectKey.replace(/^\/+/, "");
+  const bucket = B2_BUCKET_NAME;
+
+  if (BACKBLAZE_PUBLIC_URL_BASE.endsWith(`/${bucket}`)) {
+    return `${BACKBLAZE_PUBLIC_URL_BASE}/${key}`;
+  }
+
+  return `${BACKBLAZE_PUBLIC_URL_BASE}/${bucket}/${key}`;
+}
+
+export function extractStorageObjectKey(value: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const match = value.match(/((?:logos|outputs)\/[A-Za-z0-9._/-]+)/);
+  return match ? match[1] : null;
+}

@@ -6,6 +6,7 @@ const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { createBrandIdentitySchema } = require("../validators/brand.validator");
+const { resolveLogoDisplayUrl } = require("../utils/logoUrl");
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -69,7 +70,7 @@ const saveBrandIdentity = asyncHandler(async (req: Request, res: Response) => {
     primaryColor: brandIdentity.primaryColor,
     secondaryColor: brandIdentity.secondaryColor,
     fontStyle: brandIdentity.fontStyle,
-    logoUrl: brandIdentity.logoUrl,
+    logoUrl: await resolveLogoDisplayUrl(brandIdentity.logoUrl),
   };
 
   apiResponse(res, 200, "Brand identity saved successfully", responseData);
@@ -91,7 +92,7 @@ const getCurrentBrandIdentity = asyncHandler(async (req: Request, res: Response)
     primaryColor: brandIdentity.primaryColor,
     secondaryColor: brandIdentity.secondaryColor,
     fontStyle: brandIdentity.fontStyle,
-    logoUrl: brandIdentity.logoUrl,
+    logoUrl: await resolveLogoDisplayUrl(brandIdentity.logoUrl),
   });
 });
 

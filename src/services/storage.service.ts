@@ -6,7 +6,7 @@ import {
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
-import s3Client, { B2_BUCKET_NAME, BACKBLAZE_PUBLIC_URL_BASE } from "../config/backblaze";
+import s3Client, { B2_BUCKET_NAME, buildPublicObjectUrl } from "../config/backblaze";
 import { AppError } from "../utils/appError";
 
 const ensureBackblazeConfigured = () => {
@@ -47,7 +47,7 @@ export async function uploadFile(
   return {
     url,
     publicId: key,
-    publicUrl: `${BACKBLAZE_PUBLIC_URL_BASE}/${key}`,
+    publicUrl: buildPublicObjectUrl(key),
   };
 }
 
@@ -63,6 +63,7 @@ export async function getUploadPresignedUrl(
     ContentType: contentType,
   });
 
+  // Only sign "host" so browser PUTs are not rejected when Content-Type is omitted.
   return await getSignedUrl(s3Client, command, { expiresIn: 300 });
 }
 

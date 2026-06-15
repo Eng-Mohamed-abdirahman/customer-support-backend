@@ -49,7 +49,7 @@
     "zod": "^4.3.6",
     "replicate": "^1.0.0",
     "backblaze-b2": "^1.7.0",
-    "inngest": "^1.10.0"
+    "inngest": "^1.10.0",
     "@aws-sdk/client-s3": "^3.546.0",
     "@aws-sdk/lib-storage": "^3.546.0",
     "@aws-sdk/s3-request-presigner": "^3.546.0"
