@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getBrandIdentity, saveBrandIdentity, getPresignedUploadUrl, uploadLogoToB2 } from "@/services/brand.service"
+import { getBrandIdentity, saveBrandIdentity, uploadLogo } from "@/services/brand.service"
 import { listMyCompanyUsers, updateMyCompanyProfile } from "@/services/company.service"
 import type { BrandIdentity } from "@/types/brand"
 import type { MyCompanyUsersResult } from "@/types/company"
@@ -37,8 +37,9 @@ const FONT_OPTIONS = [
 export default function BrandSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   
   // Org details for profile syncing
   const [orgData, setOrgData] = useState<MyCompanyUsersResult | null>(null)
@@ -51,7 +52,13 @@ export default function BrandSettingsPage() {
   const [logoUrl, setLogoUrl] = useState("")
 
   const [dragActive, setDragActive] = useState(false)
+  const [logoPreviewVersion, setLogoPreviewVersion] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const logoPreviewSrc = pendingLogoFile ? localPreviewUrl : logoUrl
+  const logoPreviewKey = pendingLogoFile
+    ? `pending-${pendingLogoFile.name}-${pendingLogoFile.lastModified}-${pendingLogoFile.size}`
+    : `${logoUrl}-${logoPreviewVersion}`
 
   // Fetch current brand identity and organization info
   const loadBrandInfo = useCallback(async () => {
@@ -59,6 +66,14 @@ export default function BrandSettingsPage() {
     setLoadError(null)
 
     try {
+      setPendingLogoFile(null)
+      setLocalPreviewUrl((current) => {
+        if (current) {
+          URL.revokeObjectURL(current)
+        }
+        return null
+      })
+
       // Load brand settings
       const brand = await getBrandIdentity()
       if (brand) {
@@ -89,6 +104,14 @@ export default function BrandSettingsPage() {
     void loadBrandInfo()
   }, [loadBrandInfo])
 
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl)
+      }
+    }
+  }, [localPreviewUrl])
+
   // Color picker handlers
   const handlePrimaryColorChange = (hex: string) => {
     let cleanHex = hex.trim()
@@ -106,46 +129,36 @@ export default function BrandSettingsPage() {
     setSecondaryColor(cleanHex)
   }
 
-  // Logo upload flow
-  const processLogoUpload = async (file: File) => {
-    // Validate file type
+  const handleLogoSelect = (file: File) => {
     const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
     if (!allowedTypes.includes(file.type)) {
       toast.error("Invalid file type. Please upload a PNG, JPEG, or SVG.")
       return
     }
 
-    // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
       toast.error("File is too large. Maximum size is 2MB.")
       return
     }
 
-    setIsUploading(true)
-    const toastId = toast.loading("Requesting secure upload authorization...")
+    if (localPreviewUrl) {
+      URL.revokeObjectURL(localPreviewUrl)
+    }
 
-    try {
-      // Step 1: Request presigned URL
-      const { uploadUrl, publicUrl } = await getPresignedUploadUrl(file.name, file.type)
+    setPendingLogoFile(file)
+    setLocalPreviewUrl(URL.createObjectURL(file))
+    setLogoPreviewVersion((version) => version + 1)
+    toast.success("Logo selected. Click Save Brand Settings to upload.")
 
-      // Step 2: Upload file directly to B2 storage
-      toast.loading("Uploading image to storage server...", { id: toastId })
-      await uploadLogoToB2(uploadUrl, file, file.type)
-
-      // Step 3: Update local state with the uploaded logo URL
-      setLogoUrl(publicUrl)
-      toast.success("Logo uploaded and updated.", { id: toastId })
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to upload logo."
-      toast.error(message, { id: toastId })
-    } finally {
-      setIsUploading(false)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
     }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      void processLogoUpload(e.target.files[0])
+    const file = e.target.files?.[0]
+    if (file) {
+      handleLogoSelect(file)
     }
   }
 
@@ -165,7 +178,7 @@ export default function BrandSettingsPage() {
     setDragActive(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      void processLogoUpload(e.dataTransfer.files[0])
+      handleLogoSelect(e.dataTransfer.files[0])
     }
   }
 
@@ -194,7 +207,7 @@ export default function BrandSettingsPage() {
       return
     }
 
-    if (!logoUrl) {
+    if (!logoUrl && !pendingLogoFile) {
       toast.error("A company logo is required.")
       return
     }
@@ -203,16 +216,32 @@ export default function BrandSettingsPage() {
     const toastId = toast.loading("Saving brand guidelines...")
 
     try {
+      let resolvedLogoUrl = logoUrl
+
+      if (pendingLogoFile) {
+        toast.loading("Uploading logo to storage...", { id: toastId })
+        const uploadResult = await uploadLogo(pendingLogoFile)
+        resolvedLogoUrl = uploadResult.publicUrl
+        setLogoUrl(uploadResult.url || uploadResult.publicUrl)
+        setPendingLogoFile(null)
+        if (localPreviewUrl) {
+          URL.revokeObjectURL(localPreviewUrl)
+          setLocalPreviewUrl(null)
+        }
+      }
+
       const payload: BrandIdentity = {
         brandName: trimmedBrandName,
         primaryColor,
         secondaryColor,
         fontStyle,
-        logoUrl,
+        logoUrl: resolvedLogoUrl,
       }
 
       // 1. Save Brand Identity configuration
-      await saveBrandIdentity(payload)
+      const savedBrand = await saveBrandIdentity(payload)
+      setLogoUrl(savedBrand.logoUrl)
+      setLogoPreviewVersion((version) => version + 1)
 
       // 2. Sync organization profile name & logoUrl
       if (orgData?.organization) {
@@ -220,7 +249,7 @@ export default function BrandSettingsPage() {
           profile: {
             ...orgData.organization.profile,
             name: trimmedBrandName,
-            logoUrl: logoUrl,
+            logoUrl: resolvedLogoUrl,
           },
           contact: orgData.organization.contact,
           businessInfo: orgData.organization.businessInfo,
@@ -306,7 +335,7 @@ export default function BrandSettingsPage() {
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   className="h-11 px-4"
-                  disabled={isSaving || isUploading}
+                  disabled={isSaving}
                 />
               </div>
 
@@ -323,7 +352,7 @@ export default function BrandSettingsPage() {
                       value={secondaryColor}
                       onChange={(e) => handleSecondaryColorChange(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      disabled={isSaving || isUploading}
+                      disabled={isSaving}
                     />
                   </div>
                   <div className="relative flex-1">
@@ -339,7 +368,7 @@ export default function BrandSettingsPage() {
                           handleSecondaryColorChange("#" + val)
                         }
                       }}
-                      disabled={isSaving || isUploading}
+                      disabled={isSaving}
                     />
                   </div>
                 </div>
@@ -361,7 +390,7 @@ export default function BrandSettingsPage() {
                       value={primaryColor}
                       onChange={(e) => handlePrimaryColorChange(e.target.value)}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      disabled={isSaving || isUploading}
+                      disabled={isSaving}
                     />
                   </div>
                   <div className="relative flex-1">
@@ -377,7 +406,7 @@ export default function BrandSettingsPage() {
                           handlePrimaryColorChange("#" + val)
                         }
                       }}
-                      disabled={isSaving || isUploading}
+                      disabled={isSaving}
                     />
                   </div>
                 </div>
@@ -391,7 +420,7 @@ export default function BrandSettingsPage() {
                   value={fontStyle}
                   onChange={(e) => setFontStyle(e.target.value)}
                   className="w-full h-11 px-4 border border-input rounded-lg text-sm bg-background transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 appearance-none cursor-pointer"
-                  disabled={isSaving || isUploading}
+                  disabled={isSaving}
                 >
                   {FONT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -418,7 +447,7 @@ export default function BrandSettingsPage() {
                   dragActive
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary hover:bg-muted/30"
-                } ${isUploading || isSaving ? "pointer-events-none opacity-60" : ""}`}
+                } ${isSaving ? "pointer-events-none opacity-60" : ""}`}
               >
                 <input
                   ref={fileInputRef}
@@ -426,17 +455,13 @@ export default function BrandSettingsPage() {
                   className="hidden"
                   onChange={handleFileChange}
                   accept=".png,.jpg,.jpeg,.svg"
-                  disabled={isSaving || isUploading}
+                  disabled={isSaving}
                 />
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">
-                  {isUploading ? (
-                    <Loader2 className="size-6 animate-spin" />
-                  ) : (
-                    <UploadCloud className="size-6" />
-                  )}
+                  <UploadCloud className="size-6" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">
-                  {isUploading ? "Uploading logo..." : "Upload Logo"}
+                  {pendingLogoFile ? "Logo selected" : "Upload Logo"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   PNG, SVG or JPEG (Max. 2MB)
@@ -454,10 +479,11 @@ export default function BrandSettingsPage() {
                   }}
                 >
                   <div className="w-full h-full relative flex items-center justify-center">
-                    {logoUrl ? (
+                    {logoPreviewSrc ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={logoUrl}
+                        key={logoPreviewKey}
+                        src={logoPreviewSrc}
                         alt="Logo Preview"
                         className="w-full h-full object-contain"
                       />
@@ -478,7 +504,7 @@ export default function BrandSettingsPage() {
         <div className="p-6 border-t border-border bg-muted/10 flex justify-center">
           <Button
             onClick={handleSaveBrand}
-            disabled={isSaving || isUploading}
+            disabled={isSaving}
             className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[200px] h-11 shadow-sm font-semibold flex items-center justify-center gap-2"
           >
             {isSaving ? (

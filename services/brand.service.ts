@@ -1,5 +1,5 @@
 import type { ApiEnvelope } from "@/types/invitation"
-import type { BrandIdentity, PresignedUrlResult } from "@/types/brand"
+import type { BrandIdentity, LogoUploadResult, PresignedUrlResult } from "@/types/brand"
 import { getStoredToken } from "@/services/auth.service"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
@@ -66,6 +66,29 @@ export async function saveBrandIdentity(payload: BrandIdentity): Promise<BrandId
 }
 
 /**
+ * Upload a logo through the backend (server uploads to B2). Prefer this over presigned URLs.
+ */
+export async function uploadLogo(file: File): Promise<LogoUploadResult> {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error("Please sign in to upload assets")
+  }
+
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/storage/upload?type=logo`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  return extractData<LogoUploadResult>(response, "Failed to upload logo.")
+}
+
+/**
  * Request a presigned URL from the backend to upload the logo directly to storage.
  */
 export async function getPresignedUploadUrl(
@@ -104,15 +127,23 @@ export async function uploadLogoToB2(
   file: File,
   contentType: string
 ): Promise<void> {
+  const resolvedContentType = contentType || file.type || "application/octet-stream"
+  const body = new Blob([file], { type: resolvedContentType })
+
   const response = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": resolvedContentType,
     },
-    body: file,
+    body,
   })
 
   if (!response.ok) {
-    throw new Error("Failed to upload logo to storage server.")
+    const errorText = await response.text().catch(() => "")
+    throw new Error(
+      errorText
+        ? `Failed to upload logo to storage server: ${errorText}`
+        : "Failed to upload logo to storage server."
+    )
   }
 }
