@@ -5,7 +5,7 @@ const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { getUploadPresignedUrl, uploadFile, getFileUrl } = require("../services/storage.service");
-const { BACKBLAZE_PUBLIC_URL_BASE, B2_BUCKET_NAME } = require("../config/backblaze");
+const { buildPublicObjectUrl } = require("../config/backblaze");
 const upload = require("../middlewares/upload").default;
 
 const normalizeText = (value: unknown): string => {
@@ -69,7 +69,7 @@ const getPresignedUploadUrl = asyncHandler(async (req: Request, res: Response) =
   const objectKey = `logos/${organizationId}/${Date.now()}-${sanitizedFilename}`;
 
   const uploadUrl = await getUploadPresignedUrl(objectKey, contentType);
-  const publicUrl = `${BACKBLAZE_PUBLIC_URL_BASE}/${B2_BUCKET_NAME}/${objectKey}`;
+  const publicUrl = buildPublicObjectUrl(objectKey);
   const downloadUrl = await getFileUrl(objectKey);
 
   apiResponse(res, 200, "Presigned upload URL created successfully", {

@@ -37,6 +37,26 @@ const DesignHistorySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    generationModel: {
+      type: String,
+      default: null,
+    },
+    usedReferenceImage: {
+      type: Boolean,
+      default: false,
+    },
+    layoutAnalysis: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    compiledPrompt: {
+      type: String,
+      default: "",
+    },
+    replicateMetrics: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     brandSnapshot: {
       brandName: String,
       primaryColor: String,

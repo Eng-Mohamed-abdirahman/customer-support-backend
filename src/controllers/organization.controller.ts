@@ -24,6 +24,8 @@ const {
   updateMyOrganizationProfileSchema,
   updateOrganizationAdminSettingsSchema,
 } = require("../validators/organization.validator");
+const { resolveLogoDisplayUrl } = require("../utils/logoUrl");
+const BrandIdentity = require("../models/BrandIdentity");
 
 type UserRole = "admin" | "company-admin" | "staff";
 
@@ -489,8 +491,26 @@ const listMyCompanyUsers = asyncHandler(async (req: Request, res: Response) => {
     createdAt: user.createdAt,
   }));
 
+  const organizationPayload = buildCompanyAdminOrganizationPayload(organization);
+  organizationPayload.profile.logoUrl = await resolveLogoDisplayUrl(
+    organizationPayload.profile.logoUrl
+  );
+
+  const brandIdentity = await BrandIdentity.findOne({ organizationId: organization._id }).lean();
+  const brand =
+    brandIdentity
+      ? {
+          brandName: cleanString(brandIdentity.brandName),
+          primaryColor: cleanString(brandIdentity.primaryColor),
+          secondaryColor: cleanString(brandIdentity.secondaryColor),
+          fontStyle: cleanString(brandIdentity.fontStyle),
+          logoUrl: await resolveLogoDisplayUrl(cleanString(brandIdentity.logoUrl)),
+        }
+      : null;
+
   apiResponse(res, 200, "Company users fetched successfully", {
-    organization: buildCompanyAdminOrganizationPayload(organization),
+    organization: organizationPayload,
+    brand,
     userCount: userRows.length,
     users: userRows,
   });
@@ -606,8 +626,13 @@ const updateMyCompanyProfile = asyncHandler(async (req: Request, res: Response) 
 
   await organization.save();
 
+  const organizationPayload = buildCompanyAdminOrganizationPayload(organization);
+  organizationPayload.profile.logoUrl = await resolveLogoDisplayUrl(
+    organizationPayload.profile.logoUrl
+  );
+
   apiResponse(res, 200, "Company profile updated successfully", {
-    organization: buildCompanyAdminOrganizationPayload(organization),
+    organization: organizationPayload,
   });
 });
 
