@@ -4,6 +4,17 @@ export type ConversationStatus = "open" | "pending" | "closed"
 
 export type ConversationChannel = "whatsapp" | "website" | "dashboard"
 
+export type ConversationMetadata = {
+  origin?: string
+  referer?: string
+  userAgent?: string
+  customer?: {
+    id?: string
+    name?: string
+    email?: string
+  }
+}
+
 export type ConversationRecord = {
   _id: string
   organizationId: string
@@ -17,6 +28,7 @@ export type ConversationRecord = {
   lastMessageText?: string
   lastMessageSender?: string
   lastMessageAt?: string
+  metadata?: ConversationMetadata
   createdAt?: string
   updatedAt?: string
 }

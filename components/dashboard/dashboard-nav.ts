@@ -5,6 +5,7 @@ import {
   Building2,
   CreditCard,
   Gauge,
+  Globe,
   KeyRound,
   LayoutDashboard,
   MessageSquareText,
@@ -21,6 +22,7 @@ import {
   ContactRound,
   Palette,
   Sparkles,
+  History,
 } from "lucide-react"
 
 import type { MembershipRole, SafeUser } from "@/types/auth"
@@ -102,10 +104,24 @@ const generalNavItems: DashboardNavItem[] = [
     access: { membershipRoles: organizationAdminRoles },
   },
   {
+    title: "Design History",
+    href: "/dashboard/studio/history",
+    icon: History,
+    description: "Browse past AI-generated designs",
+    access: { membershipRoles: organizationAdminRoles },
+  },
+  {
     title: "Inbox",
     href: "/dashboard/inbox",
     icon: MessageSquareText,
     description: "WhatsApp inbox and live threads",
+    access: { membershipRoles: organizationRoles },
+  },
+  {
+    title: "Conversations",
+    href: "/dashboard/conversations",
+    icon: Globe,
+    description: "Website chat conversations",
     access: { membershipRoles: organizationRoles },
   },
   {

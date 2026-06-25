@@ -12,3 +12,9 @@ export type PresignedUrlResult = {
   uploadUrl: string
   publicUrl: string
 }
+
+export type LogoUploadResult = {
+  url: string
+  publicUrl: string
+  publicId: string
+}

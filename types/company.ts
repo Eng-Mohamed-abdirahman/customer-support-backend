@@ -117,8 +117,17 @@ export type CompanyUserRow = {
   createdAt: string
 }
 
+export type CompanyBrandSummary = {
+  brandName: string
+  primaryColor: string
+  secondaryColor: string
+  fontStyle: string
+  logoUrl: string
+}
+
 export type MyCompanyUsersResult = {
   organization: CompanyAdminEditableOrganization
+  brand?: CompanyBrandSummary | null
   userCount: number
   users: CompanyUserRow[]
 }
