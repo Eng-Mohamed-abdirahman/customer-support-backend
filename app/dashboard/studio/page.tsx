@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   Edit3,
+  History,
   Info,
   Loader2,
   Maximize2,
@@ -17,6 +18,7 @@ import {
   Wand2,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -25,7 +27,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getPresignedUploadUrl, uploadLogoToB2 } from "@/services/brand.service"
+import { uploadLogo } from "@/services/brand.service"
 import {
   listMyCompanyApiKeys,
   revealMyCompanyApiKey,
@@ -35,9 +37,9 @@ import {
   optimizePrompt,
   generateDesign,
   regenerateDesign,
-  getDesignStatus,
+  pollDesignUntilComplete,
 } from "@/services/design.service"
-import type { DesignHistoryRecord, DesignType } from "@/types/design"
+import type { DesignHistoryRecord, DesignType, LayoutAnalysis } from "@/types/design"
 
 export default function StudioCanvasPage() {
   const [apiKey, setApiKey] = useState<string | null>(null)
@@ -51,6 +53,7 @@ export default function StudioCanvasPage() {
   const [promptIntention, setPromptIntention] = useState("")
   const [promptRefPhotoUrl, setPromptRefPhotoUrl] = useState("")
   const [promptRefPhotoName, setPromptRefPhotoName] = useState("")
+  const [promptRefPhotoPreview, setPromptRefPhotoPreview] = useState<string | null>(null)
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false)
   const [isUploadingPromptPhoto, setIsUploadingPromptPhoto] = useState(false)
 
@@ -59,7 +62,9 @@ export default function StudioCanvasPage() {
   const [promptText, setPromptText] = useState("")
   const [designRefImageUrl, setDesignRefImageUrl] = useState("")
   const [designRefImageName, setDesignRefImageName] = useState("")
+  const [designRefImagePreview, setDesignRefImagePreview] = useState<string | null>(null)
   const [isUploadingDesignRef, setIsUploadingDesignRef] = useState(false)
+  const [layoutAnalysis, setLayoutAnalysis] = useState<LayoutAnalysis | null>(null)
 
   // Generation status state
   const [isGenerating, setIsGenerating] = useState(false)
@@ -69,6 +74,31 @@ export default function StudioCanvasPage() {
 
   const promptPhotoInputRef = useRef<HTMLInputElement>(null)
   const designRefInputRef = useRef<HTMLInputElement>(null)
+
+  const canvasReferenceUrl =
+    designRefImagePreview || designRefImageUrl || promptRefPhotoPreview || promptRefPhotoUrl
+
+  const activeReferenceUrl = (designRefImageUrl || promptRefPhotoUrl).trim()
+
+  const syncReferenceUrls = (url: string, name: string) => {
+    setPromptRefPhotoUrl(url)
+    setPromptRefPhotoName(name)
+    setDesignRefImageUrl(url)
+    setDesignRefImageName(name)
+  }
+
+  const syncReferencePreview = (previewUrl: string) => {
+    revokePreview(promptRefPhotoPreview)
+    revokePreview(designRefImagePreview)
+    setPromptRefPhotoPreview(previewUrl)
+    setDesignRefImagePreview(previewUrl)
+  }
+
+  const revokePreview = (previewUrl: string | null) => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl)
+    }
+  }
 
   // Auto-resolve or create organization API key
   useEffect(() => {
@@ -112,10 +142,18 @@ export default function StudioCanvasPage() {
     void resolveApiKey()
   }, [])
 
+  useEffect(() => {
+    return () => {
+      revokePreview(promptRefPhotoPreview)
+      revokePreview(designRefImagePreview)
+    }
+  }, [promptRefPhotoPreview, designRefImagePreview])
+
   // File Upload Helper (reusable)
   const uploadAsset = async (
     file: File,
     onStartUpload: () => void,
+    onPreview: (previewUrl: string) => void,
     onSuccess: (url: string, name: string) => void,
     onFinish: () => void
   ) => {
@@ -131,13 +169,13 @@ export default function StudioCanvasPage() {
     }
 
     onStartUpload()
+    onPreview(URL.createObjectURL(file))
     const toastId = toast.loading(`Uploading ${file.name} to asset server...`)
 
     try {
-      const { uploadUrl, publicUrl } = await getPresignedUploadUrl(file.name, file.type)
-      await uploadLogoToB2(uploadUrl, file, file.type)
-      onSuccess(publicUrl, file.name)
-      toast.success("File uploaded successfully.", { id: toastId })
+      const { url, publicUrl } = await uploadLogo(file)
+      onSuccess(url || publicUrl, file.name)
+      toast.success("Reference uploaded successfully.", { id: toastId })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Asset upload failed."
       toast.error(message, { id: toastId })
@@ -166,10 +204,19 @@ export default function StudioCanvasPage() {
         {
           rawIntention: promptIntention,
           referencePhotoUrl: promptRefPhotoUrl || undefined,
+          designType,
         },
         apiKey
       )
       setPromptText(result.optimizedPrompt)
+      setLayoutAnalysis(result.layoutAnalysis ?? null)
+      if (promptRefPhotoUrl) {
+        setDesignRefImageUrl(promptRefPhotoUrl)
+        setDesignRefImageName(promptRefPhotoName || "Prompt reference")
+        if (promptRefPhotoPreview) {
+          setDesignRefImagePreview(promptRefPhotoPreview)
+        }
+      }
       toast.success("Prompt optimized and loaded into Generator.", { id: toastId })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to optimize prompt."
@@ -186,6 +233,21 @@ export default function StudioCanvasPage() {
       return
     }
 
+    if (!activeReferenceUrl) {
+      toast.error("Upload a reference image first. Generation edits your reference layout with your prompt.")
+      return
+    }
+
+    if (activeReferenceUrl.startsWith("blob:")) {
+      toast.error("Reference image is still uploading. Wait for the upload to finish.")
+      return
+    }
+
+    if (layoutAnalysis && !activeReferenceUrl) {
+      toast.error("Re-upload the reference image used during prompt optimization before generating.")
+      return
+    }
+
     if (!apiKey) {
       toast.error("Authorization key missing.")
       return
@@ -197,31 +259,32 @@ export default function StudioCanvasPage() {
     const toastId = toast.loading("Submitting image generation task...")
 
     try {
+      setGenerationStep("Submitting to AI image model...")
       const result = await generateDesign(
         {
           designType,
           promptText,
-          referenceImageUrl: designRefImageUrl || undefined,
+          rawUserIntention: promptIntention || undefined,
+          referenceImageUrl: activeReferenceUrl,
+          layoutAnalysis,
         },
         apiKey
       )
 
       setActiveDesignId(result.designId)
-      toast.loading("GPU prediction started. Generating graphic...", { id: toastId })
+      setGenerationStep("Rendering textures and brand layout...")
+      toast.loading("Generating graphic on GPU cluster (this may take up to 2 minutes)...", {
+        id: toastId,
+      })
 
-      // Simulate polling background task (or mock completion)
-      setGenerationStep("Rendering textures and details...")
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      
-      setGenerationStep("Finalizing color correction and format export...")
-      const record = await getDesignStatus(result.designId, apiKey)
-      
-      if (record.generatedImageUrl) {
-        setGeneratedImage(record.generatedImageUrl)
-        toast.success("Design generated successfully!", { id: toastId })
-      } else {
+      const record = await pollDesignUntilComplete(result.designId, apiKey)
+
+      if (!record.generatedImageUrl) {
         throw new Error("Generation completed but returned no output image.")
       }
+
+      setGeneratedImage(record.generatedImageUrl)
+      toast.success("Design generated successfully!", { id: toastId })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to generate design."
       toast.error(message, { id: toastId })
@@ -293,6 +356,15 @@ export default function StudioCanvasPage() {
     <div className="flex flex-col md:flex-row gap-6 max-w-7xl mx-auto min-h-[calc(100vh-8rem)]">
       {/* Sidebar Control Panel */}
       <aside className="w-full md:w-[380px] shrink-0 space-y-6">
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard/studio/history">
+              <History className="size-4" />
+              Design History
+            </Link>
+          </Button>
+        </div>
+
         {apiKeyError && (
           <Alert variant="destructive">
             <AlertCircle className="size-4" />
@@ -321,11 +393,18 @@ export default function StudioCanvasPage() {
                     void uploadAsset(
                       e.target.files[0],
                       () => setIsUploadingPromptPhoto(true),
-                      (url, name) => {
-                        setPromptRefPhotoUrl(url)
-                        setPromptRefPhotoName(name)
+                      (previewUrl) => {
+                        syncReferencePreview(previewUrl)
                       },
-                      () => setIsUploadingPromptPhoto(false)
+                      (url, name) => {
+                        syncReferenceUrls(url, name)
+                      },
+                      () => {
+                        setIsUploadingPromptPhoto(false)
+                        if (promptPhotoInputRef.current) {
+                          promptPhotoInputRef.current.value = ""
+                        }
+                      }
                     )
                   }
                 }}
@@ -345,6 +424,16 @@ export default function StudioCanvasPage() {
                   {promptRefPhotoName ? promptRefPhotoName : "Drag and drop or click to upload"}
                 </span>
               </div>
+              {(promptRefPhotoPreview || promptRefPhotoUrl) && (
+                <div className="rounded-lg border border-border overflow-hidden bg-muted/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={promptRefPhotoPreview || promptRefPhotoUrl}
+                    alt="Prompt reference preview"
+                    className="w-full h-28 object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Prompt Brief Textarea */}
@@ -402,7 +491,9 @@ export default function StudioCanvasPage() {
 
             {/* Reference Input */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Reference</Label>
+              <Label className="text-xs font-medium text-muted-foreground">
+                Reference <span className="text-destructive">*</span>
+              </Label>
               <input
                 type="file"
                 ref={designRefInputRef}
@@ -413,11 +504,18 @@ export default function StudioCanvasPage() {
                     void uploadAsset(
                       e.target.files[0],
                       () => setIsUploadingDesignRef(true),
-                      (url, name) => {
-                        setDesignRefImageUrl(url)
-                        setDesignRefImageName(name)
+                      (previewUrl) => {
+                        syncReferencePreview(previewUrl)
                       },
-                      () => setIsUploadingDesignRef(false)
+                      (url, name) => {
+                        syncReferenceUrls(url, name)
+                      },
+                      () => {
+                        setIsUploadingDesignRef(false)
+                        if (designRefInputRef.current) {
+                          designRefInputRef.current.value = ""
+                        }
+                      }
                     )
                   }
                 }}
@@ -438,14 +536,26 @@ export default function StudioCanvasPage() {
                   )}
                 </Button>
                 <div className="flex-1 bg-muted/15 h-9 rounded-lg border border-input/60 flex items-center px-3 text-xs text-muted-foreground truncate">
-                  {designRefImageName || "See reference when uploaded"}
+                  {designRefImageName || "Required — upload the poster to edit"}
                 </div>
               </div>
+              {(designRefImagePreview || designRefImageUrl) && (
+                <div className="rounded-lg border border-border overflow-hidden bg-muted/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={designRefImagePreview || designRefImageUrl}
+                    alt="Design reference preview"
+                    className="w-full h-28 object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Prompt Design Input */}
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Prompt Design</Label>
+              <Label className="text-xs font-medium text-muted-foreground">
+                Prompt Design <span className="text-muted-foreground font-normal">(used as-is)</span>
+              </Label>
               <textarea
                 className="w-full bg-background border border-input rounded-lg p-3 font-mono text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 min-h-[110px] resize-none"
                 placeholder="Detailed marketing poster composition..."
@@ -522,12 +632,13 @@ export default function StudioCanvasPage() {
                   </span>
                 </div>
                 <div className="aspect-[0.75] bg-muted/15 border border-border border-dashed rounded-2xl flex flex-col justify-between p-6 relative overflow-hidden">
-                  {designRefImageUrl ? (
+                  {canvasReferenceUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={designRefImageUrl}
+                      key={canvasReferenceUrl}
+                      src={canvasReferenceUrl}
                       alt="Uploaded reference"
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain bg-muted/20 p-4"
                     />
                   ) : (
                     <>
@@ -553,6 +664,23 @@ export default function StudioCanvasPage() {
                 </div>
               </div>
             )}
+
+            {/* Solo mode: compact reference preview */}
+            {viewMode === "solo" && canvasReferenceUrl ? (
+              <div className="flex flex-col gap-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Reference
+                </h4>
+                <div className="h-36 rounded-xl border border-border overflow-hidden bg-muted/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={canvasReferenceUrl}
+                    alt="Reference"
+                    className="w-full h-full object-contain p-3"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             {/* Right Frame: Generated Design */}
             <div className="flex flex-col gap-3">
@@ -581,9 +709,10 @@ export default function StudioCanvasPage() {
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
+                      key={generatedImage}
                       src={generatedImage}
-                      alt="Skincare design poster generated"
-                      className="w-full h-full object-cover"
+                      alt="Generated design"
+                      className="w-full h-full object-contain bg-muted/20 p-4"
                     />
                     {/* Hover actions */}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 z-20">

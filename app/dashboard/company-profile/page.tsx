@@ -5,11 +5,14 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Globe,
+  Image as ImageIcon,
   Loader2,
   Mail,
   MapPin,
   MessageSquare,
+  Palette,
   Phone,
   RefreshCw,
   Save,
@@ -18,6 +21,7 @@ import {
   Users,
   Zap,
 } from "lucide-react"
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -29,7 +33,11 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { listMyCompanyUsers, updateMyCompanyProfile } from "@/services/company.service"
-import type { MyCompanyUsersResult, UpdateCompanyProfileInput } from "@/types/company"
+import type {
+  CompanyBrandSummary,
+  MyCompanyUsersResult,
+  UpdateCompanyProfileInput,
+} from "@/types/company"
 
 const DEFAULT_FALLBACK_MESSAGE = "Our team will get back to you shortly."
 const DEFAULT_TIMEZONE = "Africa/Mogadishu"
@@ -129,6 +137,7 @@ export default function CompanyProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [profileData, setProfileData] = useState<MyCompanyUsersResult | null>(null)
+  const [brandData, setBrandData] = useState<CompanyBrandSummary | null>(null)
   const [formData, setFormData] = useState<UpdateCompanyProfileInput>(() => emptyProfileForm())
   const [activeTab, setActiveTab] = useState<TabId>("profile")
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -145,6 +154,7 @@ export default function CompanyProfilePage() {
     try {
       const response = await listMyCompanyUsers()
       setProfileData(response)
+      setBrandData(response.brand ?? null)
       setFormData(mapOrganizationToForm(response.organization))
     } catch (error: unknown) {
       const message =
@@ -265,6 +275,8 @@ export default function CompanyProfilePage() {
   }
 
   const companyInitial = profileData?.organization?.name?.charAt(0)?.toUpperCase() ?? "C"
+  const displayLogoUrl = brandData?.logoUrl || formData.profile.logoUrl
+  const displayBrandName = brandData?.brandName || profileData?.organization?.name || "Your Company"
 
   return (
     <div className="space-y-6">
@@ -329,19 +341,45 @@ export default function CompanyProfilePage() {
         <Card className="group relative overflow-hidden border-border/70 bg-gradient-to-br from-primary/[0.04] via-transparent to-secondary/[0.04]">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           <CardContent className="relative flex flex-wrap items-center gap-5 p-6">
-            {/* Avatar / Initial */}
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-2xl font-bold text-white shadow-lg shadow-primary/20">
-              {companyInitial}
+            {/* Logo / Avatar */}
+            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-primary/10">
+              {displayLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={displayLogoUrl}
+                  alt={`${displayBrandName} logo`}
+                  className="size-full object-contain p-1.5"
+                />
+              ) : (
+                <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary to-secondary text-2xl font-bold text-white">
+                  {companyInitial}
+                </div>
+              )}
             </div>
 
             {/* Info */}
             <div className="flex-1 space-y-1">
               <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                {profileData?.organization?.name ?? "Your Company"}
+                {displayBrandName}
               </h2>
               <p className="text-sm text-muted-foreground">
                 {profileData?.organization?.slug ? `@${profileData.organization.slug}` : "No slug assigned"}
               </p>
+              {brandData ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span
+                    className="inline-block size-3.5 rounded-full border border-border"
+                    style={{ backgroundColor: brandData.primaryColor || "#000000" }}
+                    title="Primary color"
+                  />
+                  <span
+                    className="inline-block size-3.5 rounded-full border border-border"
+                    style={{ backgroundColor: brandData.secondaryColor || "#0058be" }}
+                    title="Secondary color"
+                  />
+                  <span className="text-xs text-muted-foreground">{brandData.fontStyle}</span>
+                </div>
+              ) : null}
             </div>
 
             {/* Quick Stats */}
@@ -487,19 +525,78 @@ export default function CompanyProfilePage() {
                 />
               </FieldGroup>
 
-              <FieldGroup
-                id="profileLogoUrl"
-                label="Logo URL"
-                icon={Globe}
-              >
-                <Input
-                  id="profileLogoUrl"
-                  value={formData.profile.logoUrl}
-                  onChange={(e) => handleFieldChange("profile", "logoUrl", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="https://example.com/logo.png"
-                />
-              </FieldGroup>
+              <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Palette className="size-4 text-primary" />
+                      Brand Identity
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Logo, colors, and typography are managed in Brand Settings.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="gap-2">
+                    <Link href="/dashboard/brand">
+                      Edit Brand
+                      <ExternalLink className="size-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+
+                {brandData ? (
+                  <div className="grid gap-4 md:grid-cols-[120px_1fr] items-start">
+                    <div className="aspect-square rounded-xl border border-border bg-card flex items-center justify-center p-3 overflow-hidden">
+                      {brandData.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={brandData.logoUrl}
+                          alt={`${brandData.brandName} logo`}
+                          className="size-full object-contain"
+                        />
+                      ) : (
+                        <ImageIcon className="size-8 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">Brand Name</p>
+                        <p className="font-medium text-foreground">{brandData.brandName || "—"}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-4">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Primary</p>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block size-6 rounded-md border border-border"
+                              style={{ backgroundColor: brandData.primaryColor || "#000000" }}
+                            />
+                            <span className="font-mono text-xs">{brandData.primaryColor || "—"}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Secondary</p>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block size-6 rounded-md border border-border"
+                              style={{ backgroundColor: brandData.secondaryColor || "#0058be" }}
+                            />
+                            <span className="font-mono text-xs">{brandData.secondaryColor || "—"}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground">Font</p>
+                        <p className="text-foreground">{brandData.fontStyle || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No brand identity configured yet. Set up your logo and colors in Brand Settings.
+                  </p>
+                )}
+              </div>
 
               <FieldGroup
                 id="profileDescription"
