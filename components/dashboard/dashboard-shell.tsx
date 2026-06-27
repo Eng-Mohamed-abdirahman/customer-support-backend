@@ -78,7 +78,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
     const canAccessRoute = canAccessDashboardRoute(
       pathname,
       user.platformRole,
-      user.membershipRole
+      user.membershipRole,
+      user.role
     )
 
     if (!canAccessRoute) {
@@ -125,8 +126,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
   }, [isAuthorized, loadTicketCount])
 
   const navGroups = useMemo(
-    () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null),
-    [user?.membershipRole, user?.platformRole]
+    () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null, user?.role),
+    [user?.membershipRole, user?.platformRole, user?.role]
   )
 
   const navItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups])
