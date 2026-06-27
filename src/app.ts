@@ -27,6 +27,7 @@ const designRoutes = require("./routes/design.routes");
 const inngestRoutes = require("./routes/inngest.routes");
 const brandRoutes = require("./routes/brand.routes");
 const storageRoutes = require("./routes/storage.routes");
+const supportRoutes = require("./routes/support.routes");
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use("/api/designs", designRoutes);
 app.use("/api/inngest", inngestRoutes);
 app.use("/api/v1/brands", brandRoutes);
 app.use("/api/v1/storage", storageRoutes);
+app.use("/api/support", supportRoutes);
 
 app.use(errorHandler);
 

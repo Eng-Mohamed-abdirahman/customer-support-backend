@@ -9,7 +9,9 @@ const { generateSupportReplyWithOpenAi, generateActionableReplyWithOpenAi } = re
 const { rerankWithCohere } = require("./rerank.service");
 const Order = require("../models/Order");
 const Ticket = require("../models/Ticket");
+const Conversation = require("../models/Conversation");
 const { detectIntent, getConversationalResponse } = require("./intentDetection.service");
+const { emitToOrganization } = require("./socket.service");
 
 type ConversationHistoryItem = {
   role: "customer" | "assistant";
@@ -420,10 +422,22 @@ const buildSystemPrompt = (organization: ConversationOrganization): string => {
     "- Match the customer's tone — be friendly if they are friendly, professional if they are formal.",
     "- If the user asks who you are, introduce yourself warmly as the AI support assistant for the company.",
     "",
-    "Support, Ticket & Handoff rules (ALWAYS ENABLED):",
-    "- You can assist users with general support questions.",
-    "- If a user needs human assistance, you must offer to hand off the conversation to a human agent.",
-    "- If a user has a complex issue, you can create a support ticket for them.",
+    "SUPPORT, TICKET & HANDOFF RULES (ALWAYS ENABLED - HIGH PRIORITY):",
+    "- You can assist users with general support questions using your retrieved knowledge context.",
+    "- When a user needs human assistance, you must trigger a live human agent handoff.",
+    "",
+    "WHEN TO TRIGGER HUMAN HANDOFF:",
+    "  1. Explicit Request: The customer asks for a human, agent, representative, live support, manager, or person.",
+    "  2. Escalated Frustration: The customer is angry, using caps, expressing extreme dissatisfaction, or complaining that the AI is not helping.",
+    "  3. Complex/Out-of-Scope Issues: The issue is highly complex, sensitive, or completely outside your retrieved knowledge capabilities.",
+    "  4. Repetitive Loop: If you find yourself repeatedly apologizing or failing to solve the user's issue over 2-3 turns.",
+    "",
+    "HANDOFF EXECUTION FLOW (CRITICAL):",
+    "  1. Acknowledge and Comfort: Politely tell the customer you are transferring them immediately. (e.g., 'I completely understand. I am getting a live human support agent to help you right now. Please hold on for just a moment!')",
+    "  2. Call the Tool: You MUST immediately call the tool 'trigger_human_handoff'.",
+    "  3. Tool Arguments: You must pass a concise, professional 'reason' parameter to the tool explaining exactly why the customer is being transferred (e.g., 'User requested a human agent regarding a billing discrepancy').",
+    "  4. Post-Handoff: Once the tool executes, inform the user that their request is on our staff dashboard and an agent will join the chat momentarily.",
+    "  - NEVER fake a transfer. Always run the tool to register the handoff to the agent dashboard.",
     "",
     "Business question rules:",
     "- Only use retrieved knowledge context for business-related questions.",
@@ -613,7 +627,22 @@ const generateReplyWithHuggingFace = async (input: {
   const systemPrompt = buildSystemPrompt(input.organization);
   const userPrompt = buildUserPrompt(input);
 
-  const tools = [];
+  const tools: any[] = [
+    {
+      type: "function",
+      function: {
+        name: "trigger_human_handoff",
+        description: "Trigger live human agent handoff when the customer asks for a human, expresses escalation/frustration, or has a complex out-of-scope issue.",
+        parameters: {
+          type: "object",
+          properties: {
+            reason: { type: "string", description: "Concise professional explanation of why the customer is being transferred to a live human agent." },
+          },
+          required: ["reason"],
+        },
+      },
+    },
+  ];
   const enabledFeatures = Array.isArray(input.organization.enabledFeatures) ? input.organization.enabledFeatures : [];
   if (enabledFeatures.includes("orders")) {
     tools.push({
@@ -674,6 +703,86 @@ const generateReplyWithHuggingFace = async (input: {
             role: "tool",
             tool_call_id: toolCall.id,
             content: JSON.stringify({ success: true, message: "Order created successfully." }),
+          } as any);
+        } catch (e: any) {
+          messages.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall],
+          } as any);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: false, message: e.message }),
+          } as any);
+        }
+      }
+      if (toolCall.function.name === "trigger_human_handoff") {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          const reasonText = args.reason || "Customer requested live support";
+          const customerPhone = input.customer?.id || "";
+
+          let activeConv: any = null;
+          if (customerPhone && input.organization._id) {
+            activeConv = await Conversation.findOneAndUpdate(
+              { organizationId: input.organization._id, customerPhone },
+              {
+                status: "pending",
+                responderType: "agent",
+                aiEnabled: false,
+                assignedAgent: null,
+                lastMessageAt: new Date(),
+              },
+              { new: true }
+            );
+          }
+
+          if (activeConv && input.organization._id) {
+            emitToOrganization(String(input.organization._id), "incoming_handoff_alert", {
+              sessionId: String(activeConv._id),
+              conversationId: String(activeConv._id),
+              userId: activeConv.customerPhone,
+              customerName: activeConv.customerName,
+              customerPhone: activeConv.customerPhone,
+              reason: reasonText,
+              timestamp: activeConv.updatedAt,
+            });
+
+            emitToOrganization(String(input.organization._id), "conversation:updated", {
+              conversationId: String(activeConv._id),
+              status: "pending",
+              responderType: "agent",
+              aiEnabled: false,
+              assignedAgent: null,
+              lastMessageAt: activeConv.lastMessageAt,
+            });
+          }
+
+          try {
+            const createdTicket = await Ticket.create({
+              organizationId: input.organization._id,
+              conversationId: activeConv ? String(activeConv._id) : undefined,
+              title: `Human Handoff: ${reasonText.slice(0, 50)}`,
+              description: reasonText,
+              customerName: input.customer?.name || activeConv?.customerName || "Customer",
+              customerPhone: input.customer?.id || activeConv?.customerPhone || "",
+              status: "open",
+            });
+            emitToOrganization(String(input.organization._id), "ticket:created", createdTicket);
+          } catch (e) {
+            console.error("Failed to create ticket for tool handoff", e);
+          }
+
+          messages.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall],
+          } as any);
+          messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: true, message: "Human handoff triggered successfully. Live support agent notified on staff dashboard." }),
           } as any);
         } catch (e: any) {
           messages.push({
@@ -749,8 +858,6 @@ const generateConversationReply = async (
   if (!intentResult.shouldRetrieve) {
     if (intentResult.intent === "human_handoff") {
       const reply = "I will connect you with a human agent shortly. Please hold on.";
-      // We would ideally create a ticket here or dispatch an event, but let's just 
-      // trigger the conversational response for handoff.
       const usageDelta = {
         promptTokens: estimateTokenCount(message),
         completionTokens: estimateTokenCount(reply),
@@ -758,14 +865,59 @@ const generateConversationReply = async (
       };
       await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
       
+      const customerPhone = input.customer?.id || "";
+      let activeConv: any = null;
+
+      if (customerPhone && organization._id) {
+        try {
+          activeConv = await Conversation.findOneAndUpdate(
+            { organizationId: organization._id, customerPhone },
+            {
+              status: "pending",
+              responderType: "agent",
+              aiEnabled: false,
+              assignedAgent: null,
+              lastMessageAt: new Date(),
+            },
+            { new: true }
+          );
+        } catch (e) {
+          console.error("Failed to update conversation status for handoff", e);
+        }
+      }
+
+      if (activeConv && organization._id) {
+        emitToOrganization(String(organization._id), "incoming_handoff_alert", {
+          sessionId: String(activeConv._id),
+          conversationId: String(activeConv._id),
+          userId: activeConv.customerPhone,
+          customerName: activeConv.customerName,
+          customerPhone: activeConv.customerPhone,
+          reason: message,
+          timestamp: activeConv.updatedAt,
+        });
+
+        emitToOrganization(String(organization._id), "conversation:updated", {
+          conversationId: String(activeConv._id),
+          status: "pending",
+          responderType: "agent",
+          aiEnabled: false,
+          assignedAgent: null,
+          lastMessageAt: activeConv.lastMessageAt,
+        });
+      }
+
       try {
-        await Ticket.create({
+        const createdTicket = await Ticket.create({
           organizationId: organization._id,
-          customerName: input.customer?.name || "Unknown",
-          customerEmail: input.customer?.email || "",
-          subject: "Human Handoff Request",
+          conversationId: activeConv ? String(activeConv._id) : undefined,
+          title: "Human Handoff Request",
+          description: message || "Customer requested live human agent support.",
+          customerName: input.customer?.name || activeConv?.customerName || "Customer",
+          customerPhone: input.customer?.id || activeConv?.customerPhone || "",
           status: "open",
         });
+        emitToOrganization(String(organization._id), "ticket:created", createdTicket);
       } catch (e) {
         console.error("Failed to create ticket for handoff", e);
       }
