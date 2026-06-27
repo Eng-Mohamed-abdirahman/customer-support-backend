@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Ticket,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -62,6 +63,30 @@ const getStatusTone = (status: TicketStatus) => {
   }
 }
 
+const playAlertSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextClass) return
+    const ctx = new AudioContextClass()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime)
+    osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12)
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.5)
+  } catch {
+    // Audio not available
+  }
+}
+
 const messageBubbleStyles: Record<string, string> = {
   customer: "border-primary/30 bg-primary text-primary-foreground",
   assistant: "border-border/60 bg-card text-foreground",
@@ -88,6 +113,7 @@ const formatSessionId = (value?: string | null) => {
 const isValidConversationId = (value?: string | null): value is string => Boolean(value && value !== "null")
 
 export default function TicketsPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -254,14 +280,34 @@ export default function TicketsPage() {
       })
     }
 
+    const handleTicketCreated = (payload: TicketRecord) => {
+      if (!payload?._id) return
+
+      playAlertSound()
+
+      setTickets((prev) => {
+        if (prev.some((t) => t._id === payload._id)) return prev
+        return [payload, ...prev]
+      })
+    }
+
+    const handleIncomingHandoff = () => {
+      playAlertSound()
+      void loadTickets(true)
+    }
+
     socket.on("message:new", handleMessageNew)
     socket.on("conversation:updated", handleConversationUpdated)
+    socket.on("ticket:created", handleTicketCreated)
+    socket.on("incoming_handoff_alert", handleIncomingHandoff)
 
     return () => {
       socket.off("message:new", handleMessageNew)
       socket.off("conversation:updated", handleConversationUpdated)
+      socket.off("ticket:created", handleTicketCreated)
+      socket.off("incoming_handoff_alert", handleIncomingHandoff)
     }
-  }, [selectedTicket?.conversationId])
+  }, [selectedTicket?.conversationId, loadTickets])
 
   const handleSelectTicket = (ticket: TicketRecord) => {
     setSelectedTicket(ticket)
@@ -269,6 +315,23 @@ export default function TicketsPage() {
     setAgentMessageError(null)
     setReturnToAiError(null)
     setStatusUpdateError(null)
+
+    const conversationId = ticket.conversationId
+    if (isValidConversationId(conversationId)) {
+      const conv = conversationLookup[conversationId]
+      const isWhatsapp = conv
+        ? conv.channel === "whatsapp"
+        : (ticket.customerPhone && !ticket.customerPhone.startsWith("ip:") && ticket.customerPhone !== "anonymous")
+
+      const customerPhone = conv?.customerPhone || ticket.customerPhone || ""
+
+      if (isWhatsapp) {
+        const phone = customerPhone ? customerPhone.replace(/^\+/, "") : ""
+        router.push(`/dashboard/inbox?phone=${encodeURIComponent(phone)}`)
+      } else {
+        router.push(`/dashboard/conversations?id=${encodeURIComponent(conversationId)}`)
+      }
+    }
   }
 
   const handleTakeoverConversation = async () => {
@@ -561,17 +624,38 @@ export default function TicketsPage() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedTicket
-                      ? `Conversation ${formatSessionId(
+                  <div className="text-xs text-muted-foreground">
+                    {selectedTicket ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const conversationId = selectedTicket.conversationId
+                          if (isValidConversationId(conversationId)) {
+                            const conv = conversationLookup[conversationId]
+                            const isWhatsapp = conv
+                              ? conv.channel === "whatsapp"
+                              : (selectedTicket.customerPhone && !selectedTicket.customerPhone.startsWith("ip:") && selectedTicket.customerPhone !== "anonymous")
+                            const customerPhone = conv?.customerPhone || selectedTicket.customerPhone || ""
+                            if (isWhatsapp) {
+                              const phone = customerPhone ? customerPhone.replace(/^\+/, "") : ""
+                              router.push(`/dashboard/inbox?phone=${encodeURIComponent(phone)}`)
+                            } else {
+                              router.push(`/dashboard/conversations?id=${encodeURIComponent(conversationId)}`)
+                            }
+                          }
+                        }}
+                        className="hover:underline text-left hover:text-primary transition-colors"
+                      >
+                        Conversation {formatSessionId(
                           isValidConversationId(selectedTicket.conversationId)
                             ? selectedTicket.conversationId
                             : null
-                        )} · ${
-                          selectedTicket.customerName || selectedTicket.customerPhone || "Unknown customer"
-                        }`
-                      : "Select a ticket to see the conversation and details."}
-                  </p>
+                        )} · {selectedTicket.customerName || selectedTicket.customerPhone || "Unknown customer"}
+                      </button>
+                    ) : (
+                      "Select a ticket to see the conversation and details."
+                    )}
+                  </div>
                 </div>
               </div>
 

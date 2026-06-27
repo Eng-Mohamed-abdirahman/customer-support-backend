@@ -34,6 +34,31 @@ import type { ConversationMessageRecord, ConversationRecord } from "@/types/conv
 const WHATSAPP_SESSION_MS = 24 * 60 * 60 * 1000
 const statusFilters = ["all", "open", "pending", "closed"] as const
 
+const playAlertSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioContextClass) return
+    const ctx = new AudioContextClass()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime)
+    osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12)
+
+    gain.gain.setValueAtTime(0.2, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.5)
+  } catch {
+    // Ignore audio context autoplay restrictions
+  }
+}
+
 const formatTimeAgo = (value?: string) => {
   if (!value) return "-"
   const date = new Date(value)
@@ -284,14 +309,27 @@ export default function InboxPage() {
       setSelectedConversation((current) => (current ? patch(current) : current))
     }
 
+    const handleHandoffAlert = (data: any) => {
+      playAlertSound()
+      void loadConversations(true)
+    }
+
+    const handleSessionClaimed = (data: any) => {
+      void loadConversations(true)
+    }
+
     socket.on("message:new", handleMessageNew)
     socket.on("conversation:updated", handleConversationUpdated)
+    socket.on("incoming_handoff_alert", handleHandoffAlert)
+    socket.on("session_claimed", handleSessionClaimed)
 
     return () => {
       socket.off("message:new", handleMessageNew)
       socket.off("conversation:updated", handleConversationUpdated)
+      socket.off("incoming_handoff_alert", handleHandoffAlert)
+      socket.off("session_claimed", handleSessionClaimed)
     }
-  }, [selectedConversation?._id])
+  }, [loadConversations, selectedConversation?._id])
 
   const filteredConversations = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()

@@ -201,13 +201,13 @@ const generalNavItems: DashboardNavItem[] = [
     description: "Plans and invoices",
     access: { membershipRoles: organizationAdminRoles },
   },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    description: "Workspace preferences",
-    access: { membershipRoles: organizationAdminRoles },
-  },
+  // {
+  //   title: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  //   description: "Workspace preferences",
+  //   access: { membershipRoles: organizationAdminRoles },
+  // },
 ]
 
 const platformNavItems: DashboardNavItem[] = [
