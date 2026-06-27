@@ -21,7 +21,7 @@ Typography Style: ${brand.fontStyle}
 Logo URL: ${brand.logoUrl}`;
 
   if (hasReferenceImage) {
-    return `You write SHORT edit prompts for FLUX Kontext image editing.
+    return `You write SHORT edit prompts for image editing (google/nano-banana).
 
 The user uploaded a reference poster. That image will be sent to the model as input_image.
 Your job: convert the user's request into concise EDIT INSTRUCTIONS (60-120 words).

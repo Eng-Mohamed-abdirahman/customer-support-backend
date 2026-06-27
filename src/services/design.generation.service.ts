@@ -56,8 +56,8 @@ async function verifyReferenceAccessible(url: string): Promise<boolean> {
 
 /**
  * Build model-specific payload.
- * - With reference: FLUX Kontext (input_image + prompt) for layout-preserving redesign
- * - Without reference: FLUX Schnell text-to-image
+ * - With reference: Nano-Banana / FLUX (input_image + prompt) for layout-preserving redesign
+ * - Without reference: Nano-Banana / FLUX text-to-image
  */
 export function buildModelPayload(
   model: string,
@@ -67,7 +67,7 @@ export function buildModelPayload(
 ): Record<string, unknown> {
   const aspectRatio = getAspectRatio(designType);
 
-  if (model.includes("kontext")) {
+  if (model.includes("kontext") || model.includes("nano-banana") || model.includes("google")) {
     const payload: Record<string, unknown> = {
       prompt,
       output_format: "png",
@@ -77,12 +77,13 @@ export function buildModelPayload(
 
     if (referenceImageUrl) {
       payload.input_image = referenceImageUrl;
+      payload.image = referenceImageUrl;
     }
 
     return payload;
   }
 
-  // flux-schnell / flux-dev text-to-image
+  // Fallback text-to-image payload
   return {
     prompt,
     aspect_ratio: aspectRatio,

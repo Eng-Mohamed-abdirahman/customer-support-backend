@@ -15,15 +15,15 @@ export type BrandSnapshot = {
 
 /** Reference-guided editing — preserves layout/structure from input_image. */
 export const KONTEXT_MODEL =
-  process.env.REPLICATE_KONTEXT_MODEL || "black-forest-labs/flux-kontext-pro";
+  process.env.REPLICATE_KONTEXT_MODEL || "google/nano-banana";
 
 /** Premium reference-guided editing — stronger prompt adherence & typography. */
 export const KONTEXT_MAX_MODEL =
-  process.env.REPLICATE_KONTEXT_MAX_MODEL || "black-forest-labs/flux-kontext-max";
+  process.env.REPLICATE_KONTEXT_MAX_MODEL || "google/nano-banana";
 
 /** Fast text-to-image fallback when no reference is provided. */
 export const T2I_FALLBACK_MODEL =
-  process.env.REPLICATE_T2I_MODEL || "black-forest-labs/flux-schnell";
+  process.env.REPLICATE_T2I_MODEL || "google/nano-banana";
 
 /** Vision model for layout/structure extraction from reference uploads. */
 export const VISION_MODEL =

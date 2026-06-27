@@ -17,7 +17,7 @@ const startServer = async () => {
     console.log(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     designLog.info("startup.replicate", {
       token: maskSecret(process.env.REPLICATE_API_TOKEN),
-      kontextModel: process.env.REPLICATE_KONTEXT_MODEL || "black-forest-labs/flux-kontext-pro",
+      kontextModel: process.env.REPLICATE_KONTEXT_MODEL || "google/nano-banana",
       visionEnabled: process.env.DESIGN_VISION_ENABLED !== "false",
     });
     void logWebhookStartupDiagnostics();

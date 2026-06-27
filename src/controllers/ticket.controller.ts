@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 const mongoose = require("mongoose");
 const Ticket = require("../models/Ticket");
+const { emitToOrganization } = require("../services/socket.service");
 
 const { apiResponse } = require("../utils/apiResponse");
 const { AppError } = require("../utils/appError");
@@ -159,6 +160,16 @@ const updateTicketStatus = asyncHandler(async (req: Request, res: Response) => {
 
   ticket.status = parsed.data.status;
   await ticket.save();
+
+  try {
+    emitToOrganization(organizationId, "ticket:updated", {
+      _id: String(ticket._id),
+      conversationId: ticket.conversationId ? String(ticket.conversationId) : null,
+      status: ticket.status,
+    });
+  } catch (err) {
+    console.error("Failed to emit ticket:updated event:", err);
+  }
 
   apiResponse(res, 200, "Ticket status updated", {
     ticket: {
