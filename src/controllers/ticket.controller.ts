@@ -57,10 +57,6 @@ const ensureCanViewTickets = (req: Request) => {
   if (!requester || !requester.role) {
     throw new AppError("Not authorized to view tickets", 401);
   }
-
-  if (requester.role === "staff") {
-    throw new AppError("Staff users are not allowed to view tickets", 403);
-  }
 };
 
 const createTicket = asyncHandler(async (req: Request, res: Response) => {
