@@ -25,7 +25,7 @@ import {
   History,
 } from "lucide-react"
 
-import type { MembershipRole, SafeUser } from "@/types/auth"
+import type { MembershipRole, SafeUser, UserRole } from "@/types/auth"
 
 type PlatformRole = NonNullable<SafeUser["platformRole"]>
 
@@ -55,8 +55,24 @@ const superAdminOnlyRoles: PlatformRole[] = ["super_admin"]
 const hasAccess = (
   access: RouteAccess | undefined,
   platformRole: SafeUser["platformRole"],
-  membershipRole: SafeUser["membershipRole"]
+  membershipRole: SafeUser["membershipRole"],
+  userRole?: UserRole | null,
+  href?: string
 ) => {
+  if (userRole === "staff" && href) {
+    if (href === "/dashboard/knowledge-base") {
+      return false
+    }
+    if (
+      href === "/dashboard/usage" ||
+      href === "/dashboard/tickets" ||
+      href === "/dashboard/studio" ||
+      href === "/dashboard/studio/history"
+    ) {
+      return true
+    }
+  }
+
   if (!access) {
     return true
   }
@@ -201,13 +217,13 @@ const generalNavItems: DashboardNavItem[] = [
     description: "Plans and invoices",
     access: { membershipRoles: organizationAdminRoles },
   },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    description: "Workspace preferences",
-    access: { membershipRoles: organizationAdminRoles },
-  },
+  // {
+  //   title: "Settings",
+  //   href: "/dashboard/settings",
+  //   icon: Settings,
+  //   description: "Workspace preferences",
+  //   access: { membershipRoles: organizationAdminRoles },
+  // },
 ]
 
 const platformNavItems: DashboardNavItem[] = [
@@ -268,13 +284,14 @@ const allNavItemsBySpecificity = [...generalNavItems, ...platformNavItems].sort(
 
 export function getDashboardNavGroups(
   platformRole: SafeUser["platformRole"],
-  membershipRole: SafeUser["membershipRole"]
+  membershipRole: SafeUser["membershipRole"],
+  userRole?: UserRole | null
 ): DashboardNavGroup[] {
   const visibleGeneralItems = generalNavItems.filter((item) =>
-    hasAccess(item.access, platformRole, membershipRole)
+    hasAccess(item.access, platformRole, membershipRole, userRole, item.href)
   )
   const visiblePlatformItems = platformNavItems.filter((item) =>
-    hasAccess(item.access, platformRole, membershipRole)
+    hasAccess(item.access, platformRole, membershipRole, userRole, item.href)
   )
 
   const groups: DashboardNavGroup[] = []
@@ -293,7 +310,8 @@ export function getDashboardNavGroups(
 export function canAccessDashboardRoute(
   pathname: string,
   platformRole: SafeUser["platformRole"],
-  membershipRole: SafeUser["membershipRole"]
+  membershipRole: SafeUser["membershipRole"],
+  userRole?: UserRole | null
 ) {
   if (pathname === "/dashboard") {
     return true
@@ -315,5 +333,5 @@ export function canAccessDashboardRoute(
     return true
   }
 
-  return hasAccess(matchedItem.access, platformRole, membershipRole)
+  return hasAccess(matchedItem.access, platformRole, membershipRole, userRole, matchedItem.href)
 }

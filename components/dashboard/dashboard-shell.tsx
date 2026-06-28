@@ -3,7 +3,10 @@
 import { LogOut, Menu, Search, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+
+import { getSocket } from "@/lib/socket"
+import { listTickets } from "@/services/ticket.service"
 
 import { canAccessDashboardRoute, getDashboardNavGroups } from "@/components/dashboard/dashboard-nav"
 import { Button } from "@/components/ui/button"
@@ -75,7 +78,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
     const canAccessRoute = canAccessDashboardRoute(
       pathname,
       user.platformRole,
-      user.membershipRole
+      user.membershipRole,
+      user.role
     )
 
     if (!canAccessRoute) {
@@ -83,9 +87,47 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
   }, [pathname, router, user])
 
+  const [openTicketsCount, setOpenTicketsCount] = useState(0)
+
+  const loadTicketCount = useCallback(async () => {
+    try {
+      const result = await listTickets({ limit: 100 })
+      const activeTickets = result.tickets.filter(
+        (t) => t.status === "open" || t.status === "pending"
+      )
+      setOpenTicketsCount(activeTickets.length)
+    } catch {
+      // Ignore background fetch errors
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthorized) return
+
+    void loadTicketCount()
+
+    const token = getStoredToken()
+    const socket = getSocket(token)
+    if (!socket) return
+
+    const handleTicketUpdate = () => {
+      void loadTicketCount()
+    }
+
+    socket.on("ticket:created", handleTicketUpdate)
+    socket.on("ticket:updated", handleTicketUpdate)
+    socket.on("incoming_handoff_alert", handleTicketUpdate)
+
+    return () => {
+      socket.off("ticket:created", handleTicketUpdate)
+      socket.off("ticket:updated", handleTicketUpdate)
+      socket.off("incoming_handoff_alert", handleTicketUpdate)
+    }
+  }, [isAuthorized, loadTicketCount])
+
   const navGroups = useMemo(
-    () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null),
-    [user?.membershipRole, user?.platformRole]
+    () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null, user?.role),
+    [user?.membershipRole, user?.platformRole, user?.role]
   )
 
   const navItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups])
@@ -302,6 +344,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
                       ? pathname === item.href
                       : pathname === item.href || pathname.startsWith(`${item.href}/`)
 
+                  const isTickets = item.href === "/dashboard/tickets"
+
                   return (
                     <Button
                       key={item.href}
@@ -314,9 +358,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
                           : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                       )}
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} className="flex w-full items-center gap-3">
                         <item.icon className="size-4 shrink-0" />
                         <span className="text-sm font-medium">{item.title}</span>
+                        {isTickets && openTicketsCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500/15 border border-rose-500/30 px-1.5 text-[10px] font-bold text-rose-400">
+                            {openTicketsCount}
+                          </span>
+                        )}
                       </Link>
                     </Button>
                   )
