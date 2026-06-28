@@ -2,8 +2,7 @@
 
 import { useMemo } from "react"
 import { motion } from "framer-motion"
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, type TooltipProps } from "recharts"
-import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -16,21 +15,31 @@ interface ChannelDonutChartProps {
   isLoading?: boolean
 }
 
-function CustomTooltip(props: TooltipProps<ValueType, NameType>) {
-  const { active, payload } = props
+interface TooltipEntry {
+  payload?: ChannelData
+  color?: string
+}
+
+interface CustomTooltipProps {
+  active?: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: TooltipEntry[]
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
   const entry = payload[0]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { name, value, color } = (entry as any).payload as ChannelData
+  const item = entry?.payload
+  if (!item) return null
 
   return (
     <div className="rounded-lg border border-border/60 bg-card px-3 py-2 shadow-lg">
       <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-sm font-medium text-foreground">{name}</span>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+        <span className="text-sm font-medium text-foreground">{item.name}</span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{value} conversations</p>
+      <p className="mt-1 text-xs text-muted-foreground">{item.value} conversations</p>
     </div>
   )
 }
