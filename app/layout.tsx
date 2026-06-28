@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Poppins } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -30,7 +31,9 @@ export default function RootLayout({
       className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
         <Toaster richColors position="top-right" closeButton />
       </body>
     </html>
