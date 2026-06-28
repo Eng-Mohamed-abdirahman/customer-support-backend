@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { randomUUID } from "crypto";
 import authRoutes from "./routes/auth.routes";
 import healthRoutes from "./routes/health.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import { generalApiLimiter } from "./middlewares/rateLimit.middleware";
@@ -101,6 +102,7 @@ app.use(generalApiLimiter);
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/api/knowledge", knowledgeRoutes);
