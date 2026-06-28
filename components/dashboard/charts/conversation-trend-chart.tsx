@@ -1,8 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, type TooltipProps } from "recharts"
-import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,15 +14,27 @@ interface ConversationTrendChartProps {
   isLoading?: boolean
 }
 
-function CustomTooltip(props: TooltipProps<ValueType, NameType>) {
-  const { active, payload, label } = props
+interface TooltipEntry {
+  dataKey?: string
+  name?: string
+  value?: number | string
+  color?: string
+}
+
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: TooltipEntry[]
+  label?: string
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
 
   return (
     <div className="rounded-lg border border-border bg-white px-4 py-3 shadow-md">
-      <p className="mb-1.5 text-sm font-medium text-foreground">{label as string}</p>
-      {payload.map((entry: import("recharts").Payload<ValueType, NameType>) => (
-        <div key={entry.dataKey as string} className="flex items-center gap-2 text-xs text-muted-foreground">
+      <p className="mb-1.5 text-sm font-medium text-foreground">{label}</p>
+      {payload.map((entry, i) => (
+        <div key={entry.dataKey ?? i} className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: entry.color }} />
           <span className="capitalize">{entry.name}</span>
           <span className="ml-auto font-semibold text-foreground">{entry.value}</span>
