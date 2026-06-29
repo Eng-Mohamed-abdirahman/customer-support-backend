@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertCircle, RefreshCw, ShieldCheck, UserRound } from "lucide-react"
+import { AlertCircle, Loader2, Mail, RefreshCw, Save, ShieldCheck, UserRound } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -85,6 +85,18 @@ export default function UserProfilePage() {
   }, [loadCurrentUser])
 
   const roleLabel = useMemo(() => resolveRoleLabel(currentUser), [currentUser])
+  const initials = useMemo(() => {
+    if (!currentUser?.fullName) {
+      return "TN"
+    }
+
+    return currentUser.fullName
+      .split(" ")
+      .map((segment) => segment[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
+  }, [currentUser?.fullName])
 
   const updateFormField = (field: keyof UpdateUserProfileInput, value: string) => {
     setFormValues((previous) => ({
@@ -141,31 +153,29 @@ export default function UserProfilePage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Workspace / Account
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-              User Profile
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              View your account identity and role details used for workspace access and routing.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 gap-2"
-            onClick={() => void loadCurrentUser(true)}
-            disabled={isLoading || isRefreshing}
-          >
-            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Workspace / Account
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+            User Profile
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Manage your personal identity and access details used across the workspace.
+          </p>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 gap-2"
+          onClick={() => void loadCurrentUser(true)}
+          disabled={isLoading || isRefreshing}
+        >
+          <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </header>
 
       {loadError ? (
@@ -176,81 +186,76 @@ export default function UserProfilePage() {
         </Alert>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-border/70 bg-card/95 py-4">
-          <CardHeader className="gap-2 px-4 pb-1">
-            <CardDescription>Full name</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-              <UserRound className="size-5 text-primary" />
-              {isLoading ? "Loading..." : (currentUser?.fullName ?? "-")}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+      <Card className="group relative overflow-hidden border-border/70 bg-linear-to-br from-primary/4 via-transparent to-secondary/4">
+        <div className="absolute inset-0 bg-linear-to-r from-primary/5 to-secondary/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        <CardContent className="relative flex flex-wrap items-center gap-5 p-6">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-border bg-card text-xl font-bold text-primary shadow-sm">
+            {isLoading ? "..." : initials}
+          </div>
 
-        <Card className="border-border/70 bg-card/95 py-4">
-          <CardHeader className="gap-2 px-4 pb-1">
-            <CardDescription>Email</CardDescription>
-            <CardTitle className="text-lg font-semibold tracking-tight break-all">
-              {isLoading ? "Loading..." : (currentUser?.email ?? "-")}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+          <div className="min-w-0 flex-1 space-y-1">
+            <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+              {isLoading ? "Loading profile..." : (currentUser?.fullName ?? "-")}
+            </h2>
+            <p className="truncate text-sm text-muted-foreground">
+              {isLoading ? "Loading email..." : (currentUser?.email ?? "-")}
+            </p>
+          </div>
 
-        <Card className="border-border/70 bg-card/95 py-4">
-          <CardHeader className="gap-2 px-4 pb-1">
-            <CardDescription>Access role</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-              <ShieldCheck className="size-5 text-primary" />
-              {isLoading ? "Loading..." : roleLabel}
-            </CardTitle>
-          </CardHeader>
-        </Card>
+          <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+            {isLoading ? "..." : roleLabel}
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="border-border/70 bg-card/95 py-4">
-          <CardHeader className="gap-2 px-4 pb-1">
-            <CardDescription>Company ID</CardDescription>
-            <CardTitle className="text-lg font-semibold tracking-tight break-all">
-              {isLoading ? "Loading..." : (currentUser?.company ?? "No company")}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </section>
+    
 
-      <Card className="border-border/70 bg-card/95 py-0">
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Edit profile</CardTitle>
+      <Card className="overflow-hidden border-border/70">
+        <CardHeader className="border-b border-border/50 bg-muted/15 py-4">
+          <CardTitle className="text-base">Edit Account Details</CardTitle>
           <CardDescription>
-            Update your account details used across the dashboard and invitations.
+            Update your name and email. These details are used across the dashboard.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 pb-5">
-          <form onSubmit={handleSaveProfile} className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First name</Label>
-              <Input
-                id="firstName"
-                name="firstName"
-                value={formValues.firstName}
-                onChange={(event) => updateFormField("firstName", event.target.value)}
-                autoComplete="given-name"
-                disabled={isLoading || isSaving}
-              />
+        <CardContent className="p-6">
+          <form onSubmit={handleSaveProfile} className="space-y-5">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="flex items-center gap-2">
+                  <UserRound className="size-3.5 text-muted-foreground" />
+                  First name
+                </Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  value={formValues.firstName}
+                  onChange={(event) => updateFormField("firstName", event.target.value)}
+                  autoComplete="given-name"
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="flex items-center gap-2">
+                  <UserRound className="size-3.5 text-muted-foreground" />
+                  Last name
+                </Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  value={formValues.lastName}
+                  onChange={(event) => updateFormField("lastName", event.target.value)}
+                  autoComplete="family-name"
+                  disabled={isLoading || isSaving}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last name</Label>
-              <Input
-                id="lastName"
-                name="lastName"
-                value={formValues.lastName}
-                onChange={(event) => updateFormField("lastName", event.target.value)}
-                autoComplete="family-name"
-                disabled={isLoading || isSaving}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="size-3.5 text-muted-foreground" />
+                Email
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -262,9 +267,22 @@ export default function UserProfilePage() {
               />
             </div>
 
-            <div className="md:col-span-2 flex justify-end">
-              <Button type="submit" disabled={isLoading || isSaving}>
-                {isSaving ? "Saving..." : "Save changes"}
+            <div className="flex items-center justify-between border-t border-border/50 pt-4">
+              <p className="text-xs text-muted-foreground">
+                Changes apply immediately after saving.
+              </p>
+              <Button type="submit" disabled={isLoading || isSaving} className="gap-2">
+                {isSaving ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-4" />
+                    Save changes
+                  </>
+                )}
               </Button>
             </div>
           </form>

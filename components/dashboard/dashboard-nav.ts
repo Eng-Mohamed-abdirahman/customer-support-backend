@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react"
 import {
   BarChart3,
   Blocks,
+  Brain,
   Building2,
   CreditCard,
   Gauge,
@@ -169,6 +170,13 @@ const generalNavItems: DashboardNavItem[] = [
     access: { membershipRoles: organizationRoles },
   },
   {
+    title: "Knowledge Insights",
+    href: "/dashboard/knowledge-insights",
+    icon: Brain,
+    description: "AI analysis of customer conversations",
+    access: { membershipRoles: organizationAdminRoles },
+  },
+  {
     title: "Integrations",
     href: "/dashboard/integrations",
     icon: Puzzle,
@@ -188,13 +196,6 @@ const generalNavItems: DashboardNavItem[] = [
     icon: Building2,
     description: "Organization information",
     access: { membershipRoles: organizationAdminRoles },
-  },
-  {
-    title: "User Profile",
-    href: "/dashboard/user-profile",
-    icon: UserCog,
-    description: "Personal account details",
-    access: { membershipRoles: organizationRoles },
   },
   {
     title: "API Keys",

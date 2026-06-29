@@ -376,15 +376,26 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </nav>
 
         <div className="border-t border-sidebar-border px-5 py-4 mt-auto">
-          <div className="mb-3 flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold">
-              {resolvedInitials}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-sidebar-foreground">{user.fullName}</p>
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            </div>
-          </div>
+          <Button
+            asChild
+            variant="ghost"
+            className="mb-3 h-auto w-full justify-start rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 px-3 py-2.5 text-left hover:bg-sidebar-accent"
+          >
+            <Link
+              href="/dashboard/user-profile"
+              className="flex w-full items-center gap-3"
+              onClick={() => setIsMobileNavOpen(false)}
+            >
+              <span className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
+                {resolvedInitials}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-sidebar-foreground">{user.fullName}</p>
+                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                <p className="text-[11px] font-medium text-primary/90">View profile</p>
+              </div>
+            </Link>
+          </Button>
 
           <Button
             type="button"
