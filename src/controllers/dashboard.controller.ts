@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { getCompanyDashboardStats } from "../services/dashboard.service";
+import { getStaffDashboardStats } from "../services/staff-dashboard.service";
+import { getPlatformDashboardStats } from "../services/platform-dashboard.service";
 import { AppError } from "../utils/appError";
 import { apiResponse } from "../utils/apiResponse";
 
@@ -37,5 +39,74 @@ export async function getCompanyDashboard(
     });
   } catch (error: any) {
     return next(new AppError(error?.message || "Internal server error during analytics compilation", 500));
+  }
+}
+
+/**
+ * Controller to fetch staff dashboard analytics.
+ */
+export async function getStaffDashboard(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = (req as any).user;
+    if (!user) {
+      return next(new AppError("User context is missing", 401));
+    }
+
+    const companyId = user.company || user.organizationId;
+    if (!companyId) {
+      return next(new AppError("Not authorized: No company bound to this account", 403));
+    }
+
+    const data = await getStaffDashboardStats(companyId, user._id);
+    return res.status(200).json({
+      status: "success",
+      message: "Staff dashboard analytics retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return next(
+      new AppError(
+        error?.message || "Internal server error during staff dashboard compilation",
+        500
+      )
+    );
+  }
+}
+
+/**
+ * Controller to fetch platform admin dashboard analytics.
+ */
+export async function getPlatformDashboard(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const user = (req as any).user;
+    if (!user) {
+      return next(new AppError("User context is missing", 401));
+    }
+
+    if (user.role !== "admin") {
+      return next(new AppError("Not authorized to access platform dashboard", 403));
+    }
+
+    const data = await getPlatformDashboardStats();
+    return res.status(200).json({
+      status: "success",
+      message: "Platform dashboard analytics retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return next(
+      new AppError(
+        error?.message || "Internal server error during platform dashboard compilation",
+        500
+      )
+    );
   }
 }

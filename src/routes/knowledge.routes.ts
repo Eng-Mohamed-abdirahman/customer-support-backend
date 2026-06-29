@@ -11,6 +11,7 @@ const {
   getKnowledgeDocument,
   deleteKnowledgeDocument,
 } = require("../controllers/knowledge.controller");
+const { getKnowledgeInsightsController } = require("../controllers/knowledge-insights.controller");
 
 const router = express.Router();
 
@@ -24,6 +25,7 @@ router.post(
 router.get("/documents", protect, listKnowledgeDocuments);
 router.get("/documents/:id", protect, getKnowledgeDocument);
 router.delete("/documents/:id", protect, deleteKnowledgeDocument);
+router.get("/insights", protect, getKnowledgeInsightsController);
 
 module.exports = router;
 
