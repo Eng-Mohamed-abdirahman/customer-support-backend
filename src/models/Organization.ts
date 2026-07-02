@@ -220,6 +220,111 @@ const organizationSchema = new mongoose.Schema(
         trim: true,
         default: "",
       },
+      status: {
+        type: String,
+        enum: ["active", "trialing", "past_due", "cancelled", "suspended"],
+        default: "trialing",
+        index: true,
+      },
+      billingCycle: {
+        type: String,
+        enum: ["monthly", "yearly"],
+        default: "monthly",
+      },
+      expiresAt: {
+        type: Date,
+        default: null,
+      },
+      startedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    planId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      default: null,
+      index: true,
+    },
+    usage: {
+      conversationUsage: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      storageUsage: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      knowledgeFiles: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      connectedWebsites: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      connectedWhatsappNumbers: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      teamMembers: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+    planLimits: {
+      maxWebsites: {
+        type: Number,
+        default: 1,
+        min: 0,
+      },
+      maxWhatsappNumbers: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      maxTeamMembers: {
+        type: Number,
+        default: 1,
+        min: 0,
+      },
+      maxConversations: {
+        type: Number,
+        default: 1000,
+        min: 0,
+      },
+      knowledgeStorageGb: {
+        type: Number,
+        default: 1,
+        min: 0,
+      },
+    },
+    upgradeRequest: {
+      status: {
+        type: String,
+        enum: ["none", "pending", "approved", "rejected"],
+        default: "none",
+      },
+      requestedPlanId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "SubscriptionPlan",
+        default: null,
+      },
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+      notes: {
+        type: String,
+        trim: true,
+        default: "",
+      },
     },
 
     // Internal/system fields

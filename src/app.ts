@@ -29,6 +29,7 @@ const inngestRoutes = require("./routes/inngest.routes");
 const brandRoutes = require("./routes/brand.routes");
 const storageRoutes = require("./routes/storage.routes");
 const supportRoutes = require("./routes/support.routes");
+const planRoutes = require("./routes/plan.routes");
 
 const app = express();
 
@@ -105,6 +106,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/organizations", organizationRoutes);
+app.use("/api/plans", planRoutes);
 app.use("/api/knowledge", knowledgeRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/tickets", ticketRoutes);

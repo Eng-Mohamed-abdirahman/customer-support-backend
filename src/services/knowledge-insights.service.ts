@@ -12,48 +12,97 @@ const cacheStore = new Map<string, { data: any; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ---------------------------------------------------------------------------
-// Fallback demo data (used when there are no conversations or the LLM fails)
+// Empty + heuristic insights built from real conversation data
 // ---------------------------------------------------------------------------
-const FALLBACK_INSIGHTS = {
+const EMPTY_INSIGHTS = {
   summary:
-    "Customers frequently asked about password resets, subscription management, and order tracking. Several billing questions went unanswered. API integration support was a rising topic.",
-  topQuestions: [
-    { question: "How do I reset my password?", count: 148, trend: 12 },
-    { question: "How can I track my order?", count: 92, trend: 8 },
-    { question: "How do I upgrade my subscription?", count: 64, trend: 5 },
-    { question: "Why was I charged twice?", count: 41, trend: -3 },
-    { question: "How do I connect WhatsApp integration?", count: 38, trend: 22 },
-  ],
-  trendingTopics: [
-    { topic: "Password Reset", changePercent: 12 },
-    { topic: "Order Tracking", changePercent: 8 },
-    { topic: "WhatsApp Integration", changePercent: 22 },
-    { topic: "Subscription Plans", changePercent: 5 },
-  ],
-  unansweredTopics: [
-    "International delivery timelines",
-    "Refund exceptions for digital products",
-    "Custom SLA configuration",
-    "Multi-language AI support",
-  ],
-  recommendedArticles: [
-    {
-      title: "How to Track Your Order",
-      reason: "92 customers asked about order tracking with no dedicated article",
-      confidence: 96,
-    },
-    {
-      title: "WhatsApp Integration Setup Guide",
-      reason: "Rising 22% — customers struggling with setup",
-      confidence: 91,
-    },
-    {
-      title: "Understanding Your Invoice",
-      reason: "41 billing confusion tickets logged this period",
-      confidence: 88,
-    },
-  ],
+    "No customer conversations were found for this period. Insights will appear once your team starts handling support conversations.",
+  topQuestions: [] as Array<{ question: string; count: number; trend: number }>,
+  trendingTopics: [] as Array<{ topic: string; changePercent: number }>,
+  unansweredTopics: [] as string[],
+  recommendedArticles: [] as Array<{ title: string; reason: string; confidence: number }>,
 };
+
+function normalizeQuestion(text: string) {
+  return text.trim().replace(/\s+/g, " ").slice(0, 160);
+}
+
+function buildHeuristicInsights(conversationTexts: string[]) {
+  if (!conversationTexts.length) {
+    return EMPTY_INSIGHTS;
+  }
+
+  const questionCounts = new Map<string, number>();
+  const topicCounts = new Map<string, number>();
+  const unanswered = new Set<string>();
+
+  for (const block of conversationTexts) {
+    const lines = block.split("\n");
+    let lastCustomerMessage = "";
+
+    for (const line of lines) {
+      if (line.startsWith("- customer:")) {
+        lastCustomerMessage = line.replace("- customer:", "").trim();
+        if (lastCustomerMessage.includes("?")) {
+          const question = normalizeQuestion(lastCustomerMessage);
+          questionCounts.set(question, (questionCounts.get(question) ?? 0) + 1);
+        }
+
+        const topicMatch = lastCustomerMessage.match(
+          /\b(billing|refund|password|order|subscription|whatsapp|integration|api|pricing|delivery)\b/i
+        );
+        if (topicMatch) {
+          const topic = topicMatch[1].toLowerCase();
+          topicCounts.set(topic, (topicCounts.get(topic) ?? 0) + 1);
+        }
+        continue;
+      }
+
+      if (
+        line.startsWith("- assistant:") &&
+        lastCustomerMessage &&
+        /(i don't know|i am not sure|unable to|cannot find|no information)/i.test(line)
+      ) {
+        unanswered.add(normalizeQuestion(lastCustomerMessage));
+      }
+    }
+  }
+
+  const topQuestions = Array.from(questionCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([question, count]) => ({
+      question,
+      count,
+      trend: 0,
+    }));
+
+  const trendingTopics = Array.from(topicCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([topic, count]) => ({
+      topic: topic.charAt(0).toUpperCase() + topic.slice(1),
+      changePercent: count,
+    }));
+
+  const recommendedArticles = topQuestions.slice(0, 3).map((item) => ({
+    title: item.question.endsWith("?") ? item.question : `${item.question}?`,
+    reason: `${item.count} customers asked about this during the selected period`,
+    confidence: Math.min(99, 70 + item.count * 3),
+  }));
+
+  return {
+    summary: `Analyzed ${conversationTexts.length} conversations from your support channels. ${
+      topQuestions.length > 0
+        ? `Customers most often asked about "${topQuestions[0].question}".`
+        : "No repeated customer questions were detected yet."
+    }`,
+    topQuestions,
+    trendingTopics,
+    unansweredTopics: Array.from(unanswered).slice(0, 6),
+    recommendedArticles,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -104,7 +153,7 @@ function extractJson(raw: string): any {
 export async function getKnowledgeInsights(
   organizationId: mongoose.Types.ObjectId,
   range: string
-): Promise<typeof FALLBACK_INSIGHTS> {
+): Promise<typeof EMPTY_INSIGHTS> {
   const orgIdStr = String(organizationId);
   const cacheKey = `insights:${orgIdStr}:${range}`;
 
@@ -126,13 +175,13 @@ export async function getKnowledgeInsights(
     .limit(80)
     .lean();
 
-  // 4. If no conversations exist, return fallback demo data
+  // 4. If no conversations exist, return an empty real report
   if (!conversations || conversations.length === 0) {
     cacheStore.set(cacheKey, {
-      data: FALLBACK_INSIGHTS,
+      data: EMPTY_INSIGHTS,
       expiresAt: Date.now() + CACHE_TTL_MS,
     });
-    return FALLBACK_INSIGHTS;
+    return EMPTY_INSIGHTS;
   }
 
   // 5. For each conversation, fetch its messages and format a text block
@@ -167,7 +216,7 @@ export async function getKnowledgeInsights(
   const { system, user } = buildKnowledgeInsightsPrompt(conversationTexts);
 
   // 7. Call the LLM — with a generous token budget for the JSON payload
-  let result: typeof FALLBACK_INSIGHTS;
+  let result: typeof EMPTY_INSIGHTS;
 
   try {
     const raw = await generateSupportReplyWithOpenAi({
@@ -179,9 +228,8 @@ export async function getKnowledgeInsights(
 
     result = extractJson(raw);
   } catch (err) {
-    // If the LLM fails or returns invalid JSON, fall back to demo data
-    console.error("[KnowledgeInsights] LLM or parse error — using fallback:", err);
-    result = FALLBACK_INSIGHTS;
+    console.error("[KnowledgeInsights] LLM or parse error — using heuristic insights:", err);
+    result = buildHeuristicInsights(conversationTexts);
   }
 
   // 8. Store in cache

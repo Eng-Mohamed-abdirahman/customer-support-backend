@@ -221,6 +221,31 @@ const assertCompanyAdmin = (req: Request): AuthenticatedUser & { company: string
   };
 };
 
+const assertOrganizationMember = (req: Request): AuthenticatedUser & { company: string } => {
+  const requester = (req as any).user as AuthenticatedUser | undefined;
+
+  if (!requester) {
+    throw new AppError("Not authorized", 401);
+  }
+
+  if (requester.role === "admin") {
+    throw new AppError("Platform admins do not have an organization context", 403);
+  }
+
+  if (!requester.company) {
+    throw new AppError("Company context is missing for this user", 400);
+  }
+
+  if (!["company-admin", "staff"].includes(requester.role)) {
+    throw new AppError("Only organization members can access this resource", 403);
+  }
+
+  return {
+    ...requester,
+    company: requester.company,
+  };
+};
+
 const createOrganizationApiKey = async (organization: any, name: string) => {
   const rawApiKey = generateApiKey();
   const encryptedObj = encryptApiKey(rawApiKey);
@@ -746,7 +771,7 @@ const getMyCompanyApiKeySettings = asyncHandler(async (req: Request, res: Respon
 });
 
 const getMyCompanyUsage = asyncHandler(async (req: Request, res: Response) => {
-  const requester = assertCompanyAdmin(req);
+  const requester = assertOrganizationMember(req);
 
   const organization = await Organization.findById(requester.company).select(
     "_id status profile subscription api_settings"

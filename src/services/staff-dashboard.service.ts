@@ -272,9 +272,6 @@ export async function getStaffDashboardStats(
       shiftEnd: "17:00",
       remainingShiftMinutes,
     },
-    notes: [
-      "Customer requested refund review.",
-      "Follow up with API customer tomorrow.",
-    ],
+    notes: priorityAssignments.slice(0, 3).map((item: any) => item.subject),
   };
 }

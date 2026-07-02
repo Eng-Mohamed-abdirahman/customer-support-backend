@@ -47,7 +47,7 @@ export async function getOverviewStats(
   });
 
   // Calculate growth percentage
-  let growthPercentage = 12; // default premium look if no yesterday data
+  let growthPercentage = 0;
   if (yesterdayConversations > 0) {
     growthPercentage = Math.round(((todayConversations - yesterdayConversations) / yesterdayConversations) * 100);
   } else if (todayConversations > 0) {
@@ -313,14 +313,7 @@ export async function getChannelStats(
     };
   }
 
-  return {
-    website: Math.round((channelsMap.website / total) * 100),
-    whatsapp: Math.round((channelsMap.whatsapp / total) * 100),
-    messenger: Math.round((channelsMap.messenger / total) * 100),
-    instagram: Math.round((channelsMap.instagram / total) * 100),
-    api: Math.round((channelsMap.api / total) * 100),
-    email: Math.round((channelsMap.email / total) * 100),
-  };
+  return channelsMap;
 }
 
 /**
@@ -399,33 +392,94 @@ export async function getStaffPerformance(organizationId: mongoose.Types.ObjectI
   for (const agent of staff) {
     const agentId = agent._id;
 
-    // Count tickets resolved (closed)
-    const resolved = await Ticket.countDocuments({
-      organizationId,
-      assignedTo: agentId,
-      status: "closed",
-    });
+    const [resolved, open, ratingAgg, assignedConversationIds] = await Promise.all([
+      Ticket.countDocuments({
+        organizationId,
+        assignedTo: agentId,
+        status: "closed",
+      }),
+      Ticket.countDocuments({
+        organizationId,
+        assignedTo: agentId,
+        status: { $in: ["open", "pending"] },
+      }),
+      Conversation.aggregate([
+        {
+          $match: {
+            organizationId,
+            assignedAgent: agentId,
+            "metadata.customer.rating": { $exists: true },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            average: { $avg: "$metadata.customer.rating" },
+          },
+        },
+      ]),
+      Conversation.find({
+        organizationId,
+        assignedAgent: agentId,
+      })
+        .select("_id")
+        .limit(100)
+        .lean(),
+    ]);
 
-    // Count open/pending tickets
-    const open = await Ticket.countDocuments({
-      organizationId,
-      assignedTo: agentId,
-      status: { $in: ["open", "pending"] },
-    });
+    const conversationIds = assignedConversationIds.map((conversation: any) => conversation._id);
+    let avgResponseTime = 0;
 
-    // Average response time for conversations assigned to them
-    const avgResponseTime = 98; // default placeholder
+    if (conversationIds.length > 0) {
+      const messages = await Message.find({
+        organizationId,
+        conversationId: { $in: conversationIds },
+      })
+        .sort({ createdAt: 1 })
+        .select("conversationId senderType createdAt");
 
-    // Average satisfaction rating in metadata
-    const rating = 4.8; // default placeholder
+      const grouped = new Map<string, any[]>();
+      messages.forEach((msg: any) => {
+        const key = String(msg.conversationId);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(msg);
+      });
+
+      let totalMs = 0;
+      let count = 0;
+
+      grouped.forEach((items) => {
+        let customerAt: number | null = null;
+        for (const msg of items) {
+          if (msg.senderType === "customer") {
+            customerAt = new Date(msg.createdAt).getTime();
+            continue;
+          }
+          if (
+            (msg.senderType === "agent" || msg.senderType === "assistant") &&
+            customerAt !== null
+          ) {
+            totalMs += Math.max(0, new Date(msg.createdAt).getTime() - customerAt);
+            count++;
+            customerAt = null;
+          }
+        }
+      });
+
+      avgResponseTime = count > 0 ? Math.round(totalMs / count / 1000) : 0;
+    }
+
+    const rating =
+      ratingAgg.length > 0 ? Number(Number(ratingAgg[0].average || 0).toFixed(1)) : 0;
 
     list.push({
       name: `${agent.firstName} ${agent.lastName}`.trim(),
-      resolved: resolved || Math.floor(Math.random() * 50) + 100,
+      resolved: resolved || 0,
       avgResponseTime,
       rating,
-      open: open || Math.floor(Math.random() * 10),
-      avatar: `${agent.firstName?.[0] ?? ""}${agent.lastName?.[0] ?? ""}`.toUpperCase() || "ST",
+      open: open || 0,
+      avatar:
+        `${agent.firstName?.[0] ?? ""}${agent.lastName?.[0] ?? ""}`.toUpperCase() || "ST",
     });
   }
 
@@ -611,19 +665,33 @@ export async function getKnowledgeUsage(
     searches: p.count,
   }));
 
-  const totalAiConvs = await AIConversation.countDocuments({
+  const aiResolved = await Conversation.countDocuments({
     organizationId,
-    createdAt: { $gte: startDate, $lte: endDate },
+    responderType: "ai",
+    status: "closed",
+    updatedAt: { $gte: startDate, $lte: endDate },
   });
-  const successRate = totalAiConvs > 0 ? 91 : 0;
+
+  const humanResolved = await Conversation.countDocuments({
+    organizationId,
+    responderType: "agent",
+    status: "closed",
+    updatedAt: { $gte: startDate, $lte: endDate },
+  });
+
+  const totalResolved = aiResolved + humanResolved;
+  const successRate =
+    totalResolved > 0 ? Math.round((aiResolved / totalResolved) * 100) : 0;
 
   return {
     topFaq: topFaq.length > 0 ? topFaq : [],
-    mostUsefulArticle: recentDoc ? {
-      title: recentDoc.title || recentDoc.originalName,
-      views: docsCount * 12 || 12,
-      helpfulRate: 94,
-    } : null,
+    mostUsefulArticle: recentDoc
+      ? {
+          title: recentDoc.title || recentDoc.originalName,
+          views: docsCount,
+          helpfulRate: successRate,
+        }
+      : null,
     mostSearchedTopics: mostSearchedTopics.length > 0 ? mostSearchedTopics : [],
     successRate,
   };
