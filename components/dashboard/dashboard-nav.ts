@@ -68,7 +68,10 @@ const hasAccess = (
       href === "/dashboard/usage" ||
       href === "/dashboard/tickets" ||
       href === "/dashboard/studio" ||
-      href === "/dashboard/studio/history"
+      href === "/dashboard/studio/history" ||
+      href === "/dashboard/inbox" ||
+      href === "/dashboard/conversations" ||
+      href === "/dashboard/contacts"
     ) {
       return true
     }
@@ -127,27 +130,27 @@ const generalNavItems: DashboardNavItem[] = [
     description: "Human handoff requests",
     access: { membershipRoles: organizationAdminRoles },
   },
-  {
-    title: "Organization Brand",
-    href: "/dashboard/brand",
-    icon: Palette,
-    description: "Configure organization brand guidelines",
-    access: { membershipRoles: organizationAdminRoles },
-  },
-  {
-    title: "Studio Canvas",
-    href: "/dashboard/studio",
-    icon: Sparkles,
-    description: "Create marketing graphic designs with AI",
-    access: { membershipRoles: organizationAdminRoles },
-  },
-  {
-    title: "Design History",
-    href: "/dashboard/studio/history",
-    icon: History,
-    description: "Browse past AI-generated designs",
-    access: { membershipRoles: organizationAdminRoles },
-  },
+  // {
+  //   title: "Organization Brand",
+  //   href: "/dashboard/brand",
+  //   icon: Palette,
+  //   description: "Configure organization brand guidelines",
+  //   access: { membershipRoles: organizationAdminRoles },
+  // },
+  // {
+  //   title: "Studio Canvas",
+  //   href: "/dashboard/studio",
+  //   icon: Sparkles,
+  //   description: "Create marketing graphic designs with AI",
+  //   access: { membershipRoles: organizationAdminRoles },
+  // },
+  // {
+  //   title: "Design History",
+  //   href: "/dashboard/studio/history",
+  //   icon: History,
+  //   description: "Browse past AI-generated designs",
+  //   access: { membershipRoles: organizationAdminRoles },
+  // },
   {
     title: "Contacts",
     href: "/dashboard/contacts",
