@@ -102,7 +102,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   }, [])
 
   useEffect(() => {
-    if (!isAuthorized) return
+    if (!isAuthorized || user?.role !== "staff") return
 
     void loadTicketCount()
 
@@ -123,7 +123,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
       socket.off("ticket:updated", handleTicketUpdate)
       socket.off("incoming_handoff_alert", handleTicketUpdate)
     }
-  }, [isAuthorized, loadTicketCount])
+  }, [isAuthorized, loadTicketCount, user?.role])
 
   const navGroups = useMemo(
     () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null, user?.role),
@@ -361,7 +361,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                       <Link href={item.href} className="flex w-full items-center gap-3">
                         <item.icon className="size-4 shrink-0" />
                         <span className="text-sm font-medium">{item.title}</span>
-                        {isTickets && openTicketsCount > 0 && (
+                        {isTickets && user?.role === "staff" && openTicketsCount > 0 && (
                           <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500/15 border border-rose-500/30 px-1.5 text-[10px] font-bold text-rose-400">
                             {openTicketsCount}
                           </span>
