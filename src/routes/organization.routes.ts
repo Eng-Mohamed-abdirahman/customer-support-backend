@@ -18,6 +18,18 @@ const {
   getOrganizationAdminSettings,
   updateOrganizationAdminSettings,
 } = require("../controllers/organization.controller");
+const {
+  requirePlatformAdmin,
+  requireCompanyAdmin,
+  requireOrganizationMember,
+} = require("../middlewares/platformAdmin.middleware");
+const {
+  assignPlanToOrganization,
+  changeOrganizationPlan,
+  removePlanFromOrganization,
+  getMyOrganizationSubscription,
+  requestPlanUpgrade,
+} = require("../controllers/plan.controller");
 
 const router = express.Router();
 
@@ -30,9 +42,14 @@ router.post("/my-api-keys/:apiKeyId/reveal", protect, revealMyCompanyApiKey);
 router.delete("/my-api-keys/:apiKeyId", protect, deleteMyCompanyApiKey);
 router.get("/my-api-key", protect, getMyCompanyApiKeySettings);
 router.get("/my-usage", protect, getMyCompanyUsage);
+router.get("/my-subscription", protect, requireOrganizationMember, getMyOrganizationSubscription);
+router.post("/request-upgrade", protect, requireCompanyAdmin, requestPlanUpgrade);
 router.get("/usage", protect, listOrganizationsUsage);
 router.post("/my-api-key/rotate", protect, rotateMyCompanyApiKey);
 router.patch("/my-profile", protect, updateMyCompanyProfile);
+router.post("/:id/assign-plan", protect, requirePlatformAdmin, assignPlanToOrganization);
+router.post("/:id/change-plan", protect, requirePlatformAdmin, changeOrganizationPlan);
+router.post("/:id/remove-plan", protect, requirePlatformAdmin, removePlanFromOrganization);
 router.get("/:organizationId/admin-settings", protect, getOrganizationAdminSettings);
 router.patch("/:organizationId/admin-settings", protect, updateOrganizationAdminSettings);
 router.post("/", protect, createOrganization);
