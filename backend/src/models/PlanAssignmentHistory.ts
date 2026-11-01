@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const planAssignmentHistorySchema = new mongoose.Schema(
   {
@@ -50,6 +50,5 @@ const planAssignmentHistorySchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("PlanAssignmentHistory", planAssignmentHistorySchema);
+export default mongoose.model("PlanAssignmentHistory", planAssignmentHistorySchema);
 
-export {};

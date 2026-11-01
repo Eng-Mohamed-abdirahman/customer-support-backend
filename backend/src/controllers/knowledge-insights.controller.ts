@@ -34,4 +34,4 @@ export async function getKnowledgeInsightsController(
   }
 }
 
-module.exports = { getKnowledgeInsightsController };
+

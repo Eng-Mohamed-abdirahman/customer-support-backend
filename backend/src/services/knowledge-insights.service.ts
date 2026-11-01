@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { buildKnowledgeInsightsPrompt } from "../prompts/knowledge-insights.prompt";
 
-const Conversation = require("../models/Conversation");
-const Message = require("../models/Message");
-const { generateSupportReplyWithOpenAi } = require("../services/llm.service");
+import Conversation from "../models/Conversation";
+import Message from "../models/Message";
+import { generateSupportReplyWithOpenAi } from "../services/llm.service";
 
 // ---------------------------------------------------------------------------
 // In-memory cache — 5-minute TTL, keyed by `insights:${organizationId}:${range}`

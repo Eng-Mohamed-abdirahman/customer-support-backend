@@ -1,17 +1,10 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const {
-  uploadKnowledgeDocument: uploadKnowledgeDocumentMiddleware,
-} = require("../middlewares/upload.middleware");
-const { uploadLimiter } = require("../middlewares/rateLimit.middleware");
-const {
-  uploadKnowledgeDocument,
-  listKnowledgeDocuments,
-  getKnowledgeDocument,
-  deleteKnowledgeDocument,
-} = require("../controllers/knowledge.controller");
-const { getKnowledgeInsightsController } = require("../controllers/knowledge-insights.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { uploadKnowledgeDocument as uploadKnowledgeDocumentMiddleware } from "../middlewares/upload.middleware";
+import { uploadLimiter } from "../middlewares/rateLimit.middleware";
+import { uploadKnowledgeDocument, listKnowledgeDocuments, getKnowledgeDocument, deleteKnowledgeDocument } from "../controllers/knowledge.controller";
+import { getKnowledgeInsightsController } from "../controllers/knowledge-insights.controller";
 
 const router = express.Router();
 
@@ -27,6 +20,5 @@ router.get("/documents/:id", protect, getKnowledgeDocument);
 router.delete("/documents/:id", protect, deleteKnowledgeDocument);
 router.get("/insights", protect, getKnowledgeInsightsController);
 
-module.exports = router;
+export default router;
 
-export {};

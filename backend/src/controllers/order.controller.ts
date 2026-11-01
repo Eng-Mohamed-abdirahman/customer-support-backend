@@ -1,5 +1,5 @@
-const Order = require("../models/Order");
-const { AppError } = require("../utils/appError");
+import Order from "../models/Order";
+import { AppError } from "../utils/appError";
 
 const listOrders = async (req: any, res: any, next: any) => {
   try {
@@ -61,9 +61,8 @@ const updateOrderStatus = async (req: any, res: any, next: any) => {
   }
 };
 
-module.exports = {
+export {
   listOrders,
   updateOrderStatus,
 };
 
-export {};

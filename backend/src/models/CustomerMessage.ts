@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const customerMessageSchema = new mongoose.Schema(
   {
@@ -88,6 +88,5 @@ const customerMessageSchema = new mongoose.Schema(
 
 customerMessageSchema.index({ externalId: 1, phoneNumberId: 1 }, { unique: true });
 
-module.exports = mongoose.model("CustomerMessage", customerMessageSchema);
+export default mongoose.model("CustomerMessage", customerMessageSchema);
 
-export {};

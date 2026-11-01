@@ -1,15 +1,15 @@
 import express, { Request, Response } from "express";
-const mongoose = require("mongoose");
-const Conversation = require("../models/Conversation");
-const Ticket = require("../models/Ticket");
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { appendMessage, getOrCreateConversation } = require("../services/conversationStore.service");
-const { emitToOrganization, emitToConversation } = require("../services/socket.service");
-const { protect } = require("../middlewares/auth.middleware");
-const { validateApiKey } = require("../middlewares/validateApiKey.middleware");
-const { aiLimiter } = require("../middlewares/rateLimit.middleware");
+import mongoose from "mongoose";
+import Conversation from "../models/Conversation";
+import Ticket from "../models/Ticket";
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { appendMessage, getOrCreateConversation } from "../services/conversationStore.service";
+import { emitToOrganization, emitToConversation } from "../services/socket.service";
+import { protect } from "../middlewares/auth.middleware";
+import { validateApiKey } from "../middlewares/validateApiKey.middleware";
+import { aiLimiter } from "../middlewares/rateLimit.middleware";
 
 const router = express.Router();
 
@@ -177,5 +177,4 @@ router.post(
   })
 );
 
-module.exports = router;
-export {};
+export default router;

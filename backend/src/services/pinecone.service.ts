@@ -1,5 +1,5 @@
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
 
 type KnowledgeVector = {
   id: string;
@@ -196,11 +196,10 @@ const queryKnowledgeVectors = async (
     }));
 };
 
-module.exports = {
+export {
   getPineconeNamespace,
   upsertKnowledgeVectors,
   deleteKnowledgeVectors,
   queryKnowledgeVectors,
 };
 
-export {};

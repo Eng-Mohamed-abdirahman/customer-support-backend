@@ -1,22 +1,7 @@
-const express = require("express");
-const { protect } = require("../middlewares/auth.middleware");
-const {
-  requirePlatformAdmin,
-  requireCompanyAdmin,
-  requireOrganizationMember,
-} = require("../middlewares/platformAdmin.middleware");
-const {
-  listPlans,
-  getPlan,
-  createPlan,
-  updatePlan,
-  deletePlan,
-  duplicatePlan,
-  updatePlanStatus,
-  getPlanOrganizations,
-  getPlanDashboardStats,
-  listPlanAuditLogs,
-} = require("../controllers/plan.controller");
+import express from "express";
+import { protect } from "../middlewares/auth.middleware";
+import { requirePlatformAdmin, requireCompanyAdmin, requireOrganizationMember } from "../middlewares/platformAdmin.middleware";
+import { listPlans, getPlan, createPlan, updatePlan, deletePlan, duplicatePlan, updatePlanStatus, getPlanOrganizations, getPlanDashboardStats, listPlanAuditLogs } from "../controllers/plan.controller";
 
 const router = express.Router();
 
@@ -33,6 +18,5 @@ router.post("/:id/duplicate", requirePlatformAdmin, duplicatePlan);
 router.patch("/:id/status", requirePlatformAdmin, updatePlanStatus);
 router.get("/:id/organizations", requirePlatformAdmin, getPlanOrganizations);
 
-module.exports = router;
+export default router;
 
-export {};

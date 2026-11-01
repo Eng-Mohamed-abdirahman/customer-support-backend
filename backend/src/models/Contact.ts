@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const contactSchema = new mongoose.Schema(
   {
@@ -52,6 +52,5 @@ const contactSchema = new mongoose.Schema(
 
 contactSchema.index({ organizationId: 1, phone: 1 }, { unique: true });
 
-module.exports = mongoose.model("Contact", contactSchema);
+export default mongoose.model("Contact", contactSchema);
 
-export {};

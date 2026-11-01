@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const phoneSchema = z
   .string()
@@ -37,10 +37,9 @@ const listContactsSchema = z
   })
   .strict();
 
-module.exports = {
+export {
   createContactSchema,
   updateContactSchema,
   listContactsSchema,
 };
 
-export {};

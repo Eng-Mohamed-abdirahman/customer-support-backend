@@ -4,7 +4,7 @@ import { decryptApiKey } from "../utils/cryptoApiKey";
 import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
 
-const WhatsAppConnection = require("../models/WhatsAppConnection");
+import WhatsAppConnection from "../models/WhatsAppConnection";
 
 const graphBaseUrl = env.WHATSAPP_GRAPH_BASE_URL || "https://graph.facebook.com";
 const graphVersion = "v21.0"; // Using v21.0 as specified in the migration guide

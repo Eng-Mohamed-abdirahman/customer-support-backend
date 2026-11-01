@@ -8,7 +8,7 @@ import {
 import * as planRepository from "../repositories/plan.repository";
 import * as auditRepository from "../repositories/plan-audit.repository";
 
-const Organization = require("../models/Organization");
+import Organization from "../models/Organization";
 
 type ActorContext = {
   actorId: string;
@@ -450,14 +450,14 @@ export async function removePlanFromOrganization(
   const previousPlanId = String(organization.planId);
 
   organization.planId = null;
-  organization.subscription = {
+  organization.set("subscription", {
     ...(organization.subscription || {}),
     plan: "free",
     status: "cancelled",
     billingCycle: "monthly",
     startedAt: null,
     expiresAt: null,
-  };
+  });
   organization.status = "cancelled";
   organization.planLimits = {
     maxWebsites: 1,
@@ -466,10 +466,7 @@ export async function removePlanFromOrganization(
     maxConversations: 1000,
     knowledgeStorageGb: 1,
   };
-  organization.api_settings = {
-    ...(organization.api_settings || {}),
-    monthly_limit: 1000,
-  };
+  organization.set("api_settings.monthly_limit", 1000);
   organization.enabledFeatures = [];
 
   await organization.save();

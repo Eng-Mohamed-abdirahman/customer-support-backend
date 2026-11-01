@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import { env } from "./env";
+import WhatsAppConnection from "../models/WhatsAppConnection";
+import Organization from "../models/Organization";
 
 const syncWhatsAppConnectionIndexes = async () => {
-  const WhatsAppConnection = require("../models/WhatsAppConnection");
 
   try {
     await WhatsAppConnection.collection.dropIndex("organizationId_1");
@@ -30,7 +31,6 @@ const syncWhatsAppConnectionIndexes = async () => {
   ];
 
   if (organizationIds.length > 0) {
-    const Organization = require("../models/Organization");
     await Organization.updateMany(
       { _id: { $in: organizationIds } },
       { $addToSet: { allowedChannels: "whatsapp" } }

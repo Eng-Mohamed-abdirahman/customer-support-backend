@@ -1,22 +1,16 @@
-const Message = require("../models/Message");
-const WebhookLog = require("../models/WebhookLog");
-const CustomerMessage = require("../models/CustomerMessage");
-const AIConversation = require("../models/AIConversation");
+import Message from "../models/Message";
+import WebhookLog from "../models/WebhookLog";
+import CustomerMessage from "../models/CustomerMessage";
+import AIConversation from "../models/AIConversation";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const { generateConversationReply } = require("./conversation.service");
-const {
-  getOrCreateConversation,
-  appendMessage,
-  getRecentHistory,
-} = require("./conversationStore.service");
-const {
-  loadTenantByPhoneNumberId,
-  isAiAutoReplyEnabled,
-} = require("./tenantWebhook.service");
-const { sendWhatsAppTextMessage } = require("./whatsappGraph.service");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { generateConversationReply } from "./conversation.service";
+import { getOrCreateConversation, appendMessage, getRecentHistory } from "./conversationStore.service";
+import { loadTenantByPhoneNumberId, isAiAutoReplyEnabled } from "./tenantWebhook.service";
+import { sendWhatsAppTextMessage } from "./whatsappGraph.service";
+import { upsertWhatsAppContact } from "./contact.service";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -119,18 +113,21 @@ const buildCustomerMessageText = (messageType: string, contentText: string) => {
   return "Customer sent a message.";
 };
 
+type InboundMessageType = "text" | "image" | "document" | "audio";
+const MEDIA_MESSAGE_TYPES: InboundMessageType[] = ["image", "document", "audio"];
+
 const extractMessagePayload = async (message: any, accessToken: string) => {
   const messageType = normalizeText(message?.type) || "text";
 
   if (messageType === "text") {
     return {
-      messageType: "text",
+      messageType: "text" as InboundMessageType,
       contentText: normalizeText(message?.text?.body),
       media: null,
     };
   }
 
-  if (["image", "document", "audio"].includes(messageType)) {
+  if (MEDIA_MESSAGE_TYPES.includes(messageType as InboundMessageType)) {
     const mediaPayload = message?.[messageType] ?? {};
     const mediaId = normalizeText(mediaPayload?.id);
     const caption = normalizeText(mediaPayload?.caption);
@@ -143,7 +140,7 @@ const extractMessagePayload = async (message: any, accessToken: string) => {
     }
 
     return {
-      messageType,
+      messageType: messageType as InboundMessageType,
       contentText: caption,
       media: {
         id: mediaId,
@@ -158,7 +155,7 @@ const extractMessagePayload = async (message: any, accessToken: string) => {
   }
 
   return {
-    messageType: "text",
+    messageType: "text" as InboundMessageType,
     contentText: "",
     media: null,
   };
@@ -220,7 +217,6 @@ const processIncomingMessage = async (input: {
     },
   });
 
-  const { upsertWhatsAppContact } = require("./contact.service");
   await upsertWhatsAppContact({
     organizationId,
     phone: customerPhone,
@@ -335,7 +331,7 @@ const processIncomingMessage = async (input: {
       organizationId,
       conversationId: String(conversation._id),
       senderType: "assistant",
-      messageType: "text",
+      messageType: "text" as InboundMessageType,
       contentText: replyResult.reply,
       aiGenerated: true,
     });
@@ -535,9 +531,8 @@ const processWebhookPayload = async (payload: any) => {
   }
 };
 
-module.exports = {
+export {
   processWebhookPayload,
   sendWhatsAppMessageWithRetry,
 };
 
-export {};

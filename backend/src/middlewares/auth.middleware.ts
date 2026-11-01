@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
-const User = require("../models/User");
+import User from "../models/User";
 
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;

@@ -1,9 +1,9 @@
-const crypto = require("crypto");
+import * as crypto from "crypto";
 
-const WhatsAppConnection = require("../models/WhatsAppConnection");
+import WhatsAppConnection from "../models/WhatsAppConnection";
 
-const { encryptApiKey, decryptApiKey } = require("../utils/cryptoApiKey");
-const { AppError } = require("../utils/appError");
+import { encryptApiKey, decryptApiKey } from "../utils/cryptoApiKey";
+import { AppError } from "../utils/appError";
 
 const hashToken = (token: string): string => {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -177,7 +177,7 @@ const resolveVerifyToken = (connection: any): string => {
   return decryptApiKey(connection.verifyTokenEncrypted, connection.verifyTokenIv);
 };
 
-module.exports = {
+export {
   toConnectionResponse,
   upsertConnection,
   listConnectionsByOrganizationId,
@@ -190,4 +190,3 @@ module.exports = {
   markWebhookSubscription,
 };
 
-export {};

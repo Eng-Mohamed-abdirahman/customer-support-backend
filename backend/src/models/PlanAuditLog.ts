@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const planAuditLogSchema = new mongoose.Schema(
   {
@@ -58,6 +58,5 @@ const planAuditLogSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("PlanAuditLog", planAuditLogSchema);
+export default mongoose.model("PlanAuditLog", planAuditLogSchema);
 
-export {};

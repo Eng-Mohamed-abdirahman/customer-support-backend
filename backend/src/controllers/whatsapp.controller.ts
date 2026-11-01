@@ -1,35 +1,20 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
 
-const mongoose = require("mongoose");
-const Organization = require("../models/Organization");
-const { env } = require("../config/env");
+import mongoose from "mongoose";
+import Organization from "../models/Organization";
+import { env } from "../config/env";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { connectWhatsAppSchema, embeddedSignupSchema } = require("../validators/whatsapp.validator");
-const {
-  upsertConnection,
-  listConnectionsByOrganizationId,
-  disconnectConnection,
-  toConnectionResponse,
-  markWebhookSubscription,
-} = require("../services/whatsapp.service");
-const {
-  exchangeCodeForToken,
-  exchangeForLongLivedToken,
-  fetchOwnedWabaAccounts,
-  ensureAppSubscribedToWaba,
-} = require("../services/whatsappGraph.service");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const {
-  ensureInboundWebhooks,
-  fetchMetaWebhookDiagnostics,
-  isPublicCallbackUrl,
-  buildCallbackUrl,
-} = require("../services/whatsappWebhookSetup.service");
-const { probeUrl } = require("../services/whatsappWebhookStartup.service");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { connectWhatsAppSchema, embeddedSignupSchema } from "../validators/whatsapp.validator";
+import { upsertConnection, listConnectionsByOrganizationId, disconnectConnection, toConnectionResponse, markWebhookSubscription } from "../services/whatsapp.service";
+import { exchangeCodeForToken, exchangeForLongLivedToken, fetchOwnedWabaAccounts, ensureAppSubscribedToWaba } from "../services/whatsappGraph.service";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { ensureInboundWebhooks, fetchMetaWebhookDiagnostics, isPublicCallbackUrl, buildCallbackUrl } from "../services/whatsappWebhookSetup.service";
+import { probeUrl } from "../services/whatsappWebhookStartup.service";
+import WebhookLog from "../models/WebhookLog";
 
 type AuthenticatedUser = {
   _id: string;
@@ -150,7 +135,6 @@ const getWhatsAppStatus = asyncHandler(async (req: Request, res: Response) => {
     organizationId,
     connectionCount: connections.length,
   });
-  const WebhookLog = require("../models/WebhookLog");
 
   const recentWebhookLogs = await WebhookLog.find({ organizationId })
     .sort({ createdAt: -1 })
@@ -371,7 +355,7 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
   });
 });
 
-module.exports = {
+export {
   connectWhatsApp,
   getWhatsAppStatus,
   disconnectWhatsApp,
@@ -380,4 +364,3 @@ module.exports = {
   setupInboundWebhooks,
 };
 
-export {};

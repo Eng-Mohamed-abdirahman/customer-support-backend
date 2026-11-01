@@ -1,11 +1,7 @@
-const { env } = require("../config/env");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const {
-  buildCallbackUrl,
-  isPublicCallbackUrl,
-  repairWabaSubscriptionsForActiveConnections,
-} = require("./whatsappWebhookSetup.service");
-const { getAppWebhookSubscriptions } = require("./whatsappGraph.service");
+import { env } from "../config/env";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { buildCallbackUrl, isPublicCallbackUrl, repairWabaSubscriptionsForActiveConnections } from "./whatsappWebhookSetup.service";
+import { getAppWebhookSubscriptions } from "./whatsappGraph.service";
 
 const probeUrl = async (url: string): Promise<boolean> => {
   try {
@@ -118,9 +114,8 @@ const logWebhookStartupDiagnostics = async () => {
   }
 };
 
-module.exports = {
+export {
   logWebhookStartupDiagnostics,
   probeUrl,
 };
 
-export {};

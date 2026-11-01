@@ -8,28 +8,25 @@ import dashboardRoutes from "./routes/dashboard.routes";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import { generalApiLimiter } from "./middlewares/rateLimit.middleware";
-const invitationRoutes = require("./routes/invitation.routes");
-const organizationRoutes = require("./routes/organization.routes");
-const knowledgeRoutes = require("./routes/knowledge.routes");
-const conversationRoutes = require("./routes/conversation.routes");
-const ticketRoutes = require("./routes/ticket.routes");
-const whatsappRoutes = require("./routes/whatsapp.routes");
-const webhookRoutes = require("./routes/webhook.routes");
-const {
-	verifyWhatsAppWebhook,
-	receiveWhatsAppWebhook,
-} = require("./controllers/webhook.controller");
-const { webhookLimiter } = require("./middlewares/rateLimit.middleware");
-const { verifyWhatsAppSignature } = require("./middlewares/whatsappSignature.middleware");
-const aiRoutes = require("./routes/ai.routes");
-const orderRoutes = require("./routes/order.routes");
-const contactRoutes = require("./routes/contact.routes");
-const designRoutes = require("./routes/design.routes");
-const inngestRoutes = require("./routes/inngest.routes");
-const brandRoutes = require("./routes/brand.routes");
-const storageRoutes = require("./routes/storage.routes");
-const supportRoutes = require("./routes/support.routes");
-const planRoutes = require("./routes/plan.routes");
+import invitationRoutes from "./routes/invitation.routes";
+import organizationRoutes from "./routes/organization.routes";
+import knowledgeRoutes from "./routes/knowledge.routes";
+import conversationRoutes from "./routes/conversation.routes";
+import ticketRoutes from "./routes/ticket.routes";
+import whatsappRoutes from "./routes/whatsapp.routes";
+import webhookRoutes from "./routes/webhook.routes";
+import { verifyWhatsAppWebhook, receiveWhatsAppWebhook } from "./controllers/webhook.controller";
+import { webhookLimiter } from "./middlewares/rateLimit.middleware";
+import { verifyWhatsAppSignature } from "./middlewares/whatsappSignature.middleware";
+import aiRoutes from "./routes/ai.routes";
+import orderRoutes from "./routes/order.routes";
+import contactRoutes from "./routes/contact.routes";
+import designRoutes from "./routes/design.routes";
+import inngestRoutes from "./routes/inngest.routes";
+import brandRoutes from "./routes/brand.routes";
+import storageRoutes from "./routes/storage.routes";
+import supportRoutes from "./routes/support.routes";
+import planRoutes from "./routes/plan.routes";
 
 const app = express();
 

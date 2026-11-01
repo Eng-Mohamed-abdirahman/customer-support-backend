@@ -1,17 +1,17 @@
-const Organization = require("../models/Organization");
-const KnowledgeChunk = require("../models/KnowledgeChunk");
+import Organization from "../models/Organization";
+import KnowledgeChunk from "../models/KnowledgeChunk";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
-const { generateEmbeddings } = require("./embedding.service");
-const { queryKnowledgeVectors } = require("./pinecone.service");
-const { generateSupportReplyWithOpenAi, generateActionableReplyWithOpenAi } = require("./llm.service");
-const { rerankWithCohere } = require("./rerank.service");
-const Order = require("../models/Order");
-const Ticket = require("../models/Ticket");
-const Conversation = require("../models/Conversation");
-const { detectIntent, getConversationalResponse } = require("./intentDetection.service");
-const { emitToOrganization } = require("./socket.service");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
+import { generateEmbeddings } from "./embedding.service";
+import { queryKnowledgeVectors } from "./pinecone.service";
+import { generateSupportReplyWithOpenAi, generateActionableReplyWithOpenAi } from "./llm.service";
+import { rerankWithCohere } from "./rerank.service";
+import Order from "../models/Order";
+import Ticket from "../models/Ticket";
+import Conversation from "../models/Conversation";
+import { detectIntent, getConversationalResponse } from "./intentDetection.service";
+import { emitToOrganization } from "./socket.service";
 
 type ConversationHistoryItem = {
   role: "customer" | "assistant";
@@ -1183,8 +1183,7 @@ const generateConversationReply = async (
   }
 };
 
-module.exports = {
+export {
   generateConversationReply,
 };
 
-export {};

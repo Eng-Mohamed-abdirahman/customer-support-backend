@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
-const SubscriptionPlan = require("../models/SubscriptionPlan");
+import SubscriptionPlan from "../models/SubscriptionPlan";
+import Organization from "../models/Organization";
 
 export type PlanListFilters = {
   status?: "active" | "disabled";
@@ -92,7 +93,6 @@ export async function deletePlanById(planId: string) {
 }
 
 export async function countOrganizationsOnPlan(planId: string) {
-  const Organization = require("../models/Organization");
 
   if (!mongoose.Types.ObjectId.isValid(planId)) {
     return 0;

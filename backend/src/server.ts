@@ -5,7 +5,7 @@ import { env } from "./config/env";
 import { initSocketServer } from "./services/socket.service";
 import { designLog, maskSecret } from "./utils/design.logger";
 
-const { logWebhookStartupDiagnostics } = require("./services/whatsappWebhookStartup.service");
+import { logWebhookStartupDiagnostics } from "./services/whatsappWebhookStartup.service";
 
 const startServer = async () => {
   await connectDB();

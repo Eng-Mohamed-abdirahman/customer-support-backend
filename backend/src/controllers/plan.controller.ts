@@ -6,18 +6,7 @@ import * as planService from "../services/plan.service";
 import * as planStatsService from "../services/plan-stats.service";
 import type { PlanListFilters } from "../repositories/plan.repository";
 
-const {
-  assignPlanSchema,
-  changePlanSchema,
-  createPlanSchema,
-  listAuditLogsSchema,
-  listPlanOrganizationsSchema,
-  listPlansSchema,
-  removePlanSchema,
-  requestUpgradeSchema,
-  updatePlanSchema,
-  updatePlanStatusSchema,
-} = require("../validators/plan.validator");
+import { assignPlanSchema, changePlanSchema, createPlanSchema, listAuditLogsSchema, listPlanOrganizationsSchema, listPlansSchema, removePlanSchema, requestUpgradeSchema, updatePlanSchema, updatePlanStatusSchema } from "../validators/plan.validator";
 
 function getActorContext(req: Request) {
   const user = (req as any).user;

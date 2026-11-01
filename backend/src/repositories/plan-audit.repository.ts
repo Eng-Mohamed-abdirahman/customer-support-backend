@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-const PlanAuditLog = require("../models/PlanAuditLog");
-const PlanAssignmentHistory = require("../models/PlanAssignmentHistory");
-const Organization = require("../models/Organization");
+import PlanAuditLog from "../models/PlanAuditLog";
+import PlanAssignmentHistory from "../models/PlanAssignmentHistory";
+import Organization from "../models/Organization";
 
 export type AuditLogInput = {
   action: string;

@@ -1,14 +1,13 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { getPresignedUploadUrl, uploadLogo } = require("../controllers/storage.controller");
-const upload = require("../middlewares/upload").default;
+import { protect } from "../middlewares/auth.middleware";
+import { getPresignedUploadUrl, uploadLogo } from "../controllers/storage.controller";
+import upload from "../middlewares/upload";
 
 const router = express.Router();
 
 router.get("/presign", protect, getPresignedUploadUrl);
 router.post("/upload", protect, upload.single("file"), uploadLogo);
 
-module.exports = router;
+export default router;
 
-export {};

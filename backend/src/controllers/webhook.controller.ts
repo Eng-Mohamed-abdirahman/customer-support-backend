@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 
-const { asyncHandler } = require("../utils/asyncHandler");
-const { AppError } = require("../utils/appError");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const { processWebhookPayload } = require("../services/whatsappWebhook.service");
-const { getConnectionByVerifyToken } = require("../services/whatsapp.service");
+import { asyncHandler } from "../utils/asyncHandler";
+import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { processWebhookPayload } from "../services/whatsappWebhook.service";
+import { getConnectionByVerifyToken } from "../services/whatsapp.service";
 
 const summarizeWebhookBody = (body: any) => {
   const entries = Array.isArray(body?.entry) ? body.entry : [];
@@ -94,9 +94,8 @@ const receiveWhatsAppWebhook = asyncHandler(async (req: Request, res: Response) 
   });
 });
 
-module.exports = {
+export {
   verifyWhatsAppWebhook,
   receiveWhatsAppWebhook,
 };
 
-export {};

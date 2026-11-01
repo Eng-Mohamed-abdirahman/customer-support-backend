@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const organizationSchema = new mongoose.Schema(
   {
@@ -358,6 +358,5 @@ organizationSchema.pre("validate", function (this: any) {
   }
 });
 
-module.exports = mongoose.model("Organization", organizationSchema);
+export default mongoose.model("Organization", organizationSchema);
 
-export {};

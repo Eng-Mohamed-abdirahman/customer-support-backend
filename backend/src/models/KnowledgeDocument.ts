@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const knowledgeDocumentSchema = new mongoose.Schema(
   {
@@ -73,6 +73,5 @@ const knowledgeDocumentSchema = new mongoose.Schema(
 
 knowledgeDocumentSchema.index({ organizationId: 1, createdAt: -1 });
 
-module.exports = mongoose.model("KnowledgeDocument", knowledgeDocumentSchema);
+export default mongoose.model("KnowledgeDocument", knowledgeDocumentSchema);
 
-export {};

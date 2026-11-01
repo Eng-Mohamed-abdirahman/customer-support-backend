@@ -2,23 +2,13 @@
  * Ensures Meta delivers inbound WhatsApp messages to our webhook.
  * Requires: app subscribed to "messages" field + app subscribed to each WABA.
  */
-const WhatsAppConnection = require("../models/WhatsAppConnection");
+import WhatsAppConnection from "../models/WhatsAppConnection";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const {
-  listConnectionsByOrganizationId,
-  markWebhookSubscription,
-  resolveAccessToken,
-  resolveVerifyToken,
-} = require("./whatsapp.service");
-const {
-  ensureAppSubscribedToWaba,
-  subscribeAppWebhookFields,
-  getAppWebhookSubscriptions,
-  getWabaSubscribedApps,
-} = require("./whatsappGraph.service");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { listConnectionsByOrganizationId, markWebhookSubscription, resolveAccessToken, resolveVerifyToken } from "./whatsapp.service";
+import { ensureAppSubscribedToWaba, subscribeAppWebhookFields, getAppWebhookSubscriptions, getWabaSubscribedApps } from "./whatsappGraph.service";
 
 const buildCallbackUrl = () => `${env.publicApiUrl.replace(/\/$/, "")}/api/webhooks/whatsapp`;
 
@@ -233,7 +223,7 @@ const repairWabaSubscriptionsForActiveConnections = async () => {
   return results;
 };
 
-module.exports = {
+export {
   buildCallbackUrl,
   isPublicCallbackUrl,
   ensureInboundWebhooks,
@@ -241,4 +231,3 @@ module.exports = {
   repairWabaSubscriptionsForActiveConnections,
 };
 
-export {};

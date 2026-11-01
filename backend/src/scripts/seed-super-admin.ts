@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-const User = require("../models/User");
+import User from "../models/User";
 import { hashPassword } from "../utils/hash";
 
 dotenv.config();
@@ -77,7 +77,7 @@ const seedUser = async () => {
       existingUser.lastName = seedUserLastName;
       existingUser.password = password;
       existingUser.role = role;
-      existingUser.company = company;
+      existingUser.set("company", company);
       await existingUser.save();
 
       console.log(`[seed:user] Updated user: ${seedUserEmail} (${role})`);

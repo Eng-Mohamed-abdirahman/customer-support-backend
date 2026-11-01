@@ -1,17 +1,13 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const Ticket = require("../models/Ticket");
-const { emitToOrganization } = require("../services/socket.service");
+import mongoose from "mongoose";
+import Ticket from "../models/Ticket";
+import { emitToOrganization } from "../services/socket.service";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  createTicketSchema,
-  listTicketsSchema,
-  updateTicketStatusSchema,
-} = require("../validators/ticket.validator");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { createTicketSchema, listTicketsSchema, updateTicketStatusSchema } from "../validators/ticket.validator";
 
 type AuthenticatedUser = {
   _id: string;
@@ -182,10 +178,9 @@ const updateTicketStatus = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+export {
   createTicket,
   listTickets,
   updateTicketStatus,
 };
 
-export {};

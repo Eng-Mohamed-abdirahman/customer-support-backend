@@ -1,4 +1,4 @@
-const invitationMongoose = require("mongoose");
+import invitationMongoose from "mongoose";
 
 const invitationSchema = new invitationMongoose.Schema(
   {
@@ -56,4 +56,4 @@ const invitationSchema = new invitationMongoose.Schema(
   }
 );
 
-module.exports = invitationMongoose.model("Invitation", invitationSchema);
+export default invitationMongoose.model("Invitation", invitationSchema);

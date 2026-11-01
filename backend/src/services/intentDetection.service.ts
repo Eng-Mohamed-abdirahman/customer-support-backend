@@ -192,22 +192,19 @@ const RESPONSE_POOLS: ConversationalResponsePool = {
  *
  * For the `identity` intent the organization name is injected.
  */
-const getConversationalResponse = (
-  intent: Exclude<IntentType, "support_question" | "human_handoff" | "order_request">,
-  organizationName?: string
-): string => {
+const getConversationalResponse = (intent: IntentType, organizationName?: string): string => {
   if (intent === "identity") {
     const name = organizationName?.trim() || "this organization";
     return `I'm the AI support assistant for ${name}. I can help you with questions about our services, pricing, policies, and more. How can I assist you today? 😊`;
   }
 
-  const pool = RESPONSE_POOLS[intent];
+  const pool = RESPONSE_POOLS[intent as keyof ConversationalResponsePool] ?? RESPONSE_POOLS.greeting;
   return pool[Math.floor(Math.random() * pool.length)];
 };
 
-module.exports = {
+export {
   detectIntent,
   getConversationalResponse,
 };
 
-export { detectIntent, getConversationalResponse };
+

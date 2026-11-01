@@ -1,10 +1,10 @@
 import path from "path";
 
-const fs = require("fs");
-const multer = require("multer");
+import * as fs from "fs";
+import multer from "multer";
 
-const { AppError } = require("../utils/appError");
-const { SUPPORTED_DOCUMENT_MIME_TYPES } = require("../services/documentParser.service");
+import { AppError } from "../utils/appError";
+import { SUPPORTED_DOCUMENT_MIME_TYPES } from "../services/documentParser.service";
 
 const MAX_KNOWLEDGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const KNOWLEDGE_UPLOAD_DIR = path.join(process.cwd(), "uploads", "knowledge");
@@ -46,10 +46,9 @@ const uploadKnowledgeDocument = multer({
   },
 }).single("file");
 
-module.exports = {
+export {
   uploadKnowledgeDocument,
   MAX_KNOWLEDGE_FILE_SIZE_BYTES,
   KNOWLEDGE_UPLOAD_DIR,
 };
 
-export {};

@@ -1,13 +1,12 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { listOrders, updateOrderStatus } = require("../controllers/order.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { listOrders, updateOrderStatus } from "../controllers/order.controller";
 
 const router = express.Router();
 
 router.get("/", protect, listOrders);
 router.patch("/:orderId/status", protect, updateOrderStatus);
 
-module.exports = router;
+export default router;
 
-export {};

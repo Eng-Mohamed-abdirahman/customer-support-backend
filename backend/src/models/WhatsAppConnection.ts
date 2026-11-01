@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const whatsappConnectionSchema = new mongoose.Schema(
   {
@@ -95,6 +95,5 @@ const whatsappConnectionSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("WhatsAppConnection", whatsappConnectionSchema);
+export default mongoose.model("WhatsAppConnection", whatsappConnectionSchema);
 
-export {};

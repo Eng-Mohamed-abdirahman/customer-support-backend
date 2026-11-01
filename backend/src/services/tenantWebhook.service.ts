@@ -2,13 +2,10 @@
  * Multi-tenant WhatsApp webhook tenant resolution.
  * Maps phone_number_id → WhatsApp connection → decrypted token → organization context.
  */
-const Organization = require("../models/Organization");
-const { AppError } = require("../utils/appError");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const {
-  getConnectionByPhoneNumberId,
-  resolveAccessToken,
-} = require("./whatsapp.service");
+import Organization from "../models/Organization";
+import { AppError } from "../utils/appError";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { getConnectionByPhoneNumberId, resolveAccessToken } from "./whatsapp.service";
 
 const webhookOrganizationSelect =
   "_id status slug profile contact businessInfo supportSettings aiSettings allowedChannels enabledFeatures knowledgeBaseReference" +
@@ -172,11 +169,10 @@ const isAiAutoReplyEnabled = (organizationContext: ReturnType<typeof toTenantOrg
   return aiEnabled && autoReplyEnabled && whatsappAllowed;
 };
 
-module.exports = {
+export {
   webhookOrganizationSelect,
   toTenantOrganizationContext,
   loadTenantByPhoneNumberId,
   isAiAutoReplyEnabled,
 };
 
-export {};

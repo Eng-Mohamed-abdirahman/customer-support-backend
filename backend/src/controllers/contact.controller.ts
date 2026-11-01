@@ -1,19 +1,12 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const Contact = require("../models/Contact");
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  normalizePhone,
-  syncContactsFromConversations,
-} = require("../services/contact.service");
-const {
-  createContactSchema,
-  updateContactSchema,
-  listContactsSchema,
-} = require("../validators/contact.validator");
+import mongoose from "mongoose";
+import Contact from "../models/Contact";
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { normalizePhone, syncContactsFromConversations } from "../services/contact.service";
+import { createContactSchema, updateContactSchema, listContactsSchema } from "../validators/contact.validator";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -198,7 +191,7 @@ const deleteContact = asyncHandler(async (req: Request, res: Response) => {
   apiResponse(res, 200, "Contact deleted successfully", { contactId });
 });
 
-module.exports = {
+export {
   listContacts,
   getContactByPhone,
   createContact,
@@ -206,4 +199,3 @@ module.exports = {
   deleteContact,
 };
 
-export {};

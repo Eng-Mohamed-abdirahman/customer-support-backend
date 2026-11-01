@@ -1,34 +1,21 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const Organization = require("../models/Organization");
-const Conversation = require("../models/Conversation");
-const Ticket = require("../models/Ticket");
+import mongoose from "mongoose";
+import Organization from "../models/Organization";
+import Conversation from "../models/Conversation";
+import Ticket from "../models/Ticket";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  askConversationSchema,
-  listConversationsSchema,
-  listMessagesSchema,
-} = require("../validators/conversation.validator");
-const { generateConversationReply } = require("../services/conversation.service");
-const {
-  listConversations,
-  listMessages,
-  getOrCreateConversation,
-  appendMessage,
-  getRecentHistory,
-} = require("../services/conversationStore.service");
-const { emitToOrganization } = require("../services/socket.service");
-const {
-  getActiveConnectionByOrganizationId,
-  resolveAccessToken,
-} = require("../services/whatsapp.service");
-const { sendWhatsAppTextMessage } = require("../services/whatsappGraph.service");
-const { sendMessage } = require("../services/whatsappSender.service");
-const { whatsappLog } = require("../utils/whatsappLogger");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { askConversationSchema, listConversationsSchema, listMessagesSchema } from "../validators/conversation.validator";
+import { generateConversationReply } from "../services/conversation.service";
+import { listConversations, listMessages, getOrCreateConversation, appendMessage, getRecentHistory } from "../services/conversationStore.service";
+import { emitToOrganization } from "../services/socket.service";
+import { getActiveConnectionByOrganizationId, resolveAccessToken } from "../services/whatsapp.service";
+import { sendWhatsAppTextMessage } from "../services/whatsappGraph.service";
+import { sendMessage } from "../services/whatsappSender.service";
+import { whatsappLog } from "../utils/whatsappLogger";
 
 const previewConversationOrganizationSelect =
   "_id status profile contact businessInfo supportSettings aiSettings allowedChannels api_settings";
@@ -366,7 +353,7 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
 
   const conversation = await resolveConversationById(organizationId, conversationId);
   conversation.responderType = "agent";
-  conversation.assignedAgentId = requester._id;
+  conversation.set("assignedAgent", requester._id);
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -416,7 +403,7 @@ const returnConversationToAi = asyncHandler(async (req: Request, res: Response) 
 
   const conversation = await resolveConversationById(organizationId, conversationId);
   conversation.responderType = "ai";
-  conversation.assignedAgentId = null;
+  conversation.set("assignedAgent", null);
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -526,7 +513,7 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+export {
   askCustomerConversation,
   previewConversation,
   listOrganizationConversations,
@@ -536,4 +523,3 @@ module.exports = {
   sendAgentMessage,
 };
 
-export {};

@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
-const Organization = require("../models/Organization");
-const Ticket = require("../models/Ticket");
-const Conversation = require("../models/Conversation");
-const Message = require("../models/Message");
-const User = require("../models/User");
+import Organization from "../models/Organization";
+import Ticket from "../models/Ticket";
+import Conversation from "../models/Conversation";
+import Message from "../models/Message";
+import User from "../models/User";
 
 function formatSeconds(seconds: number) {
   const safe = Math.max(0, Math.round(seconds));

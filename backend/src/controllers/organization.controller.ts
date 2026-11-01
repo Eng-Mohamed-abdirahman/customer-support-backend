@@ -1,31 +1,22 @@
 import { Request, Response } from "express";
 
-const crypto = require("crypto");
+import * as crypto from "crypto";
 
-const Organization = require("../models/Organization");
-const Invitation = require("../models/Invitation");
-const User = require("../models/User");
+import Organization from "../models/Organization";
+import Invitation from "../models/Invitation";
+import User from "../models/User";
 
-const { getMailClient } = require("../config/email");
-const { env } = require("../config/env");
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { generateSlug } = require("../utils/generateSlug");
-const {
-  generateApiKey,
-  hashApiKey,
-  getApiKeyPrefix,
-} = require("../utils/generateApiKey");
-const { encryptApiKey, decryptApiKey } = require("../utils/cryptoApiKey");
-const {
-  createOrganizationSchema,
-  createApiKeySchema,
-  updateMyOrganizationProfileSchema,
-  updateOrganizationAdminSettingsSchema,
-} = require("../validators/organization.validator");
-const { resolveLogoDisplayUrl } = require("../utils/logoUrl");
-const BrandIdentity = require("../models/BrandIdentity");
+import { getMailClient } from "../config/email";
+import { env } from "../config/env";
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { generateSlug } from "../utils/generateSlug";
+import { generateApiKey, hashApiKey, getApiKeyPrefix } from "../utils/generateApiKey";
+import { encryptApiKey, decryptApiKey } from "../utils/cryptoApiKey";
+import { createOrganizationSchema, createApiKeySchema, updateMyOrganizationProfileSchema, updateOrganizationAdminSettingsSchema } from "../validators/organization.validator";
+import { resolveLogoDisplayUrl } from "../utils/logoUrl";
+import BrandIdentity from "../models/BrandIdentity";
 
 type UserRole = "admin" | "company-admin" | "staff";
 
@@ -932,17 +923,17 @@ const updateOrganizationAdminSettings = asyncHandler(async (req: Request, res: R
   }
 
   if (parsed.data.subscription) {
-    organization.subscription = {
-      ...(organization.subscription || {}),
-      plan: cleanString(
-        parsed.data.subscription.plan,
-        cleanString(organization.subscription?.plan, "free")
-      ),
-      stripeCustomerId: cleanString(
+    organization.set(
+      "subscription.plan",
+      cleanString(parsed.data.subscription.plan, cleanString(organization.subscription?.plan, "free"))
+    );
+    organization.set(
+      "subscription.stripeCustomerId",
+      cleanString(
         parsed.data.subscription.stripeCustomerId,
         cleanString(organization.subscription?.stripeCustomerId)
-      ),
-    };
+      )
+    );
   }
 
   await organization.save();
@@ -976,6 +967,10 @@ const revealMyCompanyApiKey = asyncHandler(async (req: Request, res: Response) =
 
   if (record.revoked_at) {
     throw new AppError("Cannot reveal a revoked API key", 400);
+  }
+
+  if (!record.encrypted_key || !record.iv) {
+    throw new AppError("This API key cannot be revealed", 400);
   }
 
   record.last_revealed_at = new Date();
@@ -1031,7 +1026,7 @@ const deleteMyCompanyApiKey = asyncHandler(async (req: Request, res: Response) =
 });
 
 
-module.exports = {
+export {
   createOrganization,
   listOrganizations,
   listMyCompanyUsers,

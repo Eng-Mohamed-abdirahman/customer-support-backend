@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import path from "path";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { getUploadPresignedUrl, uploadFile, getFileUrl } = require("../services/storage.service");
-const { buildPublicObjectUrl } = require("../config/backblaze");
-const upload = require("../middlewares/upload").default;
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { getUploadPresignedUrl, uploadFile, getFileUrl } from "../services/storage.service";
+import { buildPublicObjectUrl } from "../config/backblaze";
+import upload from "../middlewares/upload";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -113,10 +113,11 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+const uploadMiddleware = upload.single("file");
+
+export {
   getPresignedUploadUrl,
   uploadLogo,
-  uploadMiddleware: upload.single("file"),
+  uploadMiddleware,
 };
 
-export {};

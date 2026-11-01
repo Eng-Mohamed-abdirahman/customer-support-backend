@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { validateApiKey } = require("../middlewares/validateApiKey.middleware");
-const { createTicket, listTickets, updateTicketStatus } = require("../controllers/ticket.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { validateApiKey } from "../middlewares/validateApiKey.middleware";
+import { createTicket, listTickets, updateTicketStatus } from "../controllers/ticket.controller";
 
 const router = express.Router();
 
@@ -10,6 +10,5 @@ router.post("/", validateApiKey, createTicket);
 router.get("/", protect, listTickets);
 router.patch("/:id/status", protect, updateTicketStatus);
 
-module.exports = router;
+export default router;
 
-export {};

@@ -1,10 +1,9 @@
-const OpenAI = require("openai");
+import OpenAI from "openai";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
 
-const OpenAIClient = OpenAI?.default ?? OpenAI;
-let openAiClient: any = null;
+let openAiClient: OpenAI | null = null;
 
 const getOpenAiClient = () => {
   if (!env.OPENAI_API_KEY) {
@@ -12,7 +11,7 @@ const getOpenAiClient = () => {
   }
 
   if (!openAiClient) {
-    openAiClient = new OpenAIClient({
+    openAiClient = new OpenAI({
       apiKey: env.OPENAI_API_KEY,
     });
   }
@@ -43,8 +42,8 @@ const generateSupportReplyWithOpenAi = async (input: {
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
     max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
     messages: [
-      ...(input.system ? [{ role: "system", content: input.system }] : []),
-      { role: "user", content: input.user || "" },
+      ...(input.system ? [{ role: "system" as const, content: input.system }] : []),
+      { role: "user" as const, content: input.user || "" },
     ],
   });
 
@@ -87,7 +86,7 @@ const generateActionableReplyWithOpenAi = async (input: {
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
     max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
     messages: [
-      ...(input.system ? [{ role: "system", content: input.system }] : []),
+      ...(input.system ? [{ role: "system" as const, content: input.system }] : []),
       ...input.messages,
     ],
   };
@@ -113,9 +112,8 @@ const generateActionableReplyWithOpenAi = async (input: {
   };
 };
 
-module.exports = {
+export {
   generateSupportReplyWithOpenAi,
   generateActionableReplyWithOpenAi,
 };
 
-export {};

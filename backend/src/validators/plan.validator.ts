@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const nonNegativeNumber = z.coerce.number().min(0, "Value cannot be negative");
 const positiveInteger = z.coerce
@@ -107,7 +107,7 @@ const listAuditLogsSchema = z
   })
   .strict();
 
-module.exports = {
+export {
   createPlanSchema,
   updatePlanSchema,
   listPlansSchema,
@@ -120,4 +120,3 @@ module.exports = {
   listAuditLogsSchema,
 };
 
-export {};

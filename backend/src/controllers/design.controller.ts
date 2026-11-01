@@ -5,9 +5,9 @@ import { optimizeDesignPrompt } from "../services/design.pipeline.service";
 import { generateReferenceGuidedDesign } from "../services/design.generation.service";
 import type { BrandSnapshot, DesignType } from "../config/design.config";
 
-const BrandIdentity = require("../models/BrandIdentity");
-const { queueDesignJob } = require("../services/inngest.client");
-const { resolveLogoDisplayUrl } = require("../utils/logoUrl");
+import BrandIdentity from "../models/BrandIdentity";
+import { queueDesignJob } from "../services/inngest.client";
+import { resolveLogoDisplayUrl } from "../utils/logoUrl";
 
 const toBrandSnapshot = (brand: any): BrandSnapshot => ({
   brandName: String(brand?.brandName ?? ""),

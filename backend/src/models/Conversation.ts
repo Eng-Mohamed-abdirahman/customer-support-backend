@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const conversationSchema = new mongoose.Schema(
   {
@@ -72,6 +72,5 @@ conversationSchema.pre("save", function (this: any) {
 
 conversationSchema.index({ organizationId: 1, channel: 1, customerPhone: 1 }, { unique: true });
 
-module.exports = mongoose.model("Conversation", conversationSchema);
+export default mongoose.model("Conversation", conversationSchema);
 
-export {};

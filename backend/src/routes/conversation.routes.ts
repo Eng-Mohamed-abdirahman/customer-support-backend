@@ -1,16 +1,8 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { validateApiKey } = require("../middlewares/validateApiKey.middleware");
-const {
-  askCustomerConversation,
-  previewConversation,
-  listOrganizationConversations,
-  listConversationMessages,
-  takeoverConversation,
-  returnConversationToAi,
-  sendAgentMessage,
-} = require("../controllers/conversation.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { validateApiKey } from "../middlewares/validateApiKey.middleware";
+import { askCustomerConversation, previewConversation, listOrganizationConversations, listConversationMessages, takeoverConversation, returnConversationToAi, sendAgentMessage } from "../controllers/conversation.controller";
 
 const router = express.Router();
 
@@ -24,6 +16,5 @@ router.post("/:id/takeover", protect, takeoverConversation);
 router.put("/:id/return-to-ai", protect, returnConversationToAi);
 router.post("/:id/return-to-ai", protect, returnConversationToAi);
 
-module.exports = router;
+export default router;
 
-export {};

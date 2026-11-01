@@ -1,17 +1,13 @@
-const express = require("express");
+import express from "express";
 
-const {
-  verifyWhatsAppWebhook,
-  receiveWhatsAppWebhook,
-} = require("../controllers/webhook.controller");
-const { webhookLimiter } = require("../middlewares/rateLimit.middleware");
-const { verifyWhatsAppSignature } = require("../middlewares/whatsappSignature.middleware");
+import { verifyWhatsAppWebhook, receiveWhatsAppWebhook } from "../controllers/webhook.controller";
+import { webhookLimiter } from "../middlewares/rateLimit.middleware";
+import { verifyWhatsAppSignature } from "../middlewares/whatsappSignature.middleware";
 
 const router = express.Router();
 
 router.get("/whatsapp", verifyWhatsAppWebhook);
 router.post("/whatsapp", webhookLimiter, verifyWhatsAppSignature, receiveWhatsAppWebhook);
 
-module.exports = router;
+export default router;
 
-export {};

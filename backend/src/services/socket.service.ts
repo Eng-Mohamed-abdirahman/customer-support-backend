@@ -2,7 +2,7 @@ import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
-const User = require("../models/User");
+import User from "../models/User";
 
 let io: Server | null = null;
 
@@ -57,8 +57,8 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
 
         authSocket.data.user = {
           _id: String(user._id),
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.firstName ?? "",
+          lastName: user.lastName ?? "",
           email: user.email,
           role: user.role,
           organizationId: user.company ? String(user.company) : "",
