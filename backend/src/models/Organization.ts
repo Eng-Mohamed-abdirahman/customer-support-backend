@@ -358,5 +358,8 @@ organizationSchema.pre("validate", function (this: any) {
   }
 });
 
+// API-key requests look organizations up by the key prefix of any of their keys.
+organizationSchema.index({ "api_keys.key_prefix": 1 });
+
 export default mongoose.model("Organization", organizationSchema);
 

@@ -75,8 +75,10 @@ const validateApiKey = async (req: Request, _res: Response, next: NextFunction) 
     return next(new AppError("Invalid API key", 401));
   }
 
+  // Match any of the organization's keys, not only the newest one in api_settings.
   const organization = await Organization.findOne({
     $or: [
+      { "api_keys.key_prefix": keyPrefix },
       { "api_settings.key_prefix": keyPrefix },
       { "apiSettings.keyPrefix": keyPrefix },
     ],
