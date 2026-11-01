@@ -9,6 +9,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { getSocket } from "@/lib/socket"
 import { listTickets } from "@/services/ticket.service"
 
+import { BrandMark } from "@/components/auth/auth-shell"
 import { canAccessDashboardRoute, getDashboardNavGroups } from "@/components/dashboard/dashboard-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -155,11 +156,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
     : "TN"
 
   const resolvedInitials = initials || "TN"
-  const roleLabel = user?.platformRole
-    ? user.platformRole
-    : user?.membershipRole
-      ? `organization_${user.membershipRole}`
-      : "organization_member"
+  const ROLE_LABELS: Record<string, string> = {
+    super_admin: "Platform admin",
+    platform_admin: "Platform admin",
+    owner: "Company owner",
+    admin: "Company admin",
+    agent: "Support agent",
+    viewer: "Viewer",
+  }
+  const roleLabel =
+    ROLE_LABELS[user?.platformRole ?? ""] ??
+    ROLE_LABELS[user?.membershipRole ?? ""] ??
+    (user?.role === "staff" ? "Support agent" : "Team member")
 
   const handleLogout = () => {
     clearStoredAuth()
@@ -293,48 +301,42 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-30 bg-navy-900/60 lg:hidden"
           onClick={() => setIsMobileNavOpen(false)}
         />
       ) : null}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-72 border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 w-72 bg-sidebar text-sidebar-foreground shadow-e3 transition-transform duration-300 lg:translate-x-0 lg:shadow-none",
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between border-b border-sidebar-border px-5 py-5">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-sm font-semibold text-primary">
-              T
-            </span>
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-primary/80">Technov</p>
-              <p className="text-base font-semibold text-sidebar-foreground">Control Center</p>
-            </div>
-          </Link>
+        <div className="flex h-full flex-col gap-5 px-4 py-5">
+          <div className="flex items-center justify-between px-2">
+            <Link href="/dashboard" className="rounded-[10px]" aria-label="Technov dashboard">
+              <BrandMark inverted />
+            </Link>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:hidden"
-            onClick={() => setIsMobileNavOpen(false)}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Close menu"
+              className="size-11 text-white hover:bg-sidebar-accent hover:text-white lg:hidden"
+              onClick={() => setIsMobileNavOpen(false)}
+            >
+              <X className="size-5" />
+            </Button>
+          </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {navGroups.map((group) => (
-            <div key={group.label} className="mb-6 space-y-2">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {group.label}
-              </p>
+          <nav aria-label="Workspace navigation" className="flex-1 space-y-5 overflow-y-auto">
+            {navGroups.map((group) => (
+              <div key={group.label} className="space-y-0.5">
+                <p className="px-3 pb-1.5 text-xs font-semibold tracking-[0.12em] text-navy-200 uppercase">
+                  {group.label}
+                </p>
 
-              <div className="space-y-1">
                 {group.items.map((item) => {
                   const isActive =
                     item.href === "/dashboard"
@@ -344,118 +346,114 @@ export function DashboardShell({ children }: DashboardShellProps) {
                   const isTickets = item.href === "/dashboard/tickets"
 
                   return (
-                    <Button
+                    <Link
                       key={item.href}
-                      asChild
-                      variant="ghost"
+                      href={item.href}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => setIsMobileNavOpen(false)}
                       className={cn(
-                        "h-auto w-full justify-start gap-3 rounded-xl px-3 py-2.5",
+                        "flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors",
                         isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          ? "bg-teal-500 font-semibold text-navy-800"
+                          : "font-medium text-white hover:bg-sidebar-accent"
                       )}
                     >
-                      <Link href={item.href} className="flex w-full items-center gap-3">
-                        <item.icon className="size-4 shrink-0" />
-                        <span className="text-sm font-medium">{item.title}</span>
-                        {isTickets && user?.role === "staff" && openTicketsCount > 0 && (
-                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500/15 border border-rose-500/30 px-1.5 text-[10px] font-bold text-rose-400">
-                            {openTicketsCount}
-                          </span>
-                        )}
-                      </Link>
-                    </Button>
+                      <item.icon className="size-5 shrink-0" aria-hidden="true" />
+                      <span className="flex-1 truncate">{item.title}</span>
+                      {isTickets && user?.role === "staff" && openTicketsCount > 0 && (
+                        <span
+                          className={cn(
+                            "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold",
+                            isActive ? "bg-navy-800 text-white" : "bg-mint text-navy-800"
+                          )}
+                        >
+                          {openTicketsCount}
+                        </span>
+                      )}
+                    </Link>
                   )
                 })}
               </div>
-            </div>
-          ))}
-        </nav>
+            ))}
+          </nav>
 
-        <div className="border-t border-sidebar-border px-5 py-4 mt-auto">
-          <Button
-            asChild
-            variant="ghost"
-            className="mb-3 h-auto w-full justify-start rounded-xl border border-sidebar-border/70 bg-sidebar-accent/40 px-3 py-2.5 text-left hover:bg-sidebar-accent"
-          >
+          <div className="mt-auto space-y-2">
             <Link
               href="/dashboard/user-profile"
-              className="flex w-full items-center gap-3"
+              className="flex items-center gap-3 rounded-xl bg-sidebar-accent p-3 transition-colors hover:bg-navy-500"
               onClick={() => setIsMobileNavOpen(false)}
             >
-              <span className="flex size-9 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
+              <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-mint text-sm font-semibold text-navy-800">
                 {resolvedInitials}
+                <span className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-sidebar-accent bg-teal-500" />
               </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-sidebar-foreground">{user.fullName}</p>
-                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                <p className="text-[11px] font-medium text-primary/90">View profile</p>
-              </div>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-white">{user.fullName}</span>
+                <span className="block truncate text-xs text-navy-100">{roleLabel}</span>
+              </span>
             </Link>
-          </Button>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full justify-start gap-2 border-sidebar-border bg-transparent text-muted-foreground hover:bg-sidebar-accent"
-            onClick={handleLogout}
-          >
-            <LogOut className="size-4" />
-            Log out
-          </Button>
-        </div>
+            <button
+              type="button"
+              className="flex h-11 w-full items-center gap-3 rounded-[10px] px-3 text-[15px] font-medium text-navy-100 transition-colors hover:bg-sidebar-accent hover:text-white"
+              onClick={handleLogout}
+            >
+              <LogOut className="size-5" aria-hidden="true" />
+              Log out
+            </button>
+          </div>
         </div>
       </aside>
 
       <div className="min-h-screen lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-2.5">
+        <header className="sticky top-0 z-20 border-b border-border bg-white">
+          <div className="flex min-h-[72px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
               <Button
                 type="button"
                 variant="outline"
-                size="icon-sm"
-                className="lg:hidden"
+                size="icon"
+                aria-label="Open menu"
+                className="size-11 border-[1.5px] lg:hidden"
                 onClick={() => setIsMobileNavOpen(true)}
               >
-                <Menu className="size-4" />
+                <Menu className="size-5" />
               </Button>
 
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {activeTitle}
-                </p>
-              </div>
+              <p className="truncate font-heading text-lg font-semibold text-navy-800">{activeTitle}</p>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="relative hidden md:block">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <Input
                   readOnly
                   value=""
-                  placeholder="Search conversations, docs, and settings"
-                  className="h-9 w-[320px] border-border bg-background pl-8"
+                  aria-label="Search"
+                  placeholder="Search conversations, tickets, contacts"
+                  className="h-11 w-[340px] rounded-[10px] border-[1.5px] border-border bg-muted pl-10 text-[15px]"
                 />
               </div>
 
+              <span className="hidden rounded-full bg-mint px-3 py-1.5 text-[13px] font-semibold text-navy-800 lg:inline-flex">
+                AI agent online
+              </span>
+
               <Link
                 href="/dashboard/user-profile"
-                className="hidden items-center gap-2 rounded-xl border border-border bg-card px-2.5 py-1.5 transition-colors hover:bg-muted sm:flex"
+                aria-label="Your profile"
+                className="flex size-11 items-center justify-center rounded-full bg-mint text-sm font-semibold text-navy-800 transition-colors hover:bg-teal-200 sm:hidden"
               >
-                <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
-                  {resolvedInitials}
-                </span>
-                <div className="leading-tight">
-                  <p className="text-xs font-semibold text-foreground">{user.fullName}</p>
-                  <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
-                </div>
+                {resolvedInitials}
               </Link>
             </div>
           </div>
         </header>
 
-        <main className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1280px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
       </div>
     </div>
   )

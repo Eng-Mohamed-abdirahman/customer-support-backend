@@ -99,7 +99,7 @@ export function StaffPerformanceChart({ data = [], isLoading = false }: StaffPer
                       {/* Custom progress bar */}
                       <div className="h-2 w-full rounded-full bg-slate-50 border border-slate-100">
                         <div
-                          className="h-2 rounded-full bg-[#023e8a]"
+                          className="h-2 rounded-full bg-[#12304A]"
                           style={{
                             width: `${percentage}%`,
                             transition: "width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)",

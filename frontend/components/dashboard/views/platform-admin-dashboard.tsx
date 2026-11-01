@@ -213,14 +213,14 @@ export function PlatformAdminDashboard() {
                   <div
                     className={cn(
                       "mx-auto w-full rounded-md transition-colors",
-                      bar.isToday ? "bg-[#3b35d5]" : "bg-indigo-100"
+                      bar.isToday ? "bg-[#0E7C70]" : "bg-indigo-100"
                     )}
                     style={{ height: `${bar.height}px` }}
                   />
                   <p
                     className={cn(
                       "text-[10px] font-medium",
-                      bar.isToday ? "text-[#3b35d5] font-bold" : "text-muted-foreground"
+                      bar.isToday ? "text-[#0E7C70] font-bold" : "text-muted-foreground"
                     )}
                   >
                     {bar.day}
@@ -261,7 +261,7 @@ export function PlatformAdminDashboard() {
             <div
               className="relative grid size-36 place-items-center rounded-full"
               style={{
-                background: `conic-gradient(#3b35d5 ${Math.max(0, Math.min(100, (rating / 5) * 100))}%, #e5e7eb 0%)`,
+                background: `conic-gradient(#0E7C70 ${Math.max(0, Math.min(100, (rating / 5) * 100))}%, #e5e7eb 0%)`,
               }}
             >
               <div className="grid size-28 place-items-center rounded-full bg-background text-center">
@@ -294,7 +294,7 @@ export function PlatformAdminDashboard() {
               <CardTitle className="text-base">Priority Assignments</CardTitle>
               <CardDescription>Cross-tenant tickets needing attention</CardDescription>
             </div>
-            <Button asChild variant="ghost" className="text-[#3b35d5]">
+            <Button asChild variant="ghost" className="text-[#0E7C70]">
               <Link href="/dashboard/organizations">View all</Link>
             </Button>
           </CardHeader>
@@ -342,7 +342,7 @@ export function PlatformAdminDashboard() {
                     </button>
                     <button
                       type="button"
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-[#3b35d5]/30 bg-[#3b35d5]/10 text-[#3b35d5]"
+                      className="inline-flex size-8 items-center justify-center rounded-lg border border-[#0E7C70]/30 bg-[#0E7C70]/10 text-[#0E7C70]"
                     >
                       <Eye className="size-3.5" />
                     </button>
@@ -387,7 +387,7 @@ export function PlatformAdminDashboard() {
                     ) : (
                       <TrendingDown className="size-4 text-rose-500" />
                     )}
-                    <p className="text-xs font-bold text-[#3b35d5]">#{member.rank || idx + 1}</p>
+                    <p className="text-xs font-bold text-[#0E7C70]">#{member.rank || idx + 1}</p>
                   </div>
                 </div>
               ))}
@@ -408,7 +408,7 @@ export function PlatformAdminDashboard() {
                   <span
                     className={cn(
                       "mt-1.5 size-2 shrink-0 rounded-full",
-                      index === 0 ? "bg-[#3b35d5]" : "bg-slate-300"
+                      index === 0 ? "bg-[#0E7C70]" : "bg-slate-300"
                     )}
                   />
                   <div>
@@ -430,7 +430,7 @@ export function PlatformAdminDashboard() {
       <section className="grid gap-5 md:grid-cols-2">
         <Card className="border-border/70 shadow-sm">
           <CardContent className="flex items-center gap-4 p-6">
-            <span className="inline-flex size-12 items-center justify-center rounded-xl bg-[#3b35d5] text-white">
+            <span className="inline-flex size-12 items-center justify-center rounded-xl bg-[#0E7C70] text-white">
               <CalendarDays className="size-5" />
             </span>
             <div>
@@ -457,7 +457,7 @@ export function PlatformAdminDashboard() {
             {notes.map((note, index) => (
               <div
                 key={`${note}-${index}`}
-                className="rounded-lg border-l-2 border-[#3b35d5] bg-muted/40 px-3 py-2.5 text-sm text-foreground"
+                className="rounded-lg border-l-2 border-[#0E7C70] bg-muted/40 px-3 py-2.5 text-sm text-foreground"
               >
                 {note}
               </div>

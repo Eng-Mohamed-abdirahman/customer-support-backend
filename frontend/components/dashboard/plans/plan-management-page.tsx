@@ -380,7 +380,7 @@ export function PlanManagementPage() {
           </Button>
           <Button
             type="button"
-            className="h-10 rounded-xl bg-gradient-to-r from-[#0096c7] to-[#023e8a] px-4 text-white hover:opacity-90"
+            className="h-10 rounded-xl bg-primary px-4 text-white hover:opacity-90"
             onClick={openCreate}
           >
             <Plus className="size-4" />
@@ -445,7 +445,7 @@ export function PlanManagementPage() {
               </Button>
               <Button
                 type="button"
-                className="rounded-xl bg-gradient-to-r from-[#0096c7] to-[#023e8a] text-white"
+                className="rounded-xl bg-primary text-white"
                 onClick={openCreate}
               >
                 Create Plan

@@ -100,8 +100,8 @@ export function ConversationTrendChart({ data = [], isLoading = false }: Convers
 
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--color-muted)", opacity: 0.3 }} />
 
-                <Bar dataKey="ai" name="AI Handled" fill="#0096c7" radius={[4, 4, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="human" name="Human Handled" fill="#023e8a" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="ai" name="AI Handled" fill="#13B8A6" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="human" name="Human Handled" fill="#12304A" radius={[4, 4, 0, 0]} maxBarSize={30} />
                 
                 <Legend 
                   verticalAlign="bottom" 

@@ -359,7 +359,7 @@ export function AiKnowledgeInsightsPanel() {
       >
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#0096c7] to-[#023e8a] shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#13B8A6] to-[#12304A] shadow-sm">
               <Sparkles className="h-4.5 w-4.5 text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">AI Knowledge Insights</h1>

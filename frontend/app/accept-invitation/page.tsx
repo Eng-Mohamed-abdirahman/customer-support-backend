@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { acceptInvitation } from "@/services/invitation.service";
 
 const fieldClassName =
-  "h-12 rounded-xl border-white/15 bg-black/20 pl-11 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:border-primary/60 focus-visible:ring-primary/25";
+  "h-12 rounded-[10px] border-[1.5px] border-border bg-white pl-11 text-base text-navy-800 placeholder:text-muted-foreground focus-visible:border-teal-500 focus-visible:ring-4 focus-visible:ring-teal-50";
 
 function AcceptInvitationContent() {
   const searchParams = useSearchParams();
@@ -139,7 +139,7 @@ function AcceptInvitationContent() {
 
           <Button
             asChild
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-primary to-secondary font-semibold text-primary-foreground transition-all hover:from-primary/90 hover:to-secondary/90"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-base font-semibold text-primary-foreground transition-colors hover:bg-navy-600"
           >
             <Link href="/login">
               Go to sign in
@@ -150,11 +150,11 @@ function AcceptInvitationContent() {
       ) : (
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-sm text-zinc-200">
+            <Label htmlFor="firstName" className="text-sm font-semibold text-navy-800">
               First name
             </Label>
             <div className="relative">
-              <UserRound className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
+              <UserRound className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="firstName"
                 name="firstName"
@@ -169,11 +169,11 @@ function AcceptInvitationContent() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-sm text-zinc-200">
+            <Label htmlFor="lastName" className="text-sm font-semibold text-navy-800">
               Last name
             </Label>
             <div className="relative">
-              <UserRound className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
+              <UserRound className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="lastName"
                 name="lastName"
@@ -188,11 +188,11 @@ function AcceptInvitationContent() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm text-zinc-200">
+            <Label htmlFor="password" className="text-sm font-semibold text-navy-800">
               Password
             </Label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
+              <Lock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="password"
                 name="password"
@@ -207,11 +207,11 @@ function AcceptInvitationContent() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm text-zinc-200">
+            <Label htmlFor="confirmPassword" className="text-sm font-semibold text-navy-800">
               Confirm password
             </Label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" />
+              <Lock className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -228,7 +228,7 @@ function AcceptInvitationContent() {
           <Button
             type="submit"
             disabled={isSubmitting || !hasToken}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-primary to-secondary font-semibold text-primary-foreground transition-all hover:from-primary/90 hover:to-secondary/90"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-primary text-base font-semibold text-primary-foreground transition-colors hover:bg-navy-600"
           >
             {isSubmitting ? "Setting up account..." : "Complete account setup"}
             <ArrowRight className="size-4" />
@@ -253,9 +253,9 @@ export default function AcceptInvitationPage() {
           backHref="/login"
         >
           <div className="space-y-4">
-            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
-            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
-            <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
+            <div className="h-12 rounded-[10px] border-[1.5px] border-border bg-white text-navy-800" />
+            <div className="h-12 rounded-[10px] border-[1.5px] border-border bg-white text-navy-800" />
+            <div className="h-12 rounded-[10px] border-[1.5px] border-border bg-white text-navy-800" />
           </div>
         </AuthShell>
       }

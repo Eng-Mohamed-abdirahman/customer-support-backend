@@ -304,7 +304,7 @@ export function PlanFormDialog({
               </Button>
               <Button
                 type="submit"
-                className="bg-gradient-to-r from-[#0096c7] to-[#023e8a] text-white hover:opacity-90"
+                className="bg-primary text-white hover:opacity-90"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (

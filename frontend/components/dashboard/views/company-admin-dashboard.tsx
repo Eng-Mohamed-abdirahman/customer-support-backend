@@ -100,7 +100,7 @@ function buildTrendData(data: DashboardApiResponseData): ConversationTrendData[]
 
 function buildChannelData(data: DashboardApiResponseData): ChannelData[] {
   const channelColors: Record<string, string> = {
-    website: "#0096c7",
+    website: "#13B8A6",
     whatsapp: "#25D366",
     messenger: "#0099FF",
     instagram: "#E1306C",
@@ -126,7 +126,7 @@ function buildTicketStatusData(data: DashboardApiResponseData): TicketStatusData
   const colors: Record<string, string> = {
     resolved: "#10b981",
     pending: "#f59e0b",
-    waitingCustomer: "#0096c7",
+    waitingCustomer: "#13B8A6",
     escalated: "#ef4444",
     closed: "#94a3b8",
   }

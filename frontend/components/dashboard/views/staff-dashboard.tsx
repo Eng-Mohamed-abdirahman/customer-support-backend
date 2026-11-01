@@ -175,7 +175,7 @@ export function StaffDashboard() {
             <div
               className="relative grid size-36 place-items-center rounded-full"
               style={{
-                background: `conic-gradient(#3b35d5 ${Math.max(0, Math.min(100, (rating / 5) * 100))}%, #e5e7eb 0%)`,
+                background: `conic-gradient(#0E7C70 ${Math.max(0, Math.min(100, (rating / 5) * 100))}%, #e5e7eb 0%)`,
               }}
             >
               <div className="grid size-28 place-items-center rounded-full bg-background text-center">
@@ -261,7 +261,7 @@ export function StaffDashboard() {
       <section className="grid gap-5 md:grid-cols-2">
         <Card className="border-border/70">
           <CardContent className="flex items-center gap-4 p-6">
-            <span className="inline-flex size-12 items-center justify-center rounded-xl bg-[#3b35d5] text-white">
+            <span className="inline-flex size-12 items-center justify-center rounded-xl bg-[#0E7C70] text-white">
               <CalendarDays className="size-5" />
             </span>
             <div>
