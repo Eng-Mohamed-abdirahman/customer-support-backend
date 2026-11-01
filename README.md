@@ -10,6 +10,7 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)
 ![Socket.io](https://img.shields.io/badge/Socket.io-realtime-010101?logo=socket.io&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-LLM-412991?logo=openai&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Features](#-features) · [Architecture](#-architecture) · [Getting started](#-getting-started) · [Environment](#-environment-variables) · [API](#-api-overview) · [Frontend](https://github.com/Eng-Mohamed-abdirahman/customer-support-frontend)
 
@@ -334,6 +335,10 @@ In production:
 4. Push and open a pull request.
 
 Bug reports and feature ideas are welcome in [Issues](https://github.com/Eng-Mohamed-abdirahman/customer-support-backend/issues).
+
+## 📄 License
+
+Released under the [MIT License](LICENSE).
 
 ## 👨‍💻 Author
 
