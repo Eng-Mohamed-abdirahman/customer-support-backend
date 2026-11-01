@@ -70,7 +70,7 @@ Small and medium businesses get the same questions every day: *What are your pri
 
 > Demo data for a fictional shop, "Hiil Electronics".
 
-![Technov landing page](docs/screenshots/landing.png)
+
 
 | Analytics dashboard | Live inbox (WhatsApp + web) |
 | :---: | :---: |
