@@ -42,7 +42,7 @@ const GOODBYE_PATTERNS: RegExp[] = [
 
 const THANKS_PATTERNS: RegExp[] = [
   /^(thanks?|thank\s*you|thx|thanx|ty|tysm|much\s*appreciated)[\s!.,?]*$/i,
-  /^(thanks?\s*(a\s*lot|so\s*much|very\s*much|a\s*ton|a\s*bunch))[\s!.,?]*$/i,
+  /^((thanks?|thank\s*you)\s*(a\s*lot|so\s*much|very\s*much|a\s*ton|a\s*bunch))[\s!.,?]*$/i,
   /^(i\s*appreciate\s*(it|that|this|your\s*help))[\s!.,?]*$/i,
   /^(cheers|ta|great\s*thanks?)[\s!.,?]*$/i,
   /^(thanks?\s*for\s*(your\s*)?(help|support|assistance|time|info|information))[\s!.,?]*$/i,
@@ -61,13 +61,15 @@ const SMALLTALK_PATTERNS: RegExp[] = [
   /^(yes|yeah|yep|yup|yea|ya|nope|nah|no)[\s!.,?]*$/i,
 ];
 
+// Word boundaries matter here: without them "what are you" also matched
+// "What are your opening hours?", which then never reached the knowledge base.
 const IDENTITY_PATTERNS: RegExp[] = [
-  /who\s*(are|r)\s*(you|u)/i,
-  /what\s*(are|r)\s*(you|u)/i,
-  /who\s*(am\s*i\s*talking\s*to|is\s*this)/i,
-  /are\s*(you|u)\s*(a\s*)?(robot|bot|human|real|ai|machine|person)/i,
-  /what'?s?\s*your\s*name/i,
-  /introduce\s*yourself/i,
+  /\bwho\s+(are|r)\s+(you|u)\b/i,
+  /^what\s+(are|r)\s+(you|u)[\s!.,?]*$/i,
+  /\bwho\s+(am\s+i\s+talking\s+to|is\s+this)\b/i,
+  /\bare\s+(you|u)\s+(a\s+)?(robot|bot|human|real|ai|machine|person)\b/i,
+  /\bwhat'?s?\s+your\s+name\b/i,
+  /\bintroduce\s+yourself\b/i,
 ];
 
 const ORDER_PATTERNS: RegExp[] = [
