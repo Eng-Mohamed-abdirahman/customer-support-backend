@@ -10,9 +10,9 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)
 ![Socket.io](https://img.shields.io/badge/Socket.io-realtime-010101?logo=socket.io&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-LLM-412991?logo=openai&logoColor=white)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
-[Features](#-features) · [Architecture](#-architecture) · [Getting started](#-getting-started) · [Environment](#-environment-variables) · [API](#-api-overview) · [Frontend](https://github.com/Eng-Mohamed-abdirahman/customer-support-frontend)
+[Features](#-features) · [Architecture](#-architecture) · [Getting started](#-getting-started) · [Environment](#-environment-variables) · [API](#-api-overview) · [Frontend](../frontend)
 
 </div>
 
@@ -24,7 +24,7 @@ Technov lets a company upload its documents (FAQs, price lists, policies, openin
 
 This repository is the **backend**: a TypeScript + Express 5 API with MongoDB, a retrieval-augmented generation (RAG) pipeline, WhatsApp Cloud API integration, Socket.io for live chat, and an AI design studio.
 
-> The dashboard UI lives in **[customer-support-frontend](https://github.com/Eng-Mohamed-abdirahman/customer-support-frontend)**.
+> The dashboard UI lives in **[`frontend/`](../frontend)** in this repository.
 
 ## ✨ Features
 
@@ -107,8 +107,8 @@ flowchart LR
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Eng-Mohamed-abdirahman/customer-support-backend.git
-cd customer-support-backend
+git clone https://github.com/Eng-Mohamed-abdirahman/technov.git
+cd technov/backend
 npm install
 ```
 
@@ -334,11 +334,11 @@ In production:
 3. Commit your changes: `git commit -m "Add my feature"`.
 4. Push and open a pull request.
 
-Bug reports and feature ideas are welcome in [Issues](https://github.com/Eng-Mohamed-abdirahman/customer-support-backend/issues).
+Bug reports and feature ideas are welcome in [Issues](https://github.com/Eng-Mohamed-abdirahman/technov/issues).
 
 ## 📄 License
 
-Released under the [MIT License](LICENSE).
+Released under the [MIT License](../LICENSE).
 
 ## 👨‍💻 Author
 
