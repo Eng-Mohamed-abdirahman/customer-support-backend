@@ -2,281 +2,51 @@
 
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
-  Clock,
-  ExternalLink,
-  Globe,
-  Image as ImageIcon,
   Loader2,
-  Mail,
-  MapPin,
-  MessageSquare,
-  Palette,
-  Phone,
   RefreshCw,
   Save,
-  ShieldCheck,
-  ShoppingBag,
-  Users,
-  Zap,
 } from "lucide-react"
-import Link from "next/link"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
 
+import { CompanyIdentityCard } from "@/components/company-profile/company-identity-card"
+import { tabs } from "@/components/company-profile/company-profile-utils"
+import { ProfileTab } from "@/components/company-profile/profile-tab"
+import {
+  BusinessTab,
+  ContactTab,
+  FeaturesTab,
+  SupportTab,
+} from "@/components/company-profile/settings-tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
+import { useCompanyProfile } from "@/hooks/useCompanyProfile"
 import { cn } from "@/lib/utils"
-import { listMyCompanyUsers, updateMyCompanyProfile } from "@/services/company.service"
-import type {
-  CompanyBrandSummary,
-  MyCompanyUsersResult,
-  UpdateCompanyProfileInput,
-} from "@/types/company"
-
-const DEFAULT_FALLBACK_MESSAGE = "Our team will get back to you shortly."
-const DEFAULT_TIMEZONE = "Africa/Mogadishu"
-const DEFAULT_LANGUAGE = "en"
-
-type TabId = "profile" | "contact" | "business" | "support" | "features"
-
-const tabs: { id: TabId; label: string; icon: React.ElementType; description: string }[] = [
-  { id: "profile", label: "Profile", icon: Building2, description: "Company identity and branding" },
-  { id: "contact", label: "Contact", icon: Mail, description: "Support email, phone, and address" },
-  { id: "business", label: "Business", icon: ShoppingBag, description: "Services, products, and policies" },
-  { id: "support", label: "Support", icon: MessageSquare, description: "Fallback messages and preferences" },
-  { id: "features", label: "Features", icon: Zap, description: "Enable optional AI capabilities for your organization" },
-]
-
-const formatDate = (value: string) => {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return "-"
-  }
-
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-const emptyProfileForm = (): UpdateCompanyProfileInput => ({
-  profile: {
-    name: "",
-    logoUrl: "",
-    websiteUrl: "",
-    businessType: "",
-    description: "",
-  },
-  contact: {
-    supportEmail: "",
-    phone: "",
-    address: "",
-  },
-  businessInfo: {
-    workingHours: "",
-    services: "",
-    products: "",
-    policies: "",
-    location: "",
-  },
-  supportSettings: {
-    fallbackMessage: DEFAULT_FALLBACK_MESSAGE,
-    timezone: DEFAULT_TIMEZONE,
-    language: DEFAULT_LANGUAGE,
-  },
-  enabledFeatures: [],
-})
-
-const mapOrganizationToForm = (
-  organization: MyCompanyUsersResult["organization"] | null | undefined
-): UpdateCompanyProfileInput => {
-  if (!organization) {
-    return emptyProfileForm()
-  }
-
-  return {
-    profile: {
-      name: organization.profile.name,
-      logoUrl: organization.profile.logoUrl,
-      websiteUrl: organization.profile.websiteUrl,
-      businessType: organization.profile.businessType,
-      description: organization.profile.description,
-    },
-    contact: {
-      supportEmail: organization.contact.supportEmail,
-      phone: organization.contact.phone,
-      address: organization.contact.address,
-    },
-    businessInfo: {
-      workingHours: organization.businessInfo.workingHours,
-      services: organization.businessInfo.services,
-      products: organization.businessInfo.products,
-      policies: organization.businessInfo.policies,
-      location: organization.businessInfo.location,
-    },
-    supportSettings: {
-      fallbackMessage: organization.supportSettings.fallbackMessage || DEFAULT_FALLBACK_MESSAGE,
-      timezone: organization.supportSettings.timezone || DEFAULT_TIMEZONE,
-      language: organization.supportSettings.language || DEFAULT_LANGUAGE,
-    },
-    enabledFeatures: Array.isArray(organization.enabledFeatures) ? organization.enabledFeatures : [],
-  }
-}
 
 export default function CompanyProfilePage() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [profileData, setProfileData] = useState<MyCompanyUsersResult | null>(null)
-  const [brandData, setBrandData] = useState<CompanyBrandSummary | null>(null)
-  const [formData, setFormData] = useState<UpdateCompanyProfileInput>(() => emptyProfileForm())
-  const [activeTab, setActiveTab] = useState<TabId>("profile")
-  const [saveSuccess, setSaveSuccess] = useState(false)
+  const {
+    isLoading,
+    isRefreshing,
+    isSaving,
+    loadError,
+    profileData,
+    brandData,
+    formData,
+    setFormData,
+    activeTab,
+    setActiveTab,
+    saveSuccess,
+    loadProfile,
+    companyAdminCount,
+    staffCount,
+    handleFieldChange,
+    handleSaveCompanyProfile,
+    companyInitial,
+    displayLogoUrl,
+    displayBrandName,
+  } = useCompanyProfile()
 
-  const loadProfile = useCallback(async (refresh = false) => {
-    if (refresh) {
-      setIsRefreshing(true)
-    } else {
-      setIsLoading(true)
-    }
-
-    setLoadError(null)
-
-    try {
-      const response = await listMyCompanyUsers()
-      setProfileData(response)
-      setBrandData(response.brand ?? null)
-      setFormData(mapOrganizationToForm(response.organization))
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to load company profile."
-
-      setLoadError(message)
-    } finally {
-      if (refresh) {
-        setIsRefreshing(false)
-      } else {
-        setIsLoading(false)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadProfile(false)
-  }, [loadProfile])
-
-  const companyAdminCount = useMemo(
-    () => profileData?.users.filter((user) => user.role === "company-admin").length ?? 0,
-    [profileData]
-  )
-  const staffCount = useMemo(
-    () => profileData?.users.filter((user) => user.role === "staff").length ?? 0,
-    [profileData]
-  )
-
-  const handleFieldChange = (
-    section: keyof UpdateCompanyProfileInput,
-    field: string,
-    value: string
-  ) => {
-    setFormData((previous) => {
-      const nextSection = {
-        ...previous[section],
-        [field]: value,
-      }
-
-      return {
-        ...previous,
-        [section]: nextSection,
-      }
-    })
-  }
-
-  const handleSaveCompanyProfile = async () => {
-    const normalizedName = formData.profile.name.trim()
-    const normalizedSupportEmail = formData.contact.supportEmail.trim().toLowerCase()
-
-    if (normalizedName.length < 2) {
-      toast.error("Company name must be at least 2 characters.")
-      return
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(normalizedSupportEmail)) {
-      toast.error("Please provide a valid support email address.")
-      return
-    }
-
-    const payload: UpdateCompanyProfileInput = {
-      profile: {
-        name: normalizedName,
-        logoUrl: formData.profile.logoUrl.trim(),
-        websiteUrl: formData.profile.websiteUrl.trim(),
-        businessType: formData.profile.businessType.trim(),
-        description: formData.profile.description.trim(),
-      },
-      contact: {
-        supportEmail: normalizedSupportEmail,
-        phone: formData.contact.phone.trim(),
-        address: formData.contact.address.trim(),
-      },
-      businessInfo: {
-        workingHours: formData.businessInfo.workingHours.trim(),
-        services: formData.businessInfo.services.trim(),
-        products: formData.businessInfo.products.trim(),
-        policies: formData.businessInfo.policies.trim(),
-        location: formData.businessInfo.location.trim(),
-      },
-      supportSettings: {
-        fallbackMessage: formData.supportSettings.fallbackMessage.trim() || DEFAULT_FALLBACK_MESSAGE,
-        timezone: formData.supportSettings.timezone.trim() || DEFAULT_TIMEZONE,
-        language: formData.supportSettings.language.trim() || DEFAULT_LANGUAGE,
-      },
-      enabledFeatures: formData.enabledFeatures,
-    }
-
-    try {
-      setIsSaving(true)
-      const response = await updateMyCompanyProfile(payload)
-
-      setProfileData((previous) => {
-        if (!previous) {
-          return {
-            organization: response.organization,
-            userCount: 0,
-            users: [],
-          }
-        }
-
-        return {
-          ...previous,
-          organization: response.organization,
-        }
-      })
-      setFormData(mapOrganizationToForm(response.organization))
-
-      setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 3000)
-      toast.success("Company profile updated successfully.")
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to update company profile."
-      toast.error(message)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const companyInitial = profileData?.organization?.name?.charAt(0)?.toUpperCase() ?? "C"
-  const displayLogoUrl = brandData?.logoUrl || formData.profile.logoUrl
-  const displayBrandName = brandData?.brandName || profileData?.organization?.name || "Your Company"
+  const fieldsDisabled = isLoading || isSaving
 
   return (
     <div className="space-y-6">
@@ -327,108 +97,16 @@ export default function CompanyProfilePage() {
       ) : null}
 
       {/* ─── Company Identity Hero Card ─── */}
-      {isLoading ? (
-        <Card className="overflow-hidden border-border/70">
-          <CardContent className="flex items-center gap-5 p-6">
-            <Skeleton className="size-16 shrink-0 rounded-2xl" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="group relative overflow-hidden border-border/70 bg-gradient-to-br from-primary/[0.04] via-transparent to-secondary/[0.04]">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          <CardContent className="relative flex flex-wrap items-center gap-5 p-6">
-            {/* Logo / Avatar */}
-            <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-primary/10">
-              {displayLogoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={displayLogoUrl}
-                  alt={`${displayBrandName} logo`}
-                  className="size-full object-contain p-1.5"
-                />
-              ) : (
-                <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary to-secondary text-2xl font-bold text-white">
-                  {companyInitial}
-                </div>
-              )}
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 space-y-1">
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                {displayBrandName}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {profileData?.organization?.slug ? `@${profileData.organization.slug}` : "No slug assigned"}
-              </p>
-              {brandData ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span
-                    className="inline-block size-3.5 rounded-full border border-border"
-                    style={{ backgroundColor: brandData.primaryColor || "#000000" }}
-                    title="Primary color"
-                  />
-                  <span
-                    className="inline-block size-3.5 rounded-full border border-border"
-                    style={{ backgroundColor: brandData.secondaryColor || "#0058be" }}
-                    title="Secondary color"
-                  />
-                  <span className="text-xs text-muted-foreground">{brandData.fontStyle}</span>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Quick Stats */}
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
-                  <Users className="size-4 text-primary" />
-                  {profileData?.userCount ?? 0}
-                </div>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Total Users</p>
-              </div>
-              <div className="h-8 w-px bg-border/60" />
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
-                  <ShieldCheck className="size-4 text-primary" />
-                  {companyAdminCount}
-                </div>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Admins</p>
-              </div>
-              <div className="h-8 w-px bg-border/60" />
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1.5 text-lg font-semibold text-foreground">
-                  <Users className="size-4 text-primary" />
-                  {staffCount}
-                </div>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Staff</p>
-              </div>
-              <div className="h-8 w-px bg-border/60" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-foreground capitalize">
-                  {profileData?.organization?.status ?? "-"}
-                </p>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Status</p>
-              </div>
-              {profileData?.organization?.createdAt ? (
-                <>
-                  <div className="h-8 w-px bg-border/60" />
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-foreground">
-                      {formatDate(profileData.organization.createdAt)}
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Created</p>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <CompanyIdentityCard
+        isLoading={isLoading}
+        profileData={profileData}
+        brandData={brandData}
+        displayLogoUrl={displayLogoUrl}
+        displayBrandName={displayBrandName}
+        companyInitial={companyInitial}
+        companyAdminCount={companyAdminCount}
+        staffCount={staffCount}
+      />
 
       {/* ─── Tabbed Editor ─── */}
       <Card className="overflow-hidden border-border/70">
@@ -475,358 +153,29 @@ export default function CompanyProfilePage() {
 
         {/* Tab Content */}
         <CardContent className="p-6">
-          {/* ─── Profile Tab ─── */}
           {activeTab === "profile" ? (
-            <div className="space-y-5">
-              <div className="grid gap-5 md:grid-cols-2">
-                <FieldGroup
-                  id="profileName"
-                  label="Company Name"
-                  icon={Building2}
-                  required
-                >
-                  <Input
-                    id="profileName"
-                    value={formData.profile.name}
-                    onChange={(e) => handleFieldChange("profile", "name", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="e.g. Acme Inc"
-                    autoComplete="organization"
-                  />
-                </FieldGroup>
-
-                <FieldGroup
-                  id="profileBusinessType"
-                  label="Business Type"
-                  icon={ShoppingBag}
-                >
-                  <Input
-                    id="profileBusinessType"
-                    value={formData.profile.businessType}
-                    onChange={(e) => handleFieldChange("profile", "businessType", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="e.g. E-commerce, SaaS, Healthcare"
-                  />
-                </FieldGroup>
-              </div>
-
-              <FieldGroup
-                id="profileWebsiteUrl"
-                label="Website URL"
-                icon={Globe}
-              >
-                <Input
-                  id="profileWebsiteUrl"
-                  value={formData.profile.websiteUrl}
-                  onChange={(e) => handleFieldChange("profile", "websiteUrl", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="https://example.com"
-                  autoComplete="url"
-                />
-              </FieldGroup>
-
-              <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Palette className="size-4 text-primary" />
-                      Brand Identity
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Logo, colors, and typography are managed in Brand Settings.
-                    </p>
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="gap-2">
-                    <Link href="/dashboard/brand">
-                      Edit Brand
-                      <ExternalLink className="size-3.5" />
-                    </Link>
-                  </Button>
-                </div>
-
-                {brandData ? (
-                  <div className="grid gap-4 md:grid-cols-[120px_1fr] items-start">
-                    <div className="aspect-square rounded-xl border border-border bg-card flex items-center justify-center p-3 overflow-hidden">
-                      {brandData.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={brandData.logoUrl}
-                          alt={`${brandData.brandName} logo`}
-                          className="size-full object-contain"
-                        />
-                      ) : (
-                        <ImageIcon className="size-8 text-muted-foreground/50" />
-                      )}
-                    </div>
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Brand Name</p>
-                        <p className="font-medium text-foreground">{brandData.brandName || "—"}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-4">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Primary</p>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="inline-block size-6 rounded-md border border-border"
-                              style={{ backgroundColor: brandData.primaryColor || "#000000" }}
-                            />
-                            <span className="font-mono text-xs">{brandData.primaryColor || "—"}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Secondary</p>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="inline-block size-6 rounded-md border border-border"
-                              style={{ backgroundColor: brandData.secondaryColor || "#0058be" }}
-                            />
-                            <span className="font-mono text-xs">{brandData.secondaryColor || "—"}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Font</p>
-                        <p className="text-foreground">{brandData.fontStyle || "—"}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No brand identity configured yet. Set up your logo and colors in Brand Settings.
-                  </p>
-                )}
-              </div>
-
-              <FieldGroup
-                id="profileDescription"
-                label="Description"
-                icon={Building2}
-                hint="Briefly describe what your company does"
-              >
-                <textarea
-                  id="profileDescription"
-                  value={formData.profile.description}
-                  onChange={(e) => handleFieldChange("profile", "description", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="Tell your customers about your company..."
-                  className="flex min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                />
-              </FieldGroup>
-            </div>
+            <ProfileTab
+              formData={formData}
+              brandData={brandData}
+              onFieldChange={handleFieldChange}
+              disabled={fieldsDisabled}
+            />
           ) : null}
 
-          {/* ─── Contact Tab ─── */}
           {activeTab === "contact" ? (
-            <div className="space-y-5">
-              <div className="grid gap-5 md:grid-cols-2">
-                <FieldGroup
-                  id="contactSupportEmail"
-                  label="Support Email"
-                  icon={Mail}
-                  required
-                >
-                  <Input
-                    id="contactSupportEmail"
-                    value={formData.contact.supportEmail}
-                    onChange={(e) => handleFieldChange("contact", "supportEmail", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="support@yourcompany.com"
-                    autoComplete="email"
-                  />
-                </FieldGroup>
-
-                <FieldGroup
-                  id="contactPhone"
-                  label="Phone Number"
-                  icon={Phone}
-                >
-                  <Input
-                    id="contactPhone"
-                    value={formData.contact.phone}
-                    onChange={(e) => handleFieldChange("contact", "phone", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="+1 (555) 123-4567"
-                    autoComplete="tel"
-                  />
-                </FieldGroup>
-              </div>
-
-              <FieldGroup
-                id="contactAddress"
-                label="Address"
-                icon={MapPin}
-              >
-                <Input
-                  id="contactAddress"
-                  value={formData.contact.address}
-                  onChange={(e) => handleFieldChange("contact", "address", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="123 Main Street, City, Country"
-                  autoComplete="street-address"
-                />
-              </FieldGroup>
-            </div>
+            <ContactTab formData={formData} onFieldChange={handleFieldChange} disabled={fieldsDisabled} />
           ) : null}
 
-          {/* ─── Business Tab ─── */}
           {activeTab === "business" ? (
-            <div className="space-y-5">
-              <div className="grid gap-5 md:grid-cols-2">
-                <FieldGroup
-                  id="businessInfoWorkingHours"
-                  label="Working Hours"
-                  icon={Clock}
-                >
-                  <Input
-                    id="businessInfoWorkingHours"
-                    value={formData.businessInfo.workingHours}
-                    onChange={(e) => handleFieldChange("businessInfo", "workingHours", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="Mon - Fri, 9:00 AM - 5:00 PM"
-                  />
-                </FieldGroup>
-
-                <FieldGroup
-                  id="businessInfoLocation"
-                  label="Location"
-                  icon={MapPin}
-                >
-                  <Input
-                    id="businessInfoLocation"
-                    value={formData.businessInfo.location}
-                    onChange={(e) => handleFieldChange("businessInfo", "location", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="City, Country"
-                  />
-                </FieldGroup>
-              </div>
-
-              <FieldGroup
-                id="businessInfoServices"
-                label="Services"
-                icon={ShoppingBag}
-                hint="List the services your company offers"
-              >
-                <textarea
-                  id="businessInfoServices"
-                  value={formData.businessInfo.services}
-                  onChange={(e) => handleFieldChange("businessInfo", "services", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="Describe the services you provide..."
-                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                />
-              </FieldGroup>
-
-              <FieldGroup
-                id="businessInfoProducts"
-                label="Products"
-                icon={ShoppingBag}
-                hint="List the products your company offers"
-              >
-                <textarea
-                  id="businessInfoProducts"
-                  value={formData.businessInfo.products}
-                  onChange={(e) => handleFieldChange("businessInfo", "products", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="Describe the products you sell..."
-                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                />
-              </FieldGroup>
-
-              <FieldGroup
-                id="businessInfoPolicies"
-                label="Policies"
-                icon={ShieldCheck}
-                hint="Return, refund, and warranty policies"
-              >
-                <textarea
-                  id="businessInfoPolicies"
-                  value={formData.businessInfo.policies}
-                  onChange={(e) => handleFieldChange("businessInfo", "policies", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="Describe your company policies..."
-                  className="flex min-h-24 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                />
-              </FieldGroup>
-            </div>
+            <BusinessTab formData={formData} onFieldChange={handleFieldChange} disabled={fieldsDisabled} />
           ) : null}
 
-          {/* ─── Support Tab ─── */}
           {activeTab === "support" ? (
-            <div className="space-y-5">
-              <div className="grid gap-5 md:grid-cols-2">
-                <FieldGroup
-                  id="supportTimezone"
-                  label="Timezone"
-                  icon={Globe}
-                >
-                  <Input
-                    id="supportTimezone"
-                    value={formData.supportSettings.timezone}
-                    onChange={(e) => handleFieldChange("supportSettings", "timezone", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="e.g. Africa/Mogadishu"
-                  />
-                </FieldGroup>
-
-                <FieldGroup
-                  id="supportLanguage"
-                  label="Language"
-                  icon={Globe}
-                >
-                  <Input
-                    id="supportLanguage"
-                    value={formData.supportSettings.language}
-                    onChange={(e) => handleFieldChange("supportSettings", "language", e.target.value)}
-                    disabled={isLoading || isSaving}
-                    placeholder="e.g. en, so, ar"
-                  />
-                </FieldGroup>
-              </div>
-
-              <FieldGroup
-                id="supportFallbackMessage"
-                label="Fallback Message"
-                icon={MessageSquare}
-                hint="Shown when AI cannot resolve a query"
-              >
-                <textarea
-                  id="supportFallbackMessage"
-                  value={formData.supportSettings.fallbackMessage}
-                  onChange={(e) => handleFieldChange("supportSettings", "fallbackMessage", e.target.value)}
-                  disabled={isLoading || isSaving}
-                  placeholder="Our team will get back to you shortly."
-                  className="flex min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
-                />
-              </FieldGroup>
-            </div>
+            <SupportTab formData={formData} onFieldChange={handleFieldChange} disabled={fieldsDisabled} />
           ) : null}
 
-          {/* ─── Features Tab ─── */}
           {activeTab === "features" ? (
-            <div className="space-y-5">
-              <p className="text-sm text-muted-foreground">
-                Toggle optional AI capabilities for your organization. Core features like support, tickets, and human handoff are always enabled.
-              </p>
-              <FeatureToggle
-                id="orders"
-                label="Orders"
-                description="Allow the AI to collect and create customer orders during conversations."
-                enabled={(formData.enabledFeatures ?? []).includes("orders")}
-                onChange={(checked) => {
-                  setFormData((prev) => {
-                    const current = prev.enabledFeatures ?? []
-                    return {
-                      ...prev,
-                      enabledFeatures: checked
-                        ? [...current.filter((f) => f !== "orders"), "orders"]
-                        : current.filter((f) => f !== "orders"),
-                    }
-                  })
-                }}
-              />
-            </div>
+            <FeaturesTab formData={formData} setFormData={setFormData} />
           ) : null}
 
           {/* ─── Save Button ─── */}
@@ -855,81 +204,6 @@ export default function CompanyProfilePage() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-/* ─── Reusable field group component ─── */
-function FieldGroup({
-  id,
-  label,
-  icon: Icon,
-  required,
-  hint,
-  children,
-}: {
-  id: string
-  label: string
-  icon: React.ElementType
-  required?: boolean
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Icon className="size-3.5 text-muted-foreground" />
-        <Label htmlFor={id} className="text-sm font-medium">
-          {label}
-          {required ? <span className="ml-0.5 text-destructive">*</span> : null}
-        </Label>
-      </div>
-      {hint ? (
-        <p className="text-[11px] text-muted-foreground">{hint}</p>
-      ) : null}
-      {children}
-    </div>
-  )
-}
-
-/* ─── Reusable feature toggle component ─── */
-function FeatureToggle({
-  id,
-  label,
-  description,
-  enabled,
-  onChange,
-}: {
-  id: string
-  label: string
-  description: string
-  enabled: boolean
-  onChange: (checked: boolean) => void
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
-      <div className="flex-1 space-y-1 pr-4">
-        <label htmlFor={id} className="text-sm font-semibold text-foreground cursor-pointer">
-          {label}
-        </label>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <button
-        id={id}
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        onClick={() => onChange(!enabled)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-          enabled ? "bg-primary" : "bg-muted-foreground/30"
-        }`}
-      >
-        <span
-          className={`pointer-events-none block size-5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ${
-            enabled ? "translate-x-5" : "translate-x-0"
-          }`}
-        />
-      </button>
     </div>
   )
 }
