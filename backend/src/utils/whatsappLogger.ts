@@ -1,8 +1,8 @@
+import { createLogger } from "./logger";
+
 type LogLevel = "info" | "warn" | "error" | "debug";
 
 type WhatsAppLogContext = Record<string, unknown>;
-
-const PREFIX = "[WhatsApp]";
 
 const maskToken = (token: unknown): string => {
   if (typeof token !== "string" || !token) {
@@ -67,35 +67,11 @@ const sanitizeContext = (context: WhatsAppLogContext): WhatsAppLogContext => {
   return sanitized;
 };
 
-const formatMessage = (stage: string, message: string, context?: WhatsAppLogContext): string => {
-  const parts = [`${PREFIX}[${stage}]`, message];
-
-  if (context && Object.keys(context).length > 0) {
-    parts.push(JSON.stringify(sanitizeContext(context)));
-  }
-
-  return parts.join(" ");
-};
+const baseLogger = createLogger("WhatsApp");
 
 const log = (level: LogLevel, stage: string, message: string, context?: WhatsAppLogContext) => {
-  const formatted = formatMessage(stage, message, context);
-
-  if (level === "error") {
-    console.error(formatted);
-    return;
-  }
-
-  if (level === "warn") {
-    console.warn(formatted);
-    return;
-  }
-
-  if (level === "debug") {
-    console.debug(formatted);
-    return;
-  }
-
-  console.log(formatted);
+  const sanitized = context && Object.keys(context).length > 0 ? sanitizeContext(context) : undefined;
+  baseLogger.child(stage)[level](message, sanitized);
 };
 
 export const whatsappLog = {
