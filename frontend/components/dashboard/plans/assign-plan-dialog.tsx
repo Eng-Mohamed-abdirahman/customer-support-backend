@@ -1,6 +1,7 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -40,27 +41,32 @@ export function AssignPlanDialog({
   isSubmitting = false,
   onSubmit,
 }: AssignPlanDialogProps) {
-  const [organizations, setOrganizations] = useState<OrganizationWithUsers[]>([])
-  const [isLoadingOrgs, setIsLoadingOrgs] = useState(false)
   const [organizationId, setOrganizationId] = useState("")
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
 
+  // Start from a clean form every time the dialog opens.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setOrganizationId("")
+      setBillingCycle("monthly")
+    }
+  }
+
+  const organizationsQuery = useQuery<OrganizationWithUsers[], Error>({
+    queryKey: ["organizations"],
+    queryFn: listOrganizations,
+    enabled: open,
+  })
+  const organizations = organizationsQuery.data ?? []
+  const isLoadingOrgs = organizationsQuery.isFetching
+
   useEffect(() => {
-    if (!open) return
-
-    setOrganizationId("")
-    setBillingCycle("monthly")
-    setIsLoadingOrgs(true)
-
-    listOrganizations()
-      .then(setOrganizations)
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : "Failed to load organizations"
-        toast.error(message)
-      })
-      .finally(() => setIsLoadingOrgs(false))
-  }, [open])
+    if (organizationsQuery.error) {
+      toast.error(organizationsQuery.error.message || "Failed to load organizations")
+    }
+  }, [organizationsQuery.error])
 
   const handleSubmit = async () => {
     if (!organizationId) {

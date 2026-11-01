@@ -11,6 +11,9 @@ interface PeakHoursChartProps {
   data?: number[]
   isLoading?: boolean
 }
+// Fixed heights so the loading skeleton renders the same on every render.
+const SKELETON_BAR_HEIGHTS = [45, 70, 55, 85, 60, 95, 75, 50, 80, 65, 40, 58]
+
 
 export function PeakHoursChart({ data = [], isLoading = false }: PeakHoursChartProps) {
   const maxValue = data.length > 0 ? Math.max(...data, 1) : 1
@@ -24,8 +27,8 @@ export function PeakHoursChart({ data = [], isLoading = false }: PeakHoursChartP
         </CardHeader>
         <CardContent className="pt-4 pb-6 px-4">
           <div className="flex items-end justify-between h-[120px] w-full gap-1.5">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${30 + Math.random() * 70}%` }} />
+            {SKELETON_BAR_HEIGHTS.map((height, i) => (
+              <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${height}%` }} />
             ))}
           </div>
           <div className="flex justify-between w-full mt-3">

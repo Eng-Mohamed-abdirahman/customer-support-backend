@@ -74,8 +74,8 @@ export function PlatformAdminDashboard() {
   const { data, isLoading, isFetching, refetch } = usePlatformDashboard()
   const { firstName } = useDashboardWelcome(false)
 
-  const resolvedWeekly = data?.charts.resolvedWeekly ?? []
-  const responseRowsData = data?.charts.responseRows ?? []
+  const resolvedWeekly = useMemo(() => data?.charts.resolvedWeekly ?? [], [data])
+  const responseRowsData = useMemo(() => data?.charts.responseRows ?? [], [data])
   const priorityAssignments = data?.priorityAssignments ?? []
   const leaderboard = data?.leaderboard ?? []
   const liveUpdates = data?.liveUpdates ?? []
