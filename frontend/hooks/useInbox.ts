@@ -209,12 +209,12 @@ export function useInbox() {
       setSelectedConversation((current) => (current ? patch(current) : current))
     }
 
-    const handleHandoffAlert = (data: any) => {
+    const handleHandoffAlert = () => {
       playAlertSound()
       void loadConversations(true)
     }
 
-    const handleSessionClaimed = (data: any) => {
+    const handleSessionClaimed = () => {
       void loadConversations(true)
     }
 

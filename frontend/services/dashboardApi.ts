@@ -7,6 +7,7 @@ type ApiEnvelope<T> = {
   success: boolean
   message: string
   data: T
+  status?: string
 }
 
 export async function fetchDashboardAnalytics(range: string = "7d"): Promise<DashboardApiResponseData> {
@@ -26,7 +27,7 @@ export async function fetchDashboardAnalytics(range: string = "7d"): Promise<Das
   const body = (await response.json().catch(() => null)) as ApiEnvelope<DashboardApiResponseData> | null
 
   // In express, success key might not be in response, checking ok status and status key
-  const isOk = response.ok && body && (body.success !== false && (body as any).status !== "error")
+  const isOk = response.ok && body && (body.success !== false && body.status !== "error")
 
   if (!isOk || !body?.data) {
     throw new Error(body?.message ?? `Failed to retrieve dashboard stats (Status ${response.status})`)

@@ -9,7 +9,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -136,15 +136,6 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     void loadDocuments(false)
   }, [loadDocuments])
-
-  const stats = useMemo(() => {
-    return {
-      total: documents.length,
-      ready: documents.filter((document) => document.status === "ready").length,
-      processing: documents.filter((document) => document.status === "processing").length,
-      failed: documents.filter((document) => document.status === "failed").length,
-    }
-  }, [documents])
 
   const validateFile = (file: File) => {
     if (!acceptedMimeTypes.includes(file.type)) {

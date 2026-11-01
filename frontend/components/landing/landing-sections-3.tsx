@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { MaterialIcon } from "./landing-header";
@@ -175,7 +176,7 @@ export function LandingTestimonials() {
               <Stars />
               <p className="mb-8 text-body-md text-on-surface italic">&quot;{item.quote}&quot;</p>
               <div className="flex items-center gap-4">
-                <img className="h-12 w-12 rounded-full object-cover" src={item.image} alt="" />
+                <Image className="h-12 w-12 rounded-full object-cover" src={item.image} alt="" width={48} height={48} />
                 <div>
                   <div className="font-bold">{item.name}</div>
                   <div className="text-xs text-on-surface-variant">{item.role}</div>

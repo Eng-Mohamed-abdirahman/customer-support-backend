@@ -33,12 +33,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 export function AuthShell({
   heading,
   description,
-  dividerLabel,
-  footerPrompt,
-  footerActionLabel,
-  footerActionHref,
   children,
-  backHref = "/",
 }: AuthShellProps) {
   return (
     <main className="auth-canvas min-h-screen text-zinc-100">

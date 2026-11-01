@@ -3,23 +3,12 @@ import type { Order, ListOrdersQuery, OrderStatus } from "@/types/order"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000"
 
-async function extractData<T>(response: Response, fallbackErrorMessage: string): Promise<T> {
-  const body = await response.json().catch(() => null)
-
-  if (!response.ok) {
-    throw new Error(body?.message ?? fallbackErrorMessage)
-  }
-
-  if (!body?.data) {
-    throw new Error("Unexpected API response")
-  }
-
-  return body as T
-}
+type ListOrdersResponse = { data: Order[]; meta: { total: number; limit: number; skip: number } }
+type UpdateOrderResponse = { data: Order }
 
 export const listOrders = async (
   query?: ListOrdersQuery
-): Promise<{ data: Order[]; meta: { total: number; limit: number; skip: number } }> => {
+): Promise<ListOrdersResponse> => {
   const token = getStoredToken()
   if (!token) throw new Error("Please sign in")
 
@@ -34,14 +23,14 @@ export const listOrders = async (
 
   const body = await response.json().catch(() => null)
   if (!response.ok) throw new Error(body?.message ?? "Failed to list orders")
-  
-  return body as any
+
+  return body as ListOrdersResponse
 }
 
 export const updateOrderStatus = async (
   orderId: string,
   status: OrderStatus
-): Promise<{ data: Order }> => {
+): Promise<UpdateOrderResponse> => {
   const token = getStoredToken()
   if (!token) throw new Error("Please sign in")
 
@@ -56,6 +45,6 @@ export const updateOrderStatus = async (
 
   const body = await response.json().catch(() => null)
   if (!response.ok) throw new Error(body?.message ?? "Failed to update order status")
-  
-  return body as any
+
+  return body as UpdateOrderResponse
 }

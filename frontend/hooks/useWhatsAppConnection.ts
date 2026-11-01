@@ -14,11 +14,17 @@ import type {
   WhatsAppWebhookStatus,
 } from "@/types/whatsapp"
 
+/** The part of the Facebook SDK login response that Embedded Signup uses. */
+type FacebookLoginResponse = {
+  authResponse?: { code?: string } | null
+  status?: string
+}
+
 declare global {
   interface Window {
     FB?: {
       init: (options: Record<string, unknown>) => void
-      login: (callback: (response: any) => void, options: Record<string, unknown>) => void
+      login: (callback: (response: FacebookLoginResponse) => void, options: Record<string, unknown>) => void
     }
     fbAsyncInit?: () => void
   }
@@ -208,7 +214,7 @@ export function useWhatsAppConnection(organizationId?: string) {
     setIsConnecting(true)
 
     window.FB.login(
-      (response: any) => {
+      (response: FacebookLoginResponse) => {
         const handleAuthResponse = async () => {
           const code = response?.authResponse?.code
           if (!code) {
