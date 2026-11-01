@@ -3,6 +3,9 @@ import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import User from "../models/User";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Socket");
 
 let io: Server | null = null;
 
@@ -85,15 +88,15 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
     if (authSocket.data.isAgent && authSocket.data.user?.organizationId) {
       const orgRoom = `org:${authSocket.data.user.organizationId}`;
       authSocket.join(orgRoom);
-      console.log(`Agent ${authSocket.data.user.email} connected and joined room: ${orgRoom}`);
+      log.debug(`Agent ${authSocket.data.user.email} connected and joined room: ${orgRoom}`);
     } else if (authSocket.data.conversationId) {
       const convRoom = `conversation:${authSocket.data.conversationId}`;
       authSocket.join(convRoom);
-      console.log(`Customer connected for conversation: ${authSocket.data.conversationId} and joined room: ${convRoom}`);
+      log.debug(`Customer connected for conversation: ${authSocket.data.conversationId} and joined room: ${convRoom}`);
     }
 
     socket.on("disconnect", () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      log.debug(`Socket disconnected: ${socket.id}`);
     });
   });
 

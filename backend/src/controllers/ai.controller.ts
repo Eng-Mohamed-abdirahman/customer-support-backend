@@ -72,8 +72,8 @@ const parseChatPayload = (req: Request) => {
 
 const chatWithAi = asyncHandler(async (req: Request, res: Response) => {
   const payload = parseChatPayload(req);
-  const organization = (req as any).organization;
-  const organizationId = normalizeText((req as any).organizationId);
+  const organization = req.organization;
+  const organizationId = normalizeText(req.organizationId);
 
   if (!organization || !organizationId) {
     throw new AppError("Invalid organization context", 401);

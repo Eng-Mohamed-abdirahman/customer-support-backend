@@ -4,6 +4,7 @@ import { getStaffDashboardStats } from "../services/staff-dashboard.service";
 import { getPlatformDashboardStats } from "../services/platform-dashboard.service";
 import { AppError } from "../utils/appError";
 import { apiResponse } from "../utils/apiResponse";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 /**
  * Controller to fetch all company admin dashboard analytical statistics.
@@ -14,7 +15,7 @@ export async function getCompanyDashboard(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     
     // Enforce authentication context
     if (!user) {
@@ -37,8 +38,8 @@ export async function getCompanyDashboard(
       message: "Dashboard analytics retrieved successfully",
       data,
     });
-  } catch (error: any) {
-    return next(new AppError(error?.message || "Internal server error during analytics compilation", 500));
+  } catch (error) {
+    return next(new AppError(getErrorMessage(error) || "Internal server error during analytics compilation", 500));
   }
 }
 
@@ -51,7 +52,7 @@ export async function getStaffDashboard(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user) {
       return next(new AppError("User context is missing", 401));
     }
@@ -67,10 +68,10 @@ export async function getStaffDashboard(
       message: "Staff dashboard analytics retrieved successfully",
       data,
     });
-  } catch (error: any) {
+  } catch (error) {
     return next(
       new AppError(
-        error?.message || "Internal server error during staff dashboard compilation",
+        getErrorMessage(error) || "Internal server error during staff dashboard compilation",
         500
       )
     );
@@ -86,7 +87,7 @@ export async function getPlatformDashboard(
   next: NextFunction
 ) {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user) {
       return next(new AppError("User context is missing", 401));
     }
@@ -101,10 +102,10 @@ export async function getPlatformDashboard(
       message: "Platform dashboard analytics retrieved successfully",
       data,
     });
-  } catch (error: any) {
+  } catch (error) {
     return next(
       new AppError(
-        error?.message || "Internal server error during platform dashboard compilation",
+        getErrorMessage(error) || "Internal server error during platform dashboard compilation",
         500
       )
     );

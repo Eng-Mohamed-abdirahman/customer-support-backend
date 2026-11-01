@@ -6,6 +6,7 @@ import Organization from "../models/Organization";
 import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
 import { getConnectionByPhoneNumberId, resolveAccessToken } from "./whatsapp.service";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 const webhookOrganizationSelect =
   "_id status slug profile contact businessInfo supportSettings aiSettings allowedChannels enabledFeatures knowledgeBaseReference" +
@@ -108,14 +109,14 @@ const loadTenantByPhoneNumberId = async (phoneNumberId: string) => {
       phoneNumberId: normalizedPhoneNumberId,
       accessToken,
     });
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.error("TENANT_RESOLVE", "Failed to decrypt access token", {
       phoneNumberId: normalizedPhoneNumberId,
       organizationId: String(connection.organizationId),
-      error: String(error?.message ?? error),
+      error: getErrorMessage(error),
     });
     throw new AppError(
-      `Failed to decrypt WhatsApp access token: ${error?.message ?? "unknown error"}`,
+      `Failed to decrypt WhatsApp access token: ${getErrorMessage(error)}`,
       500
     );
   }

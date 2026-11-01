@@ -8,6 +8,9 @@ import type { BrandSnapshot, DesignType } from "../config/design.config";
 import BrandIdentity from "../models/BrandIdentity";
 import { queueDesignJob } from "../services/inngest.client";
 import { resolveLogoDisplayUrl } from "../utils/logoUrl";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Design");
 
 const toBrandSnapshot = (brand: any): BrandSnapshot => ({
   brandName: String(brand?.brandName ?? ""),
@@ -54,7 +57,10 @@ const serializeDesignRecord = async (design: any) => {
 
 export async function optimizePrompt(req: Request, res: Response) {
   const { rawIntention, referencePhotoUrl, designType } = req.body;
-  const orgId = (req as any).organizationId;
+  const orgId = req.organizationId;
+  if (!orgId) {
+    return res.status(401).json({ success: false, message: "Missing API key" });
+  }
 
   try {
     const brand = await loadBrandForOrg(orgId);
@@ -75,7 +81,7 @@ export async function optimizePrompt(req: Request, res: Response) {
       layoutAnalysis: result.layoutAnalysis,
     });
   } catch (error) {
-    console.error("Optimize Prompt Error:", error);
+    log.error("Optimize Prompt Error:", error);
     const message = error instanceof Error ? error.message : "Failed to optimize prompt.";
     return res.status(500).json({ success: false, message });
   }
@@ -83,7 +89,10 @@ export async function optimizePrompt(req: Request, res: Response) {
 
 export async function generateDesign(req: Request, res: Response) {
   const { designType, promptText, referenceImageUrl, layoutAnalysis, rawUserIntention } = req.body;
-  const orgId = (req as any).organizationId;
+  const orgId = req.organizationId;
+  if (!orgId) {
+    return res.status(401).json({ success: false, message: "Missing API key" });
+  }
 
   try {
     const brand = await loadBrandForOrg(orgId);
@@ -125,7 +134,7 @@ export async function generateDesign(req: Request, res: Response) {
       generatedImageUrl: "",
     });
   } catch (error) {
-    console.error("Design Generation Error:", error);
+    log.error("Design Generation Error:", error);
     const message = error instanceof Error ? error.message : "AI asset generation failed.";
     return res.status(500).json({ success: false, message });
   }
@@ -133,7 +142,10 @@ export async function generateDesign(req: Request, res: Response) {
 
 export async function regenerateDesign(req: Request, res: Response) {
   const { previousDesignId, useUpdatedBrand } = req.body;
-  const orgId = (req as any).organizationId;
+  const orgId = req.organizationId;
+  if (!orgId) {
+    return res.status(401).json({ success: false, message: "Missing API key" });
+  }
 
   try {
     const previous = await DesignHistory.findById(previousDesignId);
@@ -205,14 +217,17 @@ export async function regenerateDesign(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error("Regenerate Error:", error);
+    log.error("Regenerate Error:", error);
     const message = error instanceof Error ? error.message : "Regeneration failed.";
     return res.status(500).json({ success: false, message });
   }
 }
 
 export async function listDesignHistory(req: Request, res: Response) {
-  const orgId = (req as any).organizationId;
+  const orgId = req.organizationId;
+  if (!orgId) {
+    return res.status(401).json({ success: false, message: "Missing API key" });
+  }
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const designType = typeof req.query.designType === "string" ? req.query.designType : undefined;
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -243,13 +258,16 @@ export async function listDesignHistory(req: Request, res: Response) {
       limit,
     });
   } catch (error) {
-    console.error("List Design History Error:", error);
+    log.error("List Design History Error:", error);
     return res.status(500).json({ success: false, message: "Failed to load design history." });
   }
 }
 
 export async function getDesignById(req: Request, res: Response) {
-  const orgId = (req as any).organizationId;
+  const orgId = req.organizationId;
+  if (!orgId) {
+    return res.status(401).json({ success: false, message: "Missing API key" });
+  }
   const designId = String(req.params.designId ?? "").trim();
 
   if (!designId) {
@@ -268,7 +286,7 @@ export async function getDesignById(req: Request, res: Response) {
       ...(await serializeDesignRecord(design)),
     });
   } catch (error) {
-    console.error("Get Design Error:", error);
+    log.error("Get Design Error:", error);
     return res.status(500).json({ success: false, message: "Failed to load design." });
   }
 }
@@ -304,7 +322,7 @@ export async function replicateWebhook(req: Request, res: Response) {
 
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("Replicate webhook handler error", err);
+    log.error("Replicate webhook handler error", err);
     return res.status(500).json({ success: false });
   }
 }

@@ -4,6 +4,9 @@ import crypto from "crypto";
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("WhatsApp");
 
 const resolveSignature = (req: Request) => {
   const signatureHeader = req.headers["x-hub-signature-256"];
@@ -26,7 +29,7 @@ export const verifyWhatsAppSignature = (
 
   if (!env.WHATSAPP_APP_SECRET) {
     if (env.NODE_ENV !== "production") {
-      console.warn("WhatsApp webhook signature verification skipped: WHATSAPP_APP_SECRET is not set");
+      log.warn("WhatsApp webhook signature verification skipped: WHATSAPP_APP_SECRET is not set");
       next();
       return;
     }
@@ -42,7 +45,7 @@ export const verifyWhatsAppSignature = (
     return;
   }
 
-  const rawBody = (req as any).rawBody as Buffer | undefined;
+  const rawBody = req.rawBody as Buffer | undefined;
   if (!rawBody) {
     next(new AppError("Webhook payload signature cannot be verified", 400));
     return;

@@ -16,6 +16,7 @@ import { getPineconeNamespace, upsertKnowledgeVectors, deleteKnowledgeVectors } 
 import { apiResponse } from "../utils/apiResponse";
 import { AppError } from "../utils/appError";
 import { asyncHandler } from "../utils/asyncHandler";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 type AuthenticatedUser = {
   _id: string;
@@ -32,7 +33,7 @@ const toErrorMessage = (error: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const user = (req as any).user as AuthenticatedUser | undefined;
+  const user = req.user as AuthenticatedUser | undefined;
   const organizationId = user?.organizationId ?? user?.company;
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
@@ -57,8 +58,8 @@ const deleteFileIfExists = async (filePath: string): Promise<void> => {
 
   try {
     await fs.unlink(filePath);
-  } catch (error: any) {
-    if (error?.code === "ENOENT") {
+  } catch (error) {
+    if (getErrorCode(error) === "ENOENT") {
       return;
     }
 
@@ -81,7 +82,7 @@ const toDocumentListItem = (document: any) => ({
 });
 
 const uploadKnowledgeDocument = asyncHandler(async (req: Request, res: Response) => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!requester?._id) {
     throw new AppError("Not authorized to upload knowledge documents", 401);
@@ -90,7 +91,7 @@ const uploadKnowledgeDocument = asyncHandler(async (req: Request, res: Response)
   const organizationId = resolveOrganizationId(req);
   await ensureOrganizationExists(organizationId);
 
-  const uploadedFile = (req as any).file as
+  const uploadedFile = req.file as
     | {
         originalname: string;
         filename: string;

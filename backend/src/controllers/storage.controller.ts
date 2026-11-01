@@ -17,11 +17,11 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user;
+  const requester = req.user;
   const organizationId =
     normalizeText(requester?.organizationId) ||
     normalizeText(requester?.company) ||
-    normalizeText((req as any).organizationId);
+    normalizeText(req.organizationId);
 
   if (!organizationId) {
     throw new AppError("Organization context is missing for this request", 400);
@@ -88,7 +88,7 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("type query parameter must be set to 'logo'", 400);
   }
 
-  const file = (req as any).file;
+  const file = req.file;
   if (!file || !file.buffer || !file.originalname || !file.mimetype) {
     throw new AppError("A file must be uploaded under the 'file' field", 400);
   }

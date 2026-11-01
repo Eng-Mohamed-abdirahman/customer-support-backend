@@ -1,5 +1,4 @@
 type LogLevel = "debug" | "info" | "warn" | "error";
-type LogContext = Record<string, unknown>;
 
 const LEVELS: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 
@@ -10,40 +9,48 @@ const resolveMinLevel = (): number => {
   return process.env.NODE_ENV === "production" ? LEVELS.info : LEVELS.debug;
 };
 
-const serializeError = (value: unknown) =>
-  value instanceof Error ? { name: value.name, message: value.message, stack: value.stack } : value;
+const serialize = (value: unknown): unknown => {
+  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack };
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, inner instanceof Error ? serialize(inner) : inner]));
+  }
+  return value;
+};
 
-const write = (level: LogLevel, scope: string, message: string, context?: LogContext) => {
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value) && !(value instanceof Error);
+
+const write = (level: LogLevel, scope: string, message: string, details: unknown[]) => {
   if (LEVELS[level] < resolveMinLevel()) return;
 
-  const safeContext = context
-    ? Object.fromEntries(Object.entries(context).map(([key, value]) => [key, serializeError(value)]))
-    : undefined;
+  // A single plain object becomes structured context; anything else is listed under "details".
+  const context: Record<string, unknown> | undefined =
+    details.length === 0
+      ? undefined
+      : details.length === 1 && isPlainObject(details[0])
+        ? (serialize(details[0]) as Record<string, unknown>)
+        : { details: details.length === 1 ? serialize(details[0]) : details.map(serialize) };
 
   const line =
     process.env.NODE_ENV === "production"
-      ? JSON.stringify({ time: new Date().toISOString(), level, scope, message, ...safeContext })
-      : `${scope ? `[${scope}] ` : ""}${message}${safeContext ? ` ${JSON.stringify(safeContext)}` : ""}`;
+      ? JSON.stringify({ time: new Date().toISOString(), level, scope: scope || undefined, message, ...context })
+      : `${scope ? `[${scope}] ` : ""}${message}${context ? ` ${JSON.stringify(context)}` : ""}`;
 
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.log(line);
 };
 
-export type Logger = {
-  debug: (message: string, context?: LogContext) => void;
-  info: (message: string, context?: LogContext) => void;
-  warn: (message: string, context?: LogContext) => void;
-  error: (message: string, context?: LogContext) => void;
-  child: (scope: string) => Logger;
-};
+type LogMethod = (message: string, ...details: unknown[]) => void;
+
+export type Logger = Record<LogLevel, LogMethod> & { child: (scope: string) => Logger };
 
 /** Create a logger whose lines are prefixed with `scope` (e.g. "WhatsApp"). */
 export const createLogger = (scope = ""): Logger => ({
-  debug: (message, context) => write("debug", scope, message, context),
-  info: (message, context) => write("info", scope, message, context),
-  warn: (message, context) => write("warn", scope, message, context),
-  error: (message, context) => write("error", scope, message, context),
+  debug: (message, ...details) => write("debug", scope, message, details),
+  info: (message, ...details) => write("info", scope, message, details),
+  warn: (message, ...details) => write("warn", scope, message, details),
+  error: (message, ...details) => write("error", scope, message, details),
   child: (childScope) => createLogger(scope ? `${scope}:${childScope}` : childScope),
 });
 

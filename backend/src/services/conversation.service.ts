@@ -2,6 +2,7 @@ import Organization from "../models/Organization";
 import KnowledgeChunk from "../models/KnowledgeChunk";
 
 import { env } from "../config/env";
+import { getErrorMessage } from "../utils/errors";
 import { AppError } from "../utils/appError";
 import { generateEmbeddings } from "./embedding.service";
 import { queryKnowledgeVectors } from "./pinecone.service";
@@ -12,6 +13,9 @@ import Ticket from "../models/Ticket";
 import Conversation from "../models/Conversation";
 import { detectIntent, getConversationalResponse } from "./intentDetection.service";
 import { emitToOrganization } from "./socket.service";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("RAG");
 
 type ConversationHistoryItem = {
   role: "customer" | "assistant";
@@ -668,8 +672,8 @@ const generateReplyWithHuggingFace = async (input: {
 
   const messages = [{ role: "user", content: userPrompt }];
 
-  console.log("[RAG] Final system prompt", systemPrompt);
-  console.log("[RAG] Final user prompt", userPrompt);
+  log.debug("Final system prompt", systemPrompt);
+  log.debug("Final user prompt", userPrompt);
 
   let result = await generateActionableReplyWithOpenAi({
     system: systemPrompt,
@@ -704,7 +708,7 @@ const generateReplyWithHuggingFace = async (input: {
             tool_call_id: toolCall.id,
             content: JSON.stringify({ success: true, message: "Order created successfully." }),
           } as any);
-        } catch (e: any) {
+        } catch (e) {
           messages.push({
             role: "assistant",
             content: null,
@@ -713,7 +717,7 @@ const generateReplyWithHuggingFace = async (input: {
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
-            content: JSON.stringify({ success: false, message: e.message }),
+            content: JSON.stringify({ success: false, message: getErrorMessage(e) }),
           } as any);
         }
       }
@@ -771,7 +775,7 @@ const generateReplyWithHuggingFace = async (input: {
             });
             emitToOrganization(String(input.organization._id), "ticket:created", createdTicket);
           } catch (e) {
-            console.error("Failed to create ticket for tool handoff", e);
+            log.error("Failed to create ticket for tool handoff", e);
           }
 
           messages.push({
@@ -784,7 +788,7 @@ const generateReplyWithHuggingFace = async (input: {
             tool_call_id: toolCall.id,
             content: JSON.stringify({ success: true, message: "Human handoff triggered successfully. Live support agent notified on staff dashboard." }),
           } as any);
-        } catch (e: any) {
+        } catch (e) {
           messages.push({
             role: "assistant",
             content: null,
@@ -793,7 +797,7 @@ const generateReplyWithHuggingFace = async (input: {
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
-            content: JSON.stringify({ success: false, message: e.message }),
+            content: JSON.stringify({ success: false, message: getErrorMessage(e) }),
           } as any);
         }
       }
@@ -847,7 +851,7 @@ const generateConversationReply = async (
   // ── Step 1: Intent Detection ───────────────────────────────────────────
   const intentResult = detectIntent(message);
 
-  console.log("[INTENT]", {
+  log.debug("[INTENT]", {
     message,
     intent: intentResult.intent,
     confidence: intentResult.confidence,
@@ -882,7 +886,7 @@ const generateConversationReply = async (
             { new: true }
           );
         } catch (e) {
-          console.error("Failed to update conversation status for handoff", e);
+          log.error("Failed to update conversation status for handoff", e);
         }
       }
 
@@ -919,7 +923,7 @@ const generateConversationReply = async (
         });
         emitToOrganization(String(organization._id), "ticket:created", createdTicket);
       } catch (e) {
-        console.error("Failed to create ticket for handoff", e);
+        log.error("Failed to create ticket for handoff", e);
       }
 
       return {
@@ -947,7 +951,7 @@ const generateConversationReply = async (
 
       await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
 
-      console.log("[CONVERSATIONAL] Responded without retrieval:", intentResult.intent);
+      log.debug("[CONVERSATIONAL] Responded without retrieval:", intentResult.intent);
 
       return {
         reply,
@@ -998,9 +1002,9 @@ const generateConversationReply = async (
     .sort((left, right) => right.score - left.score)
     .slice(0, vectorSearchTopK);
 
-  console.log("[RAG] User question", message);
-  console.log("=== VECTOR SEARCH RESULTS ===");
-  console.log(
+  log.debug("User question", message);
+  log.debug(
+    "Vector search results",
     matches.map((match) => ({
       id: match.id,
       score: match.score,
@@ -1008,8 +1012,8 @@ const generateConversationReply = async (
       chunkIndex: match.metadata?.chunkIndex,
     }))
   );
-  console.log("=== VECTOR SEARCH FILTERED ===");
-  console.log(
+  log.debug(
+    "Vector search results after filtering",
     filteredMatches.map((match) => ({
       id: match.id,
       score: match.score,
@@ -1017,7 +1021,7 @@ const generateConversationReply = async (
       chunkIndex: match.metadata?.chunkIndex,
     }))
   );
-  console.log("[RAG] Vector search counts", {
+  log.debug("Vector search counts", {
     total: matches.length,
     filtered: filteredMatches.length,
     topK: vectorSearchTopK,
@@ -1031,10 +1035,10 @@ const generateConversationReply = async (
     .filter((id) => !hydratedSources.some((source) => source.embeddingId === id));
 
   if (missingEmbeddingIds.length > 0) {
-    console.warn("[RAG] Missing chunks for embeddings", missingEmbeddingIds);
+    log.warn("Missing chunks for embeddings", missingEmbeddingIds);
   }
 
-  console.log("[RAG] Hydration summary", {
+  log.debug("Hydration summary", {
     hydrated: hydratedSources.length,
     deduped: sources.length,
   });
@@ -1052,7 +1056,7 @@ const generateConversationReply = async (
 
     await incrementOrganizationTokenUsage(organization._id, usageDelta.totalTokens);
 
-    console.log("[FALLBACK] No relevant sources found for:", message);
+    log.debug("[FALLBACK] No relevant sources found for:", message);
 
     return {
       reply,
@@ -1073,9 +1077,8 @@ const generateConversationReply = async (
       Math.min(sourcesForRerank.length, vectorSearchTopK)
     );
 
-    console.log("=== COHERE RERANKED RESULTS ===");
-    console.log(rerankedResults);
-    console.log("[RAG] Rerank summary", {
+    log.debug("Cohere reranked results", rerankedResults);
+    log.debug("Rerank summary", {
       inputCount: sourcesForRerank.length,
       outputCount: rerankedResults.length,
       threshold: RERANK_SCORE_THRESHOLD,
@@ -1091,7 +1094,7 @@ const generateConversationReply = async (
     );
     rerankedSources = filteredByRerank.length > 0 ? filteredByRerank : ranked;
   } catch (error) {
-    console.warn("[RAG] Cohere rerank failed, using vector ranking", error);
+    log.warn("Cohere rerank failed, using vector ranking", error);
     rerankedSources = sourcesForRerank
       .sort((left, right) => right.score - left.score)
       .slice(0, topK);
@@ -1110,13 +1113,13 @@ const generateConversationReply = async (
     MAX_CONTEXT_CHARS
   );
 
-  console.log("[RAG] Final context summary", {
+  log.debug("Final context summary", {
     selected: finalSources.length,
     totalChars: finalSources.reduce((sum, source) => sum + source.content.length, 0),
   });
 
-  console.log("=== FINAL CONTEXT SENT TO LLM ===");
-  console.log(
+  log.debug(
+    "Final context sent to LLM",
     finalSources.map((source) => ({
       embeddingId: source.embeddingId,
       score: source.score,
@@ -1163,7 +1166,7 @@ const generateConversationReply = async (
       usage: createUsageSummary(organization, usageDelta),
     };
   } catch (error) {
-    console.error("[RAG] LLM generation failed", error);
+    log.error("LLM generation failed", error);
     const reply = buildFallbackFromSources(organization);
     const usageDelta = {
       promptTokens: estimateTokenCount(message),

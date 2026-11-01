@@ -15,6 +15,7 @@ import { whatsappLog } from "../utils/whatsappLogger";
 import { ensureInboundWebhooks, fetchMetaWebhookDiagnostics, isPublicCallbackUrl, buildCallbackUrl } from "../services/whatsappWebhookSetup.service";
 import { probeUrl } from "../services/whatsappWebhookStartup.service";
 import WebhookLog from "../models/WebhookLog";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 type AuthenticatedUser = {
   _id: string;
@@ -24,7 +25,7 @@ type AuthenticatedUser = {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const user = (req as any).user as AuthenticatedUser | undefined;
+  const user = req.user as AuthenticatedUser | undefined;
 
   if (user?.role === "admin") {
     const targetOrgId =
@@ -100,16 +101,16 @@ const connectWhatsApp = asyncHandler(async (req: Request, res: Response) => {
     webhookSetup = await ensureInboundWebhooks(organizationId, {
       verifyToken: payload.verifyToken,
     });
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.warn("CONNECTION", "Inbound webhook setup failed after manual connect", {
       organizationId,
-      error: String(error?.message ?? error),
+      error: getErrorMessage(error),
     });
     await markWebhookSubscription({
       organizationId,
       phoneNumberId: payload.phoneNumberId,
       status: "failed",
-      error: String(error?.message ?? error),
+      error: getErrorMessage(error),
     });
   }
 
@@ -296,12 +297,12 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
         try {
           await ensureAppSubscribedToWaba({ wabaId, accessToken });
           subscribedWabas.add(wabaId);
-        } catch (error: any) {
+        } catch (error) {
           await markWebhookSubscription({
             organizationId,
             phoneNumberId,
             status: "failed",
-            error: String(error?.message ?? error),
+            error: getErrorMessage(error),
           });
         }
       }
@@ -332,10 +333,10 @@ const completeEmbeddedSignup = asyncHandler(async (req: Request, res: Response) 
       webhookSetup = await ensureInboundWebhooks(organizationId, {
         verifyToken: primaryVerifyToken,
       });
-    } catch (error: any) {
+    } catch (error) {
       whatsappLog.warn("CONNECTION", "Inbound webhook setup failed after embedded signup", {
         organizationId,
-        error: String(error?.message ?? error),
+        error: getErrorMessage(error),
       });
     }
   }

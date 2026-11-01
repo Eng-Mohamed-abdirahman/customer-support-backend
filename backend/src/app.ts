@@ -27,6 +27,9 @@ import brandRoutes from "./routes/brand.routes";
 import storageRoutes from "./routes/storage.routes";
 import supportRoutes from "./routes/support.routes";
 import planRoutes from "./routes/plan.routes";
+import { createLogger } from "./utils/logger";
+
+const log = createLogger("Webhook");
 
 const app = express();
 
@@ -69,7 +72,7 @@ app.use(
 app.use((req, res, next) => {
 	const headerId = req.headers["x-request-id"];
 	const requestId = typeof headerId === "string" && headerId.trim() ? headerId : randomUUID();
-	(req as any).requestId = requestId;
+	req.requestId = requestId;
 	res.setHeader("x-request-id", requestId);
 	next();
 });
@@ -77,13 +80,13 @@ app.use(
 	express.json({
 		limit: "1mb",
 		verify: (req, _res, buf) => {
-			(req as any).rawBody = buf;
+			(req as express.Request).rawBody = buf;
 		},
 	})
 );
 
 const logWebhookRequest = (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-	const body = (req as any).body;
+	const body = req.body;
 	const entry = Array.isArray(body?.entry) ? body.entry[0] : null;
 	const change = Array.isArray(entry?.changes) ? entry.changes[0] : null;
 	const value = change?.value ?? {};
@@ -91,12 +94,12 @@ const logWebhookRequest = (req: express.Request, _res: express.Response, next: e
 	const statusCount = Array.isArray(value?.statuses) ? value.statuses.length : 0;
 	const hasSignature = Boolean(req.headers["x-hub-signature-256"]);
 
-	console.log(
+	log.info(
 		`[Webhook] ${req.method} ${req.originalUrl} messages=${messageCount} statuses=${statusCount} field=${change?.field ?? "-"} signed=${hasSignature}`
 	);
 
 	if (req.method === "POST" && messageCount === 0 && statusCount === 0) {
-		console.log(
+		log.info(
 			`[Webhook] POST received but no messages/statuses in payload — check Meta app is subscribed to the "messages" field`
 		);
 	}

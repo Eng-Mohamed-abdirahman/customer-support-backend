@@ -33,7 +33,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = req.user;
 
   if (!user) {
     throw new AppError("Not authorized to access this route", 401);
@@ -43,7 +43,7 @@ export const getCurrentUser = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const updateMyProfile = asyncHandler(async (req: Request, res: Response) => {
-  const requester = (req as any).user;
+  const requester = req.user;
 
   if (!requester?._id) {
     throw new AppError("Not authorized to access this route", 401);

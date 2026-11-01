@@ -17,7 +17,7 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user;
+  const requester = req.user;
   const organizationId =
     normalizeText(requester?.accountId) ||
     normalizeText(requester?.organizationId) ||

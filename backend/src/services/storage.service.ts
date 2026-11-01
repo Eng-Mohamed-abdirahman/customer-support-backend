@@ -8,6 +8,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 import { getS3Client, B2_BUCKET_NAME, buildPublicObjectUrl } from "../config/backblaze";
 import { AppError } from "../utils/appError";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Storage");
 
 const ensureBackblazeConfigured = () => {
   if (!B2_BUCKET_NAME) {
@@ -38,7 +41,7 @@ export async function uploadFile(
 
     await upload.done();
   } catch (error) {
-    console.error("B2 Upload Failed:", error);
+    log.error("B2 Upload Failed:", error);
     throw new Error(`B2 Upload Failed: ${(error as any).message}`);
   }
 

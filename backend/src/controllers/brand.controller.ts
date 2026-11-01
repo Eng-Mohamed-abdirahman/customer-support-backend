@@ -17,11 +17,11 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user;
+  const requester = req.user;
   const organizationId =
     normalizeText(requester?.organizationId) ||
     normalizeText(requester?.company) ||
-    normalizeText((req as any).organizationId);
+    normalizeText(req.organizationId);
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
     throw new AppError("Organization context is missing for this request", 400);

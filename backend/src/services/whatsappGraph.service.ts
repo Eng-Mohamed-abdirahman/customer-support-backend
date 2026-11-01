@@ -1,6 +1,7 @@
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 const graphBaseUrl = env.WHATSAPP_GRAPH_BASE_URL || "https://graph.facebook.com";
 const graphVersion = env.WHATSAPP_GRAPH_VERSION || "v20.0";
@@ -24,11 +25,11 @@ const fetchJson = async (url: string, options: any) => {
   let response: Response;
   try {
     response = await fetch(url, options);
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.error("GRAPH_API", "Network error calling Graph API", {
       method,
       url: redactUrl(url),
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
       durationMs: Date.now() - startMs,
     });
     throw error;

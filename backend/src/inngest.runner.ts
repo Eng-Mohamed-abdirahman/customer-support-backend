@@ -1,6 +1,9 @@
 import express from "express";
 import bodyParser from "body-parser";
 import { processDesignJob } from "./services/design.processor";
+import { createLogger } from "./utils/logger";
+
+const log = createLogger("InngestRunner");
 
 const PORT = process.env.INNGEST_LOCAL_PORT ? Number(process.env.INNGEST_LOCAL_PORT) : 4001;
 
@@ -10,7 +13,7 @@ app.use(bodyParser.json({ limit: "2mb" }));
 app.post("/event", async (req, res) => {
   try {
     const { name, data } = req.body;
-    console.log("[Inngest Runner] Received event", name);
+    log.info("[Inngest Runner] Received event", name);
 
     if (!name) return res.status(400).json({ success: false, message: "Missing event name" });
 
@@ -19,14 +22,14 @@ app.post("/event", async (req, res) => {
       return res.status(200).json({ success: true });
     }
 
-    console.warn("[Inngest Runner] Unhandled event", name);
+    log.warn("[Inngest Runner] Unhandled event", name);
     return res.status(200).json({ success: true, message: "ignored" });
   } catch (err) {
-    console.error("[Inngest Runner] event handler error", err);
+    log.error("[Inngest Runner] event handler error", err);
     return res.status(500).json({ success: false });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`[Inngest Runner] Listening on http://localhost:${PORT}/event`);
+  log.info(`[Inngest Runner] Listening on http://localhost:${PORT}/event`);
 });

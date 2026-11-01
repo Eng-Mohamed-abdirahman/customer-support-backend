@@ -2,6 +2,9 @@ import OpenAI from "openai";
 
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("LLM");
 
 let openAiClient: OpenAI | null = null;
 
@@ -28,7 +31,7 @@ const generateSupportReplyWithOpenAi = async (input: {
   const client = getOpenAiClient();
   const model = env.OPENAI_LLM_MODEL || "gpt-4o-mini";
 
-  console.log("[LLM] Request", {
+  log.debug("[LLM] Request", {
     model,
     mode: "openai",
     systemChars: (input.system || "").length,
@@ -49,7 +52,7 @@ const generateSupportReplyWithOpenAi = async (input: {
 
   const generatedText = (response.choices[0]?.message?.content || "").trim();
 
-  console.log("[LLM] Response", {
+  log.debug("[LLM] Response", {
     responseType: typeof response,
     outputChars: generatedText.length,
   });
@@ -74,7 +77,7 @@ const generateActionableReplyWithOpenAi = async (input: {
   const client = getOpenAiClient();
   const model = env.OPENAI_LLM_MODEL || "gpt-4o-mini";
 
-  console.log("[LLM Actionable] Request", {
+  log.debug("[LLM Actionable] Request", {
     model,
     mode: "openai_tools",
     messageCount: input.messages.length,

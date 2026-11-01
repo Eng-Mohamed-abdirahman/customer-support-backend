@@ -6,7 +6,7 @@ export const requirePlatformAdmin = (
   _res: Response,
   next: NextFunction
 ) => {
-  const user = (req as any).user;
+  const user = req.user;
 
   if (!user || user.role !== "admin") {
     return next(new AppError("Only platform admins can perform this action", 403));
@@ -20,7 +20,7 @@ export const requireOrganizationMember = (
   _res: Response,
   next: NextFunction
 ) => {
-  const user = (req as any).user;
+  const user = req.user;
 
   if (!user) {
     return next(new AppError("Not authorized", 401));
@@ -42,7 +42,7 @@ export const requireCompanyAdmin = (
   _res: Response,
   next: NextFunction
 ) => {
-  const user = (req as any).user;
+  const user = req.user;
 
   if (!user) {
     return next(new AppError("Not authorized", 401));

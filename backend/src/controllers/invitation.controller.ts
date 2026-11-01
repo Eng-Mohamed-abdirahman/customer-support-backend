@@ -33,7 +33,7 @@ const hashInvitationToken = (rawToken: string): string => {
 };
 
 const getInviterFromRequest = (req: Request): AuthenticatedUser => {
-  const inviter = (req as any).user as AuthenticatedUser | undefined;
+  const inviter = req.user as AuthenticatedUser | undefined;
 
   if (!inviter || !inviter._id || !inviter.role) {
     throw new AppError("Not authorized to send invitations", 401);

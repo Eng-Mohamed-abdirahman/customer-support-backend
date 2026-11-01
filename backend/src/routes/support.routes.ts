@@ -10,6 +10,9 @@ import { emitToOrganization, emitToConversation } from "../services/socket.servi
 import { protect } from "../middlewares/auth.middleware";
 import { validateApiKey } from "../middlewares/validateApiKey.middleware";
 import { aiLimiter } from "../middlewares/rateLimit.middleware";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Support");
 
 const router = express.Router();
 
@@ -79,7 +82,7 @@ router.post(
       });
       emitToOrganization(organizationId, "ticket:created", newTicket);
     } catch (err) {
-      console.error("Ticket creation on escalation failed:", err);
+      log.error("Ticket creation on escalation failed:", err);
     }
 
     const handoffPayload = {

@@ -14,7 +14,7 @@ export async function getKnowledgeInsightsController(
   next: NextFunction
 ): Promise<void> {
   try {
-    const user = (req as any).user;
+    const user = req.user;
 
     if (!user || !user.company) {
       res.status(401).json({ success: false, message: "Not authorized" });

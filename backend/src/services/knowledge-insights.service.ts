@@ -4,6 +4,9 @@ import { buildKnowledgeInsightsPrompt } from "../prompts/knowledge-insights.prom
 import Conversation from "../models/Conversation";
 import Message from "../models/Message";
 import { generateSupportReplyWithOpenAi } from "../services/llm.service";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("KnowledgeInsights");
 
 // ---------------------------------------------------------------------------
 // In-memory cache — 5-minute TTL, keyed by `insights:${organizationId}:${range}`
@@ -228,7 +231,7 @@ export async function getKnowledgeInsights(
 
     result = extractJson(raw);
   } catch (err) {
-    console.error("[KnowledgeInsights] LLM or parse error — using heuristic insights:", err);
+    log.error("[KnowledgeInsights] LLM or parse error — using heuristic insights:", err);
     result = buildHeuristicInsights(conversationTexts);
   }
 

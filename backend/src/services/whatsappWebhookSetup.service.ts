@@ -9,6 +9,7 @@ import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
 import { listConnectionsByOrganizationId, markWebhookSubscription, resolveAccessToken, resolveVerifyToken } from "./whatsapp.service";
 import { ensureAppSubscribedToWaba, subscribeAppWebhookFields, getAppWebhookSubscriptions, getWabaSubscribedApps } from "./whatsappGraph.service";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 const buildCallbackUrl = () => `${env.publicApiUrl.replace(/\/$/, "")}/api/webhooks/whatsapp`;
 
@@ -64,11 +65,11 @@ const ensureInboundWebhooks = async (
       organizationId,
       callbackUrl,
     });
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.error("WEBHOOK_SETUP", "Failed to subscribe app to messages field", {
       organizationId,
       callbackUrl,
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
     });
     throw error;
   }
@@ -114,8 +115,8 @@ const ensureInboundWebhooks = async (
       });
 
       results.push({ phoneNumberId, wabaId, status: "subscribed" });
-    } catch (error: any) {
-      const errorMessage = String(error?.message ?? error);
+    } catch (error) {
+      const errorMessage = String(getErrorMessage(error) ?? error);
 
       await markWebhookSubscription({
         organizationId,
@@ -138,10 +139,10 @@ const ensureInboundWebhooks = async (
   let metaSubscriptions: Awaited<ReturnType<typeof getAppWebhookSubscriptions>> | null = null;
   try {
     metaSubscriptions = await getAppWebhookSubscriptions();
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.warn("WEBHOOK_SETUP", "Could not read Meta webhook subscription status", {
       organizationId,
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
     });
   }
 
@@ -173,13 +174,13 @@ const normalizeText = (value: unknown): string => {
 const fetchMetaWebhookDiagnostics = async () => {
   try {
     return await getAppWebhookSubscriptions();
-  } catch (error: any) {
+  } catch (error) {
     return {
       active: false,
       callbackUrl: null,
       fields: [],
       messagesSubscribed: false,
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
       raw: null,
     };
   }
@@ -211,11 +212,11 @@ const repairWabaSubscriptionsForActiveConnections = async () => {
       } else {
         results.push({ wabaId, status: "ok" });
       }
-    } catch (error: any) {
+    } catch (error) {
       results.push({
         wabaId,
         status: "failed",
-        error: String(error?.message ?? error),
+        error: String(getErrorMessage(error) ?? error),
       });
     }
   }

@@ -186,7 +186,7 @@ const buildAdminSettingsPayload = (organization: any) => ({
 });
 
 const assertPlatformAdmin = (req: Request): AuthenticatedUser => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!requester || requester.role !== "admin") {
     throw new AppError("Only platform admins can manage organizations", 403);
@@ -196,7 +196,7 @@ const assertPlatformAdmin = (req: Request): AuthenticatedUser => {
 };
 
 const assertCompanyAdmin = (req: Request): AuthenticatedUser & { company: string } => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!requester || requester.role !== "company-admin") {
     throw new AppError("Only company admins can view company users", 403);
@@ -213,7 +213,7 @@ const assertCompanyAdmin = (req: Request): AuthenticatedUser & { company: string
 };
 
 const assertOrganizationMember = (req: Request): AuthenticatedUser & { company: string } => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!requester) {
     throw new AppError("Not authorized", 401);

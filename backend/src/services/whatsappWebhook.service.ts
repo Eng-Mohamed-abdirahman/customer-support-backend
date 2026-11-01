@@ -11,6 +11,10 @@ import { getOrCreateConversation, appendMessage, getRecentHistory } from "./conv
 import { loadTenantByPhoneNumberId, isAiAutoReplyEnabled } from "./tenantWebhook.service";
 import { sendWhatsAppTextMessage } from "./whatsappGraph.service";
 import { upsertWhatsAppContact } from "./contact.service";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("WhatsApp");
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -72,11 +76,11 @@ const sendWhatsAppMessageWithRetry = async (input: {
         to: input.to,
       });
       return await sendWhatsAppTextMessage(input);
-    } catch (error: any) {
+    } catch (error) {
       whatsappLog.warn("MESSAGE_SEND", `Send attempt ${attempt}/${maxAttempts} failed`, {
         phoneNumberId: input.phoneNumberId,
         to: input.to,
-        error: String(error?.message ?? error),
+        error: getErrorMessage(error),
       });
 
       if (attempt >= maxAttempts) {
@@ -352,8 +356,8 @@ const processIncomingMessage = async (input: {
         },
         externalMessageId: normalizeText(input.message?.id),
       });
-    } catch (error: any) {
-      console.warn(`Failed to log AI conversation: ${error?.message ?? error}`);
+    } catch (error) {
+      log.warn(`Failed to log AI conversation: ${getErrorMessage(error) ?? error}`);
     }
 
     whatsappLog.info("MESSAGE_SEND", "Sending AI auto-reply to customer via WhatsApp", {
@@ -376,13 +380,13 @@ const processIncomingMessage = async (input: {
       conversationId: String(conversation._id),
       customerPhone,
     });
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.error("MESSAGE_PROCESS", "AI auto-reply pipeline failed", {
       organizationId,
       conversationId: String(conversation._id),
       externalMessageId,
-      error: String(error?.message ?? error),
-      stack: error?.stack,
+      error: getErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
   }
 };
@@ -418,10 +422,10 @@ const processWebhookPayload = async (payload: any) => {
       let tenantContext;
       try {
         tenantContext = await loadTenantByPhoneNumberId(phoneNumberId);
-      } catch (error: any) {
+      } catch (error) {
         whatsappLog.warn("WEBHOOK_PROCESS", "Tenant resolution failed — webhook ignored", {
           phoneNumberId,
-          error: String(error?.message ?? error),
+          error: getErrorMessage(error),
         });
         continue;
       }
@@ -504,7 +508,7 @@ const processWebhookPayload = async (payload: any) => {
             organizationId: String(connection.organizationId),
             externalId,
           });
-        } catch (error: any) {
+        } catch (error) {
           const externalId = normalizeText(message?.id);
           if (externalId) {
             await WebhookLog.updateOne(
@@ -512,7 +516,7 @@ const processWebhookPayload = async (payload: any) => {
               {
                 $set: {
                   status: "failed",
-                  errorMessage: String(error?.message ?? error),
+                  errorMessage: getErrorMessage(error),
                 },
               }
             );
@@ -522,8 +526,8 @@ const processWebhookPayload = async (payload: any) => {
             organizationId: String(connection.organizationId),
             externalId: externalId || message?.id,
             messageType: normalizeText(message?.type),
-            error: String(error?.message ?? error),
-            stack: error?.stack,
+            error: getErrorMessage(error),
+            stack: error instanceof Error ? error.stack : undefined,
           });
         }
       }

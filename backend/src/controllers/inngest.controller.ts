@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import { processDesignJob } from "../services/design.processor";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Inngest");
 
 export async function inngestWebhookHandler(req: Request, res: Response) {
   try {
@@ -15,10 +18,10 @@ export async function inngestWebhookHandler(req: Request, res: Response) {
       return res.status(200).json({ success: true });
     }
 
-    console.warn("Unhandled inngest event:", name);
+    log.warn("Unhandled inngest event:", name);
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("Inngest webhook error", err);
+    log.error("Inngest webhook error", err);
     return res.status(500).json({ success: false });
   }
 }

@@ -127,8 +127,8 @@ const validateApiKey = async (req: Request, _res: Response, next: NextFunction) 
     return next(new AppError("Organization is not active", 403));
   }
 
-  (req as any).organization = sanitizeOrganizationForRequest(organization);
-  (req as any).organizationId = String(organization._id);
+  req.organization = sanitizeOrganizationForRequest(organization);
+  req.organizationId = String(organization._id);
 
   next();
 };
