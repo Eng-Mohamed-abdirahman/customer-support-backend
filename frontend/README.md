@@ -10,8 +10,9 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000000?logo=shadcnui&logoColor=white)
 ![Socket.io](https://img.shields.io/badge/Socket.io-realtime-010101?logo=socket.io&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
-[Features](#-features) · [Getting started](#-getting-started) · [Environment](#-environment-variables) · [Structure](#-project-structure) · [Backend](https://github.com/Eng-Mohamed-abdirahman/customer-support-backend)
+[Features](#-features) · [Getting started](#-getting-started) · [Environment](#-environment-variables) · [Structure](#-project-structure) · [Backend](../backend)
 
 </div>
 
@@ -23,7 +24,7 @@ Technov lets a company upload its own knowledge (FAQs, prices, policies, opening
 
 This repository is the **frontend**: a marketing landing page plus a role-based dashboard for platform admins, company admins and support staff, built with Next.js (App Router), React 19, Tailwind CSS 4 and shadcn/ui.
 
-> The API, AI pipeline and WhatsApp integration live in **[customer-support-backend](https://github.com/Eng-Mohamed-abdirahman/customer-support-backend)**. You need it running to use this app.
+> The API, AI pipeline and WhatsApp integration live in **[`backend/`](../backend)** in this repository. You need it running to use this app.
 
 ## ✨ Features
 
@@ -67,13 +68,13 @@ This repository is the **frontend**: a marketing landing page plus a role-based 
 ### Prerequisites
 
 - **Node.js 18+** (20 LTS recommended) and npm
-- The **[backend API](https://github.com/Eng-Mohamed-abdirahman/customer-support-backend)** running (default `http://localhost:5000`)
+- The **[backend API](../backend)** running (default `http://localhost:5000`)
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Eng-Mohamed-abdirahman/customer-support-frontend.git
-cd customer-support-frontend
+git clone https://github.com/Eng-Mohamed-abdirahman/technov.git
+cd technov/frontend
 npm install
 ```
 
@@ -175,7 +176,11 @@ The app deploys anywhere Next.js runs, such as [Vercel](https://vercel.com):
 3. Commit your changes: `git commit -m "Add my feature"`.
 4. Push and open a pull request.
 
-Bug reports and ideas are welcome in [Issues](https://github.com/Eng-Mohamed-abdirahman/customer-support-frontend/issues).
+Bug reports and ideas are welcome in [Issues](https://github.com/Eng-Mohamed-abdirahman/technov/issues).
+
+## 📄 License
+
+Released under the [MIT License](../LICENSE).
 
 ## 👨‍💻 Author
 
