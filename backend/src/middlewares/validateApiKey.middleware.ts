@@ -1,10 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 
-const Organization = require("../models/Organization");
+import Organization from "../models/Organization";
 
-const { AppError } = require("../utils/appError");
-const { getApiKeyPrefix, verifyApiKey } = require("../utils/generateApiKey");
-const { decryptApiKey } = require("../utils/cryptoApiKey");
+import { AppError } from "../utils/appError";
+import { getApiKeyPrefix, verifyApiKey } from "../utils/generateApiKey";
+import { decryptApiKey } from "../utils/cryptoApiKey";
 
 const apiKeyOrganizationSelect =
   "_id status createdBy profile contact businessInfo supportSettings aiSettings allowedChannels" +
@@ -75,8 +75,10 @@ const validateApiKey = async (req: Request, _res: Response, next: NextFunction) 
     return next(new AppError("Invalid API key", 401));
   }
 
+  // Match any of the organization's keys, not only the newest one in api_settings.
   const organization = await Organization.findOne({
     $or: [
+      { "api_keys.key_prefix": keyPrefix },
       { "api_settings.key_prefix": keyPrefix },
       { "apiSettings.keyPrefix": keyPrefix },
     ],
@@ -93,12 +95,12 @@ const validateApiKey = async (req: Request, _res: Response, next: NextFunction) 
   const storedEncryptedKey =
     keyRecord?.encrypted_key ??
     organization?.api_settings?.encrypted_key ??
-    organization?.apiSettings?.encryptedKey;
+    organization?.get?.("apiSettings.encryptedKey");
     
   const storedIv =
     keyRecord?.iv ??
     organization?.api_settings?.iv ??
-    organization?.apiSettings?.iv;
+    organization?.get?.("apiSettings.iv");
 
   if (!organization || typeof storedEncryptedKey !== "string" || storedEncryptedKey.length === 0 || typeof storedIv !== "string") {
     return next(new AppError("Invalid API key", 401));
@@ -127,15 +129,14 @@ const validateApiKey = async (req: Request, _res: Response, next: NextFunction) 
     return next(new AppError("Organization is not active", 403));
   }
 
-  (req as any).organization = sanitizeOrganizationForRequest(organization);
-  (req as any).organizationId = String(organization._id);
+  req.organization = sanitizeOrganizationForRequest(organization);
+  req.organizationId = String(organization._id);
 
   next();
 };
 
-module.exports = {
+export {
   validateApiKey,
   apiKeyOrganizationSelect,
 };
 
-export {};

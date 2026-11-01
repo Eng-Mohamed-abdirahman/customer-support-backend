@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const countWords = (value: string): number =>
   value
@@ -50,10 +50,9 @@ const updateTicketStatusSchema = z
   })
   .strict();
 
-module.exports = {
+export {
   createTicketSchema,
   listTicketsSchema,
   updateTicketStatusSchema,
 };
 
-export {};

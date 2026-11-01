@@ -1,6 +1,6 @@
-const Conversation = require("../models/Conversation");
-const Message = require("../models/Message");
-const { emitToConversation, emitToOrganization } = require("./socket.service");
+import Conversation from "../models/Conversation";
+import Message from "../models/Message";
+import { emitToConversation, emitToOrganization } from "./socket.service";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -204,7 +204,7 @@ const getRecentHistory = async (input: {
   return messages
     .reverse()
     .map((message: any) => {
-      const role = message.senderType === "customer" ? "customer" : "assistant";
+      const role: "customer" | "assistant" = message.senderType === "customer" ? "customer" : "assistant";
       return {
         role,
         content: normalizeText(message.contentText),
@@ -213,7 +213,7 @@ const getRecentHistory = async (input: {
     .filter((item: any) => item.content.length > 0);
 };
 
-module.exports = {
+export {
   getOrCreateConversation,
   appendMessage,
   listConversations,
@@ -221,4 +221,3 @@ module.exports = {
   getRecentHistory,
 };
 
-export {};

@@ -1,8 +1,11 @@
 import mongoose from "mongoose";
 import * as planRepository from "../repositories/plan.repository";
 
-const Organization = require("../models/Organization");
-const SubscriptionPlan = require("../models/SubscriptionPlan");
+import Organization from "../models/Organization";
+import SubscriptionPlan from "../models/SubscriptionPlan";
+import User from "../models/User";
+import KnowledgeDocument from "../models/KnowledgeDocument";
+import Conversation from "../models/Conversation";
 
 export async function getPlanDashboardStats() {
   const [
@@ -40,7 +43,8 @@ export async function getPlanDashboardStats() {
   );
 
   for (const organization of organizationsWithPlans) {
-    const plan = organization.planId;
+    // planId is populated with the plan's prices above.
+    const plan = organization.planId as unknown as { _id: unknown; monthlyPrice?: number; yearlyPrice?: number } | null;
 
     if (!plan || typeof plan !== "object") {
       continue;
@@ -96,9 +100,6 @@ export async function syncOrganizationUsage(organizationId: string) {
     return null;
   }
 
-  const User = require("../models/User");
-  const KnowledgeDocument = require("../models/KnowledgeDocument");
-  const Conversation = require("../models/Conversation");
 
   const organization = await Organization.findById(organizationId);
 

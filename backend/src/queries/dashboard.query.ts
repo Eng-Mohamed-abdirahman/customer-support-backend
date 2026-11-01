@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
-const Conversation = require("../models/Conversation");
-const Ticket = require("../models/Ticket");
-const Message = require("../models/Message");
-const User = require("../models/User");
-const KnowledgeDocument = require("../models/KnowledgeDocument");
-const AIConversation = require("../models/AIConversation");
+import Conversation from "../models/Conversation";
+import Ticket from "../models/Ticket";
+import Message from "../models/Message";
+import User from "../models/User";
+import KnowledgeDocument from "../models/KnowledgeDocument";
+import AIConversation from "../models/AIConversation";
 
 /**
  * Calculates overview metrics: today's count, resolved count, active count, and growth percentage.

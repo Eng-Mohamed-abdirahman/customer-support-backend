@@ -1,34 +1,22 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const Organization = require("../models/Organization");
-const Conversation = require("../models/Conversation");
-const Ticket = require("../models/Ticket");
+import mongoose from "mongoose";
+import Organization from "../models/Organization";
+import Conversation from "../models/Conversation";
+import Ticket from "../models/Ticket";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  askConversationSchema,
-  listConversationsSchema,
-  listMessagesSchema,
-} = require("../validators/conversation.validator");
-const { generateConversationReply } = require("../services/conversation.service");
-const {
-  listConversations,
-  listMessages,
-  getOrCreateConversation,
-  appendMessage,
-  getRecentHistory,
-} = require("../services/conversationStore.service");
-const { emitToOrganization } = require("../services/socket.service");
-const {
-  getActiveConnectionByOrganizationId,
-  resolveAccessToken,
-} = require("../services/whatsapp.service");
-const { sendWhatsAppTextMessage } = require("../services/whatsappGraph.service");
-const { sendMessage } = require("../services/whatsappSender.service");
-const { whatsappLog } = require("../utils/whatsappLogger");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { askConversationSchema, listConversationsSchema, listMessagesSchema } from "../validators/conversation.validator";
+import { generateConversationReply } from "../services/conversation.service";
+import { listConversations, listMessages, getOrCreateConversation, appendMessage, getRecentHistory } from "../services/conversationStore.service";
+import { emitToOrganization } from "../services/socket.service";
+import { getActiveConnectionByOrganizationId, resolveAccessToken } from "../services/whatsapp.service";
+import { sendWhatsAppTextMessage } from "../services/whatsappGraph.service";
+import { sendMessage } from "../services/whatsappSender.service";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 const previewConversationOrganizationSelect =
   "_id status profile contact businessInfo supportSettings aiSettings allowedChannels api_settings";
@@ -132,7 +120,7 @@ const parseConversationPayload = (req: Request) => {
 };
 
 const resolveOrganizationFromRequester = async (req: Request) => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   const organizationId = normalizeText(requester?.organizationId) || normalizeText(requester?.company);
 
@@ -152,7 +140,7 @@ const resolveOrganizationFromRequester = async (req: Request) => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user as any;
+  const requester = req.user as any;
   const organizationId =
     normalizeText(requester?.accountId) ||
     normalizeText(requester?.organizationId) ||
@@ -208,8 +196,8 @@ const parseListMessagesPayload = (req: Request) => {
 
 const askCustomerConversation = asyncHandler(async (req: Request, res: Response) => {
   const payload = parseConversationPayload(req);
-  const organization = (req as any).organization;
-  const organizationId = (req as any).organizationId;
+  const organization = req.organization;
+  const organizationId = req.organizationId;
 
   if (!organization || !organizationId) {
     throw new AppError("Invalid customer context", 401);
@@ -354,7 +342,7 @@ const listConversationMessages = asyncHandler(async (req: Request, res: Response
 const takeoverConversation = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const conversationId = normalizeText(req.params?.id);
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
     throw new AppError("Conversation not found", 404);
@@ -366,7 +354,7 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
 
   const conversation = await resolveConversationById(organizationId, conversationId);
   conversation.responderType = "agent";
-  conversation.assignedAgentId = requester._id;
+  conversation.set("assignedAgent", requester._id);
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -404,7 +392,7 @@ const takeoverConversation = asyncHandler(async (req: Request, res: Response) =>
 const returnConversationToAi = asyncHandler(async (req: Request, res: Response) => {
   const organizationId = resolveOrganizationId(req);
   const conversationId = normalizeText(req.params?.id);
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
     throw new AppError("Conversation not found", 404);
@@ -416,7 +404,7 @@ const returnConversationToAi = asyncHandler(async (req: Request, res: Response) 
 
   const conversation = await resolveConversationById(organizationId, conversationId);
   conversation.responderType = "ai";
-  conversation.assignedAgentId = null;
+  conversation.set("assignedAgent", null);
   await conversation.save();
 
   await Ticket.findOneAndUpdate(
@@ -503,13 +491,13 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
         normalizeText(conversation.customerPhone),
         contentText
       );
-    } catch (error: any) {
+    } catch (error) {
       whatsappLog.error("AGENT_SEND", "Failed to deliver agent message to WhatsApp", {
         organizationId,
         conversationId: String(conversation._id),
         customerPhone: conversation.customerPhone,
         messageId: String(message._id),
-        error: String(error?.message ?? error),
+        error: String(getErrorMessage(error) ?? error),
       });
       throw error;
     }
@@ -526,7 +514,7 @@ const sendAgentMessage = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+export {
   askCustomerConversation,
   previewConversation,
   listOrganizationConversations,
@@ -536,4 +524,3 @@ module.exports = {
   sendAgentMessage,
 };
 
-export {};

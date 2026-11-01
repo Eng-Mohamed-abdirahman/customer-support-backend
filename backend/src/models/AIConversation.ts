@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const aiConversationSchema = new mongoose.Schema(
   {
@@ -67,6 +67,5 @@ const aiConversationSchema = new mongoose.Schema(
 
 aiConversationSchema.index({ organizationId: 1, conversationId: 1 });
 
-module.exports = mongoose.model("AIConversation", aiConversationSchema);
+export default mongoose.model("AIConversation", aiConversationSchema);
 
-export {};

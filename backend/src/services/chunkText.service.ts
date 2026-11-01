@@ -92,11 +92,10 @@ const splitTextIntoChunks = (
   return chunks;
 };
 
-module.exports = {
+export {
   splitTextIntoChunks,
   normalizeForChunking,
   DEFAULT_CHUNK_SIZE_CHARS,
   DEFAULT_CHUNK_OVERLAP_CHARS,
 };
 
-export {};

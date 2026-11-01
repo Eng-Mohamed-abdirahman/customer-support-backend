@@ -2,6 +2,9 @@ import { VISION_ANALYSIS_PROMPT } from "../prompts/design.prompts";
 import type { ReferenceLayoutAnalysis } from "../prompts/design.prompts";
 import { DESIGN_VISION_ENABLED, VISION_MODEL } from "../config/design.config";
 import { runVisionAnalysis } from "./replicate.service";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Design");
 
 const EMPTY_ANALYSIS: ReferenceLayoutAnalysis = {
   layoutStructure: "Standard marketing layout with header, hero, content body, and footer zones.",
@@ -71,7 +74,7 @@ export async function analyzeReferenceDesign(
     const raw = visionResult.output;
     return normalizeAnalysis(parseVisionJson(raw), raw);
   } catch (error) {
-    console.warn("Reference vision analysis failed, continuing without structured layout:", error);
+    log.warn("Reference vision analysis failed, continuing without structured layout:", error);
     return null;
   }
 }

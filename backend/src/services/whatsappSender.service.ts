@@ -4,7 +4,8 @@ import { decryptApiKey } from "../utils/cryptoApiKey";
 import { AppError } from "../utils/appError";
 import { whatsappLog } from "../utils/whatsappLogger";
 
-const WhatsAppConnection = require("../models/WhatsAppConnection");
+import WhatsAppConnection from "../models/WhatsAppConnection";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
 
 const graphBaseUrl = env.WHATSAPP_GRAPH_BASE_URL || "https://graph.facebook.com";
 const graphVersion = "v21.0"; // Using v21.0 as specified in the migration guide
@@ -74,11 +75,11 @@ export const sendMessage = async (
       organizationId: accountId,
       accessToken,
     });
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.error("AGENT_SEND", "Failed to decrypt access token", {
       organizationId: accountId,
       phoneNumberId: connection.phoneNumberId,
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
     });
     throw new AppError("Failed to decrypt WhatsApp access token", 500);
   }
@@ -131,22 +132,23 @@ export const sendMessage = async (
     });
 
     return response.data;
-  } catch (error: any) {
-    const errorMsg = error.response?.data
-      ? typeof error.response.data === "object"
-        ? JSON.stringify(error.response.data)
-        : String(error.response.data)
-      : error.message;
+  } catch (error) {
+    const response = axios.isAxiosError(error) ? error.response : undefined;
+    const errorMsg = response?.data
+      ? typeof response.data === "object"
+        ? JSON.stringify(response.data)
+        : String(response.data)
+      : getErrorMessage(error);
 
     whatsappLog.error("AGENT_SEND", "Meta Graph API rejected the message", {
       organizationId: accountId,
       phoneNumberId: connection.phoneNumberId,
       receiverPhone,
-      status: error.response?.status ?? null,
+      status: response?.status ?? null,
       error: errorMsg,
       durationMs: Date.now() - startMs,
     });
 
-    throw new AppError(`WhatsApp Graph API error: ${errorMsg}`, error.response?.status || 500);
+    throw new AppError(`WhatsApp Graph API error: ${errorMsg}`, response?.status || 500);
   }
 };

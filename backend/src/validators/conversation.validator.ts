@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const historyItemSchema = z.object({
   role: z.enum(["customer", "assistant"]),
@@ -47,10 +47,9 @@ const listMessagesSchema = z
   })
   .strict();
 
-module.exports = {
+export {
   askConversationSchema,
   listConversationsSchema,
   listMessagesSchema,
 };
 
-export {};

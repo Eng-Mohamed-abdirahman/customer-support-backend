@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const inviteRoleSchema = z.enum(["admin", "company-admin", "staff"]);
 
@@ -17,7 +17,7 @@ const acceptInvitationSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-module.exports = {
+export {
   inviteRoleSchema,
   createInvitationSchema,
   acceptInvitationSchema,

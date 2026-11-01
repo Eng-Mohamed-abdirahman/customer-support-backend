@@ -1,5 +1,8 @@
 import DesignHistory from "../models/DesignHistory";
 import { processDesignGenerationJob } from "./design.pipeline.service";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Design");
 
 export async function processDesignJob(data: any) {
   const {
@@ -25,7 +28,7 @@ export async function processDesignJob(data: any) {
       rawUserIntention,
     });
   } catch (err) {
-    console.error("Design job failed", err);
+    log.error("Design job failed", err);
     await DesignHistory.findByIdAndUpdate(designHistoryId, { status: "failed" });
     throw err;
   }

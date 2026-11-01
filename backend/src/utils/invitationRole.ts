@@ -20,7 +20,7 @@ const canInviteRole = (inviterRole: UserRole, targetRole: UserRole): boolean => 
   return getAllowedInviteRoles(inviterRole).includes(targetRole);
 };
 
-module.exports = {
+export {
   ALL_INVITABLE_ROLES,
   getAllowedInviteRoles,
   canInviteRole,

@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useEffect } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -41,40 +42,28 @@ const formatDate = (value: string | null) => {
 }
 
 export function SubscribersSheet({ open, onOpenChange, plan }: SubscribersSheetProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [rows, setRows] = useState<
-    Array<{
-      organizationId: string
-      organizationName: string
-      billingCycle: string
-      subscriptionStatus: string
-      expiresAt: string | null
-    }>
-  >([])
+  const subscribersQuery = useQuery({
+    queryKey: ["plan-organizations", plan?.id],
+    queryFn: async () => {
+      const result = await getPlanOrganizations(plan!.id, { limit: 100 })
+      return result.organizations.map((org) => ({
+        organizationId: org.organizationId,
+        organizationName: org.organizationName,
+        billingCycle: org.billingCycle,
+        subscriptionStatus: org.subscriptionStatus,
+        expiresAt: org.expiresAt,
+      }))
+    },
+    enabled: open && Boolean(plan),
+  })
+  const rows = subscribersQuery.data ?? []
+  const isLoading = subscribersQuery.isFetching
 
   useEffect(() => {
-    if (!open || !plan) return
-
-    setIsLoading(true)
-    getPlanOrganizations(plan.id, { limit: 100 })
-      .then((result) => {
-        setRows(
-          result.organizations.map((org) => ({
-            organizationId: org.organizationId,
-            organizationName: org.organizationName,
-            billingCycle: org.billingCycle,
-            subscriptionStatus: org.subscriptionStatus,
-            expiresAt: org.expiresAt,
-          }))
-        )
-      })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : "Failed to load subscribers"
-        toast.error(message)
-      })
-      .finally(() => setIsLoading(false))
-  }, [open, plan])
+    if (subscribersQuery.error) {
+      toast.error(subscribersQuery.error.message || "Failed to load subscribers")
+    }
+  }, [subscribersQuery.error])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

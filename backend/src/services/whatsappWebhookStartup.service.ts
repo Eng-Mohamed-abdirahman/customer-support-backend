@@ -1,11 +1,11 @@
-const { env } = require("../config/env");
-const { whatsappLog } = require("../utils/whatsappLogger");
-const {
-  buildCallbackUrl,
-  isPublicCallbackUrl,
-  repairWabaSubscriptionsForActiveConnections,
-} = require("./whatsappWebhookSetup.service");
-const { getAppWebhookSubscriptions } = require("./whatsappGraph.service");
+import { env } from "../config/env";
+import { whatsappLog } from "../utils/whatsappLogger";
+import { buildCallbackUrl, isPublicCallbackUrl, repairWabaSubscriptionsForActiveConnections } from "./whatsappWebhookSetup.service";
+import { getAppWebhookSubscriptions } from "./whatsappGraph.service";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("WhatsApp");
 
 const probeUrl = async (url: string): Promise<boolean> => {
   try {
@@ -33,7 +33,7 @@ const logWebhookStartupDiagnostics = async () => {
   });
 
   if (!callbackIsPublic) {
-    console.warn(
+    log.warn(
       "\n[WhatsApp] ⚠️  PUBLIC_API_URL is localhost — Meta cannot deliver inbound WhatsApp messages to this machine.\n" +
         "   Fix: run `ngrok http 5000`, set PUBLIC_API_URL=https://YOUR-NGROK-URL in backend/.env, restart, then click\n" +
         "   \"Enable inbound messages\" in Dashboard → WhatsApp settings.\n"
@@ -42,7 +42,7 @@ const logWebhookStartupDiagnostics = async () => {
   }
 
   if (!env.WHATSAPP_APP_ID || !env.WHATSAPP_APP_SECRET) {
-    console.warn(
+    log.warn(
       "\n[WhatsApp] ⚠️  WHATSAPP_APP_ID / WHATSAPP_APP_SECRET missing — cannot verify Meta webhook subscription.\n"
     );
     return;
@@ -67,14 +67,14 @@ const logWebhookStartupDiagnostics = async () => {
     });
 
     if (!meta.messagesSubscribed) {
-      console.warn(
+      log.warn(
         "\n[WhatsApp] ⚠️  Meta app is not subscribed to the \"messages\" webhook field.\n" +
           "   Fix: Dashboard → WhatsApp → click \"Enable inbound messages\".\n"
       );
     }
 
     if (!urlsMatch) {
-      console.warn(
+      log.warn(
         `\n[WhatsApp] ⚠️  Meta webhook URL mismatch!\n` +
           `   Meta sends to:  ${metaCallbackUrl}\n` +
           `   Your app uses:  ${callbackUrl}\n` +
@@ -84,7 +84,7 @@ const logWebhookStartupDiagnostics = async () => {
     }
 
     if (!metaReachable && metaCallbackUrl.startsWith("http")) {
-      console.warn(
+      log.warn(
         `\n[WhatsApp] ⚠️  Meta webhook URL is not reachable: ${metaCallbackUrl}\n` +
           `   Inbound WhatsApp messages will NOT arrive until this URL is online.\n` +
           `   If using ngrok, start it again (\`ngrok http 5000\`) — free ngrok URLs change every restart.\n`
@@ -99,28 +99,27 @@ const logWebhookStartupDiagnostics = async () => {
       whatsappLog.info("WEBHOOK_DIAG", "Auto-repaired missing WABA webhook subscriptions", {
         repairedWabas,
       });
-      console.log(
+      log.info(
         `\n[WhatsApp] ✓ Auto-subscribed your Meta app to WABA(s): ${repairedWabas.map((w: any) => w.wabaId).join(", ")}\n` +
           `   Try sending a WhatsApp message to your business number now.\n`
       );
     }
 
     if (brokenWabas.length > 0) {
-      console.warn(
+      log.warn(
         `\n[WhatsApp] ⚠️  Could not subscribe app to WABA(s): ${brokenWabas.map((w: any) => w.wabaId).join(", ")}\n` +
           `   Click \"Enable inbound messages\" in Dashboard → WhatsApp settings.\n`
       );
     }
-  } catch (error: any) {
+  } catch (error) {
     whatsappLog.warn("WEBHOOK_DIAG", "Could not read Meta webhook subscription", {
-      error: String(error?.message ?? error),
+      error: String(getErrorMessage(error) ?? error),
     });
   }
 };
 
-module.exports = {
+export {
   logWebhookStartupDiagnostics,
   probeUrl,
 };
 
-export {};

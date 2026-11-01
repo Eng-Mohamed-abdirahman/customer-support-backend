@@ -5,7 +5,10 @@ import { env } from "./config/env";
 import { initSocketServer } from "./services/socket.service";
 import { designLog, maskSecret } from "./utils/design.logger";
 
-const { logWebhookStartupDiagnostics } = require("./services/whatsappWebhookStartup.service");
+import { logWebhookStartupDiagnostics } from "./services/whatsappWebhookStartup.service";
+import { createLogger } from "./utils/logger";
+
+const log = createLogger("Server");
 
 const startServer = async () => {
   await connectDB();
@@ -14,7 +17,7 @@ const startServer = async () => {
   initSocketServer(httpServer);
 
   httpServer.listen(env.PORT, () => {
-    console.log(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
+    log.info(`Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     designLog.info("startup.replicate", {
       token: maskSecret(process.env.REPLICATE_API_TOKEN),
       kontextModel: process.env.REPLICATE_KONTEXT_MODEL || "google/nano-banana",

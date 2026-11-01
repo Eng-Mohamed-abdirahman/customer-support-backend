@@ -1,13 +1,12 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { saveBrandIdentity, getCurrentBrandIdentity } = require("../controllers/brand.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { saveBrandIdentity, getCurrentBrandIdentity } from "../controllers/brand.controller";
 
 const router = express.Router();
 
 router.post("/", protect, saveBrandIdentity);
 router.get("/current", protect, getCurrentBrandIdentity);
 
-module.exports = router;
+export default router;
 
-export {};

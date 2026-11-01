@@ -4,6 +4,9 @@
 
 import { processDesignJob } from "./design.processor";
 import { designLog } from "../utils/design.logger";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Inngest");
 
 export async function sendEvent(eventName: string, payload: any) {
   // Map event names to processors. For now, we handle `design.generate` and `design.regenerate`.
@@ -12,10 +15,10 @@ export async function sendEvent(eventName: string, payload: any) {
       return await processDesignJob(payload);
     }
 
-    console.warn("Unknown event sent to Inngest client:", eventName);
+    log.warn("Unknown event sent to Inngest client:", eventName);
     return null;
   } catch (err) {
-    console.error("Inngest sendEvent error", err);
+    log.error("Inngest sendEvent error", err);
     throw err;
   }
 }

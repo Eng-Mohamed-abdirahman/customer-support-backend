@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { TrendingUp, TrendingDown, Minus, MessageSquareText, Clock, BrainCircuit, Users } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"

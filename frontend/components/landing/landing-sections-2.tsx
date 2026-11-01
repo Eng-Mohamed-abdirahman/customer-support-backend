@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { MaterialIcon } from "./landing-header";
@@ -41,7 +42,14 @@ export function LandingKnowledge() {
           <div className="relative">
             <div className="absolute -inset-20 rounded-full bg-primary/5 blur-[100px]" />
             <div className="glass-card relative rounded-3xl border border-outline-variant/20 p-8 shadow-2xl">
-              <img className="w-full rounded-2xl" src={KNOWLEDGE_IMAGE} alt="AI knowledge training" />
+              <Image
+                className="h-auto w-full rounded-2xl"
+                src={KNOWLEDGE_IMAGE}
+                alt="AI knowledge training"
+                width={1200}
+                height={900}
+                sizes="(min-width: 1024px) 50vw, 100vw"
+              />
               <div className="glass-card absolute -right-6 -bottom-6 rounded-2xl border border-white/60 p-6 shadow-xl">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
@@ -122,7 +130,14 @@ export function LandingAnalytics() {
           ))}
         </div>
         <div className="glass-card rounded-3xl border border-white/10 bg-white/5 p-8">
-          <img className="w-full rounded-xl" src={ANALYTICS_IMAGE} alt="Analytics dashboard" />
+          <Image
+            className="h-auto w-full rounded-xl"
+            src={ANALYTICS_IMAGE}
+            alt="Analytics dashboard"
+            width={1600}
+            height={1000}
+            sizes="100vw"
+          />
         </div>
       </div>
     </section>

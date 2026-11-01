@@ -1,5 +1,5 @@
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
 
 type RerankInputDocument = {
   id: string;
@@ -87,8 +87,7 @@ const rerankWithCohere = async (
     .filter((result): result is RerankResult => Boolean(result));
 };
 
-module.exports = {
+export {
   rerankWithCohere,
 };
 
-export {};

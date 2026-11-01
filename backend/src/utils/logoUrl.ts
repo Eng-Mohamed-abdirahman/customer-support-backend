@@ -1,5 +1,5 @@
-const { extractStorageObjectKey } = require("../config/backblaze");
-const { getFileUrl } = require("../services/storage.service");
+import { extractStorageObjectKey } from "../config/backblaze";
+import { getFileUrl } from "../services/storage.service";
 
 const LOGO_URL_EXPIRES_IN = 60 * 60 * 24 * 7; // 7 days
 
@@ -20,9 +20,6 @@ export const resolveLogoDisplayUrl = async (storedLogoUrl: string): Promise<stri
   }
 };
 
-module.exports = {
-  resolveLogoDisplayUrl,
-  LOGO_URL_EXPIRES_IN,
-};
+export { LOGO_URL_EXPIRES_IN };
 
-export {};
+

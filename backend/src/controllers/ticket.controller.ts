@@ -1,17 +1,16 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const Ticket = require("../models/Ticket");
-const { emitToOrganization } = require("../services/socket.service");
+import mongoose from "mongoose";
+import Ticket from "../models/Ticket";
+import { emitToOrganization } from "../services/socket.service";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  createTicketSchema,
-  listTicketsSchema,
-  updateTicketStatusSchema,
-} = require("../validators/ticket.validator");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { createTicketSchema, listTicketsSchema, updateTicketStatusSchema } from "../validators/ticket.validator";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Tickets");
 
 type AuthenticatedUser = {
   _id: string;
@@ -29,12 +28,12 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const organizationIdFromApiKey = normalizeText((req as any).organizationId);
+  const organizationIdFromApiKey = normalizeText(req.organizationId);
   if (organizationIdFromApiKey && mongoose.Types.ObjectId.isValid(organizationIdFromApiKey)) {
     return String(organizationIdFromApiKey);
   }
 
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
   const organizationId = normalizeText(requester?.organizationId) || normalizeText(requester?.company);
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
@@ -45,14 +44,14 @@ const resolveOrganizationId = (req: Request): string => {
 };
 
 const assertApiKeyRequest = (req: Request) => {
-  const organizationIdFromApiKey = normalizeText((req as any).organizationId);
+  const organizationIdFromApiKey = normalizeText(req.organizationId);
   if (!organizationIdFromApiKey) {
     throw new AppError("API key is required to create tickets", 401);
   }
 };
 
 const ensureCanViewTickets = (req: Request) => {
-  const requester = (req as any).user as AuthenticatedUser | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
 
   if (!requester || !requester.role) {
     throw new AppError("Not authorized to view tickets", 401);
@@ -66,8 +65,8 @@ const createTicket = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(parsed.error.issues[0]?.message ?? "Invalid request payload", 400);
   }
 
-  const requester = (req as any).user as AuthenticatedUser | undefined;
-  const organizationFromApiKey = (req as any).organization as { createdBy?: string } | undefined;
+  const requester = req.user as AuthenticatedUser | undefined;
+  const organizationFromApiKey = req.organization as { createdBy?: string } | undefined;
   const createdBy = requester?._id ?? organizationFromApiKey?.createdBy;
   if (!createdBy) {
     throw new AppError("Not authorized to create tickets", 401);
@@ -164,7 +163,7 @@ const updateTicketStatus = asyncHandler(async (req: Request, res: Response) => {
       status: ticket.status,
     });
   } catch (err) {
-    console.error("Failed to emit ticket:updated event:", err);
+    log.error("Failed to emit ticket:updated event:", err);
   }
 
   apiResponse(res, 200, "Ticket status updated", {
@@ -182,10 +181,9 @@ const updateTicketStatus = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+export {
   createTicket,
   listTickets,
   updateTicketStatus,
 };
 
-export {};

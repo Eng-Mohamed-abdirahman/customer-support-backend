@@ -1,15 +1,20 @@
 import mongoose from "mongoose";
 import { env } from "./env";
+import WhatsAppConnection from "../models/WhatsAppConnection";
+import Organization from "../models/Organization";
+import { getErrorCode, getErrorMessage } from "../utils/errors";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Database");
 
 const syncWhatsAppConnectionIndexes = async () => {
-  const WhatsAppConnection = require("../models/WhatsAppConnection");
 
   try {
     await WhatsAppConnection.collection.dropIndex("organizationId_1");
-    console.log("Dropped stale unique index on whatsappconnections.organizationId");
-  } catch (error: any) {
-    if (error?.codeName !== "IndexNotFound" && error?.code !== 27) {
-      console.warn("Could not drop organizationId index:", error?.message ?? error);
+    log.info("Dropped stale unique index on whatsappconnections.organizationId");
+  } catch (error) {
+    if ((error as { codeName?: string })?.codeName !== "IndexNotFound" && getErrorCode(error) !== 27) {
+      log.warn("Could not drop organizationId index:", getErrorMessage(error));
     }
   }
 
@@ -30,7 +35,6 @@ const syncWhatsAppConnectionIndexes = async () => {
   ];
 
   if (organizationIds.length > 0) {
-    const Organization = require("../models/Organization");
     await Organization.updateMany(
       { _id: { $in: organizationIds } },
       { $addToSet: { allowedChannels: "whatsapp" } }
@@ -42,9 +46,9 @@ export const connectDB = async () => {
   try {
     await mongoose.connect(env.MONGO_URI);
     await syncWhatsAppConnectionIndexes();
-    console.log("MongoDB Connected");
+    log.info("MongoDB Connected");
   } catch (error) {
-    console.error("MongoDB Connection Error: ", error);
+    log.error("MongoDB Connection Error: ", error);
     process.exit(1);
   }
 };

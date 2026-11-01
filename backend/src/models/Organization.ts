@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const organizationSchema = new mongoose.Schema(
   {
@@ -358,6 +358,8 @@ organizationSchema.pre("validate", function (this: any) {
   }
 });
 
-module.exports = mongoose.model("Organization", organizationSchema);
+// API-key requests look organizations up by the key prefix of any of their keys.
+organizationSchema.index({ "api_keys.key_prefix": 1 });
 
-export {};
+export default mongoose.model("Organization", organizationSchema);
+

@@ -1,35 +1,9 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const {
-  createOrganization,
-  listOrganizations,
-  listMyCompanyUsers,
-  updateMyCompanyProfile,
-  listMyCompanyApiKeys,
-  createMyCompanyApiKey,
-  revokeMyCompanyApiKey,
-  revealMyCompanyApiKey,
-  deleteMyCompanyApiKey,
-  getMyCompanyApiKeySettings,
-  getMyCompanyUsage,
-  listOrganizationsUsage,
-  rotateMyCompanyApiKey,
-  getOrganizationAdminSettings,
-  updateOrganizationAdminSettings,
-} = require("../controllers/organization.controller");
-const {
-  requirePlatformAdmin,
-  requireCompanyAdmin,
-  requireOrganizationMember,
-} = require("../middlewares/platformAdmin.middleware");
-const {
-  assignPlanToOrganization,
-  changeOrganizationPlan,
-  removePlanFromOrganization,
-  getMyOrganizationSubscription,
-  requestPlanUpgrade,
-} = require("../controllers/plan.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { createOrganization, listOrganizations, listMyCompanyUsers, updateMyCompanyProfile, listMyCompanyApiKeys, createMyCompanyApiKey, revokeMyCompanyApiKey, revealMyCompanyApiKey, deleteMyCompanyApiKey, getMyCompanyApiKeySettings, getMyCompanyUsage, listOrganizationsUsage, rotateMyCompanyApiKey, getOrganizationAdminSettings, updateOrganizationAdminSettings } from "../controllers/organization.controller";
+import { requirePlatformAdmin, requireCompanyAdmin, requireOrganizationMember } from "../middlewares/platformAdmin.middleware";
+import { assignPlanToOrganization, changeOrganizationPlan, removePlanFromOrganization, getMyOrganizationSubscription, requestPlanUpgrade } from "../controllers/plan.controller";
 
 const router = express.Router();
 
@@ -54,6 +28,5 @@ router.get("/:organizationId/admin-settings", protect, getOrganizationAdminSetti
 router.patch("/:organizationId/admin-settings", protect, updateOrganizationAdminSettings);
 router.post("/", protect, createOrganization);
 
-module.exports = router;
+export default router;
 
-export {};

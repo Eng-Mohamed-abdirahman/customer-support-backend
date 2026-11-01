@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const connectWhatsAppSchema = z
   .object({
@@ -18,9 +18,8 @@ const embeddedSignupSchema = z
   })
   .strict();
 
-module.exports = {
+export {
   connectWhatsAppSchema,
   embeddedSignupSchema,
 };
 
-export {};

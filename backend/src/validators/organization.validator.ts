@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 const organizationStatusSchema = z.enum(["trialing", "active", "suspended", "cancelled"]);
 
@@ -115,12 +115,11 @@ const createApiKeySchema = z.object({
     .optional(),
 });
 
-module.exports = {
+export {
   createOrganizationSchema,
   updateMyOrganizationProfileSchema,
-  updateOrganizationAdminSettingsSchema: superAdminSettingsSchema,
+  superAdminSettingsSchema as updateOrganizationAdminSettingsSchema,
   createApiKeySchema,
   organizationStatusSchema,
 };
 
-export {};

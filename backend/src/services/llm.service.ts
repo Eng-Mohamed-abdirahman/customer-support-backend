@@ -1,10 +1,12 @@
-const OpenAI = require("openai");
+import OpenAI from "openai";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
+import { createLogger } from "../utils/logger";
 
-const OpenAIClient = OpenAI?.default ?? OpenAI;
-let openAiClient: any = null;
+const log = createLogger("LLM");
+
+let openAiClient: OpenAI | null = null;
 
 const getOpenAiClient = () => {
   if (!env.OPENAI_API_KEY) {
@@ -12,7 +14,7 @@ const getOpenAiClient = () => {
   }
 
   if (!openAiClient) {
-    openAiClient = new OpenAIClient({
+    openAiClient = new OpenAI({
       apiKey: env.OPENAI_API_KEY,
     });
   }
@@ -29,7 +31,7 @@ const generateSupportReplyWithOpenAi = async (input: {
   const client = getOpenAiClient();
   const model = env.OPENAI_LLM_MODEL || "gpt-4o-mini";
 
-  console.log("[LLM] Request", {
+  log.debug("[LLM] Request", {
     model,
     mode: "openai",
     systemChars: (input.system || "").length,
@@ -43,14 +45,14 @@ const generateSupportReplyWithOpenAi = async (input: {
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
     max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
     messages: [
-      ...(input.system ? [{ role: "system", content: input.system }] : []),
-      { role: "user", content: input.user || "" },
+      ...(input.system ? [{ role: "system" as const, content: input.system }] : []),
+      { role: "user" as const, content: input.user || "" },
     ],
   });
 
   const generatedText = (response.choices[0]?.message?.content || "").trim();
 
-  console.log("[LLM] Response", {
+  log.debug("[LLM] Response", {
     responseType: typeof response,
     outputChars: generatedText.length,
   });
@@ -75,7 +77,7 @@ const generateActionableReplyWithOpenAi = async (input: {
   const client = getOpenAiClient();
   const model = env.OPENAI_LLM_MODEL || "gpt-4o-mini";
 
-  console.log("[LLM Actionable] Request", {
+  log.debug("[LLM Actionable] Request", {
     model,
     mode: "openai_tools",
     messageCount: input.messages.length,
@@ -87,7 +89,7 @@ const generateActionableReplyWithOpenAi = async (input: {
     temperature: typeof input.temperature === "number" ? input.temperature : 0.2,
     max_tokens: typeof input.maxNewTokens === "number" ? input.maxNewTokens : 420,
     messages: [
-      ...(input.system ? [{ role: "system", content: input.system }] : []),
+      ...(input.system ? [{ role: "system" as const, content: input.system }] : []),
       ...input.messages,
     ],
   };
@@ -113,9 +115,8 @@ const generateActionableReplyWithOpenAi = async (input: {
   };
 };
 
-module.exports = {
+export {
   generateSupportReplyWithOpenAi,
   generateActionableReplyWithOpenAi,
 };
 
-export {};

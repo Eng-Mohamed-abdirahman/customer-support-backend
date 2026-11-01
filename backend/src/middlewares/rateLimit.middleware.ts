@@ -14,9 +14,9 @@ const resolveRateLimitKey = (req: Request) => {
   }
 
   const orgId =
-    (req as any).organizationId ||
-    (req as any).user?.organizationId ||
-    (req as any).user?.company;
+    req.organizationId ||
+    req.user?.organizationId ||
+    req.user?.company;
 
   if (typeof orgId === "string" && orgId.trim()) {
     return `org:${orgId}`;

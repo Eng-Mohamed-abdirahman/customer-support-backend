@@ -1,24 +1,22 @@
-const HuggingFaceInference = require("@huggingface/inference");
+import { InferenceClient, PROVIDERS_OR_POLICIES } from "@huggingface/inference";
 
-const { env } = require("../config/env");
-const { AppError } = require("../utils/appError");
+import { env } from "../config/env";
+import { AppError } from "../utils/appError";
 
-const InferenceClient =
-  HuggingFaceInference.InferenceClient ??
-  HuggingFaceInference.default?.InferenceClient ??
-  HuggingFaceInference.default;
+type InferenceProviderOrPolicy = (typeof PROVIDERS_OR_POLICIES)[number];
+
+const resolveProvider = (value: string): InferenceProviderOrPolicy =>
+  (PROVIDERS_OR_POLICIES as readonly string[]).includes(value)
+    ? (value as InferenceProviderOrPolicy)
+    : "hf-inference";
 
 const EMBEDDING_MODEL = env.HF_EMBEDDING_MODEL || "google/embeddinggemma-300m";
 
-let huggingFaceClient: any = null;
+let huggingFaceClient: InferenceClient | null = null;
 
 const getHuggingFaceClient = () => {
   if (!env.HF_TOKEN) {
     throw new AppError("HF_TOKEN is not configured", 500);
-  }
-
-  if (!InferenceClient) {
-    throw new AppError("Hugging Face inference client is not available", 500);
   }
 
   if (!huggingFaceClient) {
@@ -96,7 +94,7 @@ const generateEmbeddings = async (texts: string[]): Promise<number[][]> => {
   const response = await client.featureExtraction({
     model: EMBEDDING_MODEL,
     inputs: sanitizedTexts.length === 1 ? sanitizedTexts[0] : sanitizedTexts,
-    provider: env.HF_PROVIDER || "hf-inference",
+    provider: resolveProvider(env.HF_PROVIDER),
   });
 
   const embeddings = normalizeEmbeddingOutput(response, sanitizedTexts.length);
@@ -114,9 +112,8 @@ const generateEmbeddings = async (texts: string[]): Promise<number[][]> => {
   return embeddings;
 };
 
-module.exports = {
+export {
   generateEmbeddings,
   EMBEDDING_MODEL,
 };
 
-export {};

@@ -2,7 +2,15 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../utils/appError";
-const User = require("../models/User");
+import User from "../models/User";
+
+/** The signed-in user set by `protect`; throws 401 if the route is missing `protect`. */
+export const getAuthenticatedUser = (req: Request) => {
+  if (!req.user) {
+    throw new AppError("Not authorized to access this route", 401);
+  }
+  return req.user;
+};
 
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;
@@ -27,10 +35,10 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
     );
     if (!user) return next(new AppError("User not found", 404));
 
-    (req as any).user = {
+    req.user = {
       _id: String(user._id),
-      firstName: user.firstName,
-      lastName: user.lastName,
+      firstName: user.firstName ?? undefined,
+      lastName: user.lastName ?? undefined,
       email: user.email,
       role: user.role,
       organizationId: user.company ? String(user.company) : null,

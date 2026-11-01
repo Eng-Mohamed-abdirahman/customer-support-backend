@@ -1,14 +1,7 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const {
-  connectWhatsApp,
-  getWhatsAppStatus,
-  disconnectWhatsApp,
-  completeEmbeddedSignup,
-  diagnoseInboundWebhooks,
-  setupInboundWebhooks,
-} = require("../controllers/whatsapp.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { connectWhatsApp, getWhatsAppStatus, disconnectWhatsApp, completeEmbeddedSignup, diagnoseInboundWebhooks, setupInboundWebhooks } from "../controllers/whatsapp.controller";
 
 const router = express.Router();
 
@@ -19,6 +12,5 @@ router.get("/webhook/diagnose", protect, diagnoseInboundWebhooks);
 router.post("/webhook/setup", protect, setupInboundWebhooks);
 router.delete("/disconnect/:phoneNumberId", protect, disconnectWhatsApp);
 
-module.exports = router;
+export default router;
 
-export {};

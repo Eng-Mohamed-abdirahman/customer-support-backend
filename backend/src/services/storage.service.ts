@@ -6,8 +6,11 @@ import {
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
-import s3Client, { B2_BUCKET_NAME, buildPublicObjectUrl } from "../config/backblaze";
+import { getS3Client, B2_BUCKET_NAME, buildPublicObjectUrl } from "../config/backblaze";
 import { AppError } from "../utils/appError";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("Storage");
 
 const ensureBackblazeConfigured = () => {
   if (!B2_BUCKET_NAME) {
@@ -27,7 +30,7 @@ export async function uploadFile(
 
   try {
     const upload = new Upload({
-      client: s3Client,
+      client: getS3Client(),
       params: {
         Bucket: B2_BUCKET_NAME,
         Key: key,
@@ -38,7 +41,7 @@ export async function uploadFile(
 
     await upload.done();
   } catch (error) {
-    console.error("B2 Upload Failed:", error);
+    log.error("B2 Upload Failed:", error);
     throw new Error(`B2 Upload Failed: ${(error as any).message}`);
   }
 
@@ -64,7 +67,7 @@ export async function getUploadPresignedUrl(
   });
 
   // Only sign "host" so browser PUTs are not rejected when Content-Type is omitted.
-  return await getSignedUrl(s3Client, command, { expiresIn: 300 });
+  return await getSignedUrl(getS3Client(), command, { expiresIn: 300 });
 }
 
 export async function getFileUrl(
@@ -79,7 +82,7 @@ export async function getFileUrl(
     Key: publicId,
   });
 
-  return await getSignedUrl(s3Client, command, { expiresIn });
+  return await getSignedUrl(getS3Client(), command, { expiresIn });
 }
 
 export async function deleteFile(publicId: string): Promise<void> {
@@ -90,5 +93,5 @@ export async function deleteFile(publicId: string): Promise<void> {
     Key: publicId,
   });
 
-  await s3Client.send(command);
+  await getS3Client().send(command);
 }

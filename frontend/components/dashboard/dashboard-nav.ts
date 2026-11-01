@@ -11,19 +11,14 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Ticket,
-  ShoppingCart,
   Puzzle,
   ReceiptText,
-  Settings,
   Shield,
   SlidersHorizontal,
   UserCog,
   UserPlus,
   Users,
   ContactRound,
-  Palette,
-  Sparkles,
-  History,
 } from "lucide-react"
 
 import type { MembershipRole, SafeUser, UserRole } from "@/types/auth"

@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 
-const mongoose = require("mongoose");
-const BrandIdentity = require("../models/BrandIdentity");
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { createBrandIdentitySchema } = require("../validators/brand.validator");
-const { resolveLogoDisplayUrl } = require("../utils/logoUrl");
+import mongoose from "mongoose";
+import BrandIdentity from "../models/BrandIdentity";
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { createBrandIdentitySchema } from "../validators/brand.validator";
+import { resolveLogoDisplayUrl } from "../utils/logoUrl";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -17,11 +17,11 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user;
+  const requester = req.user;
   const organizationId =
     normalizeText(requester?.organizationId) ||
     normalizeText(requester?.company) ||
-    normalizeText((req as any).organizationId);
+    normalizeText(req.organizationId);
 
   if (!organizationId || !mongoose.Types.ObjectId.isValid(organizationId)) {
     throw new AppError("Organization context is missing for this request", 400);
@@ -96,9 +96,8 @@ const getCurrentBrandIdentity = asyncHandler(async (req: Request, res: Response)
   });
 });
 
-module.exports = {
+export {
   saveBrandIdentity,
   getCurrentBrandIdentity,
 };
 
-export {};

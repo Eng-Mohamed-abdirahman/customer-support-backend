@@ -10,8 +10,7 @@ const createBrandIdentitySchema = z.object({
   logoUrl: z.string().trim().url("Logo URL must be a valid URL"),
 });
 
-module.exports = {
+export {
   createBrandIdentitySchema,
 };
 
-export {};

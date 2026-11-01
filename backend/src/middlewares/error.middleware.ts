@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/appError";
-const multer = require("multer");
+import multer from "multer";
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   let statusCode = err?.statusCode || 500;
   let message = err?.message || "Server Error";
-  const requestId = (req as any).requestId;
+  const requestId = req.requestId;
 
   if (err instanceof AppError) {
     statusCode = err.statusCode;

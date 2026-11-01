@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const knowledgeChunkSchema = new mongoose.Schema(
   {
@@ -50,6 +50,5 @@ const knowledgeChunkSchema = new mongoose.Schema(
 knowledgeChunkSchema.index({ organizationId: 1, documentId: 1 });
 knowledgeChunkSchema.index({ embeddingId: 1 }, { unique: true });
 
-module.exports = mongoose.model("KnowledgeChunk", knowledgeChunkSchema);
+export default mongoose.model("KnowledgeChunk", knowledgeChunkSchema);
 
-export {};

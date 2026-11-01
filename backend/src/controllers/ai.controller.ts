@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { askConversationSchema } = require("../validators/conversation.validator");
-const { generateConversationReply } = require("../services/conversation.service");
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { askConversationSchema } from "../validators/conversation.validator";
+import { generateConversationReply } from "../services/conversation.service";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -72,8 +72,8 @@ const parseChatPayload = (req: Request) => {
 
 const chatWithAi = asyncHandler(async (req: Request, res: Response) => {
   const payload = parseChatPayload(req);
-  const organization = (req as any).organization;
-  const organizationId = normalizeText((req as any).organizationId);
+  const organization = req.organization;
+  const organizationId = normalizeText(req.organizationId);
 
   if (!organization || !organizationId) {
     throw new AppError("Invalid organization context", 401);
@@ -94,8 +94,7 @@ const chatWithAi = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+export {
   chatWithAi,
 };
 
-export {};

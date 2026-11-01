@@ -15,6 +15,8 @@ export default function MarketingLayout({
 }>) {
   return (
     <>
+      {/* Material Symbols are only used on the marketing pages, so they load here, not in the root layout. */}
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"

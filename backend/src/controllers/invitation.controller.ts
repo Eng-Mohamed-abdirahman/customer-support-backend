@@ -1,25 +1,19 @@
 import { Request, Response } from "express";
 
-const crypto = require("crypto");
-const mongoose = require("mongoose");
+import * as crypto from "crypto";
+import mongoose from "mongoose";
 
-const Invitation = require("../models/Invitation");
-const User = require("../models/User");
+import Invitation from "../models/Invitation";
+import User from "../models/User";
 
-const { getMailClient } = require("../config/email");
-const { env } = require("../config/env");
-const { hashPassword } = require("../utils/hash");
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const {
-  createInvitationSchema,
-  acceptInvitationSchema,
-} = require("../validators/invitation.validator");
-const {
-  getAllowedInviteRoles,
-  canInviteRole,
-} = require("../utils/invitationRole");
+import { getMailClient } from "../config/email";
+import { env } from "../config/env";
+import { hashPassword } from "../utils/hash";
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { createInvitationSchema, acceptInvitationSchema } from "../validators/invitation.validator";
+import { getAllowedInviteRoles, canInviteRole } from "../utils/invitationRole";
 
 type UserRole = "admin" | "company-admin" | "staff";
 
@@ -39,7 +33,7 @@ const hashInvitationToken = (rawToken: string): string => {
 };
 
 const getInviterFromRequest = (req: Request): AuthenticatedUser => {
-  const inviter = (req as any).user as AuthenticatedUser | undefined;
+  const inviter = req.user as AuthenticatedUser | undefined;
 
   if (!inviter || !inviter._id || !inviter.role) {
     throw new AppError("Not authorized to send invitations", 401);
@@ -251,7 +245,7 @@ const completeInvitationRegistration = asyncHandler(
   }
 );
 
-module.exports = {
+export {
   createInvitation,
   completeInvitationRegistration,
 };

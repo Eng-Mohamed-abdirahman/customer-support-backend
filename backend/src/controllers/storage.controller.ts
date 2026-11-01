@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import path from "path";
 
-const { apiResponse } = require("../utils/apiResponse");
-const { AppError } = require("../utils/appError");
-const { asyncHandler } = require("../utils/asyncHandler");
-const { getUploadPresignedUrl, uploadFile, getFileUrl } = require("../services/storage.service");
-const { buildPublicObjectUrl } = require("../config/backblaze");
-const upload = require("../middlewares/upload").default;
+import { apiResponse } from "../utils/apiResponse";
+import { AppError } from "../utils/appError";
+import { asyncHandler } from "../utils/asyncHandler";
+import { getUploadPresignedUrl, uploadFile, getFileUrl } from "../services/storage.service";
+import { buildPublicObjectUrl } from "../config/backblaze";
+import upload from "../middlewares/upload";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -17,11 +17,11 @@ const normalizeText = (value: unknown): string => {
 };
 
 const resolveOrganizationId = (req: Request): string => {
-  const requester = (req as any).user;
+  const requester = req.user;
   const organizationId =
     normalizeText(requester?.organizationId) ||
     normalizeText(requester?.company) ||
-    normalizeText((req as any).organizationId);
+    normalizeText(req.organizationId);
 
   if (!organizationId) {
     throw new AppError("Organization context is missing for this request", 400);
@@ -88,7 +88,7 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("type query parameter must be set to 'logo'", 400);
   }
 
-  const file = (req as any).file;
+  const file = req.file;
   if (!file || !file.buffer || !file.originalname || !file.mimetype) {
     throw new AppError("A file must be uploaded under the 'file' field", 400);
   }
@@ -113,10 +113,11 @@ const uploadLogo = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-module.exports = {
+const uploadMiddleware = upload.single("file");
+
+export {
   getPresignedUploadUrl,
   uploadLogo,
-  uploadMiddleware: upload.single("file"),
+  uploadMiddleware,
 };
 
-export {};

@@ -1,8 +1,8 @@
-const fs = require("fs/promises");
-const mammoth = require("mammoth");
-const pdfParse = require("pdf-parse");
+import * as fs from "fs/promises";
+import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 
-const { AppError } = require("../utils/appError");
+import { AppError } from "../utils/appError";
 
 const SUPPORTED_DOCUMENT_MIME_TYPES = [
   "application/pdf",
@@ -20,9 +20,14 @@ const normalizeDocumentText = (rawText: string): string => {
 
 const parsePdfFile = async (filePath: string): Promise<string> => {
   const fileBuffer = await fs.readFile(filePath);
-  const parsed = await pdfParse(fileBuffer);
+  const parser = new PDFParse({ data: fileBuffer });
 
-  return normalizeDocumentText(parsed?.text ?? "");
+  try {
+    const parsed = await parser.getText();
+    return normalizeDocumentText(parsed?.text ?? "");
+  } finally {
+    await parser.destroy();
+  }
 };
 
 const parseDocxFile = async (filePath: string): Promise<string> => {
@@ -49,10 +54,9 @@ const parseDocumentText = async (filePath: string, mimeType: string): Promise<st
   return extractedText;
 };
 
-module.exports = {
+export {
   parseDocumentText,
   normalizeDocumentText,
   SUPPORTED_DOCUMENT_MIME_TYPES,
 };
 
-export {};

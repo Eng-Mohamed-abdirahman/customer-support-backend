@@ -1,11 +1,8 @@
-const express = require("express");
+import express from "express";
 
-const { protect } = require("../middlewares/auth.middleware");
-const { authLimiter } = require("../middlewares/rateLimit.middleware");
-const {
-  createInvitation,
-  completeInvitationRegistration,
-} = require("../controllers/invitation.controller");
+import { protect } from "../middlewares/auth.middleware";
+import { authLimiter } from "../middlewares/rateLimit.middleware";
+import { createInvitation, completeInvitationRegistration } from "../controllers/invitation.controller";
 
 const router = express.Router();
 
@@ -15,4 +12,4 @@ router.post("/", protect, createInvitation);
 // Complete registration from invitation token.
 router.post("/accept", authLimiter, completeInvitationRegistration);
 
-module.exports = router;
+export default router;

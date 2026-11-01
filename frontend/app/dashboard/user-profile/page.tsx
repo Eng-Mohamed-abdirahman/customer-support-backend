@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertCircle, Loader2, Mail, RefreshCw, Save, ShieldCheck, UserRound } from "lucide-react"
+import { AlertCircle, Loader2, Mail, RefreshCw, Save, UserRound } from "lucide-react"
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 

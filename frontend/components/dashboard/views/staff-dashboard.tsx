@@ -34,8 +34,8 @@ export function StaffDashboard() {
 
   const displayCompany = companyName ?? "your organization"
 
-  const resolvedWeekly = data?.charts.resolvedWeekly ?? []
-  const responseRowsData = data?.charts.responseRows ?? []
+  const resolvedWeekly = useMemo(() => data?.charts.resolvedWeekly ?? [], [data])
+  const responseRowsData = useMemo(() => data?.charts.responseRows ?? [], [data])
   const priorityAssignments = data?.priorityAssignments ?? []
   const leaderboard = data?.leaderboard ?? []
   const liveUpdates = data?.liveUpdates ?? []
@@ -265,7 +265,7 @@ export function StaffDashboard() {
               <CalendarDays className="size-5" />
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today's Shift</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Today&apos;s Shift</p>
               <p className="text-2xl font-bold text-foreground">
                 {schedule?.shiftStart ?? "09:00"} - {schedule?.shiftEnd ?? "17:00"}
               </p>

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const webhookLogSchema = new mongoose.Schema(
   {
@@ -54,6 +54,5 @@ const webhookLogSchema = new mongoose.Schema(
 
 webhookLogSchema.index({ externalId: 1, phoneNumberId: 1 }, { unique: true });
 
-module.exports = mongoose.model("WebhookLog", webhookLogSchema);
+export default mongoose.model("WebhookLog", webhookLogSchema);
 
-export {};

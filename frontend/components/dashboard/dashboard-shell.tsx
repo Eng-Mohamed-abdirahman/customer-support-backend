@@ -3,7 +3,8 @@
 import { LogOut, Menu, Search, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 
 import { getSocket } from "@/lib/socket"
 import { listTickets } from "@/services/ticket.service"
@@ -87,31 +88,27 @@ export function DashboardShell({ children }: DashboardShellProps) {
     }
   }, [pathname, router, user])
 
-  const [openTicketsCount, setOpenTicketsCount] = useState(0)
+  const showTicketBadge = isAuthorized && user?.role === "staff"
 
-  const loadTicketCount = useCallback(async () => {
-    try {
+  const { data: openTicketsCount = 0, refetch: refetchTicketCount } = useQuery({
+    queryKey: ["open-tickets-count"],
+    queryFn: async () => {
       const result = await listTickets({ limit: 100 })
-      const activeTickets = result.tickets.filter(
-        (t) => t.status === "open" || t.status === "pending"
-      )
-      setOpenTicketsCount(activeTickets.length)
-    } catch {
-      // Ignore background fetch errors
-    }
-  }, [])
+      return result.tickets.filter((t) => t.status === "open" || t.status === "pending").length
+    },
+    enabled: showTicketBadge,
+    retry: false,
+  })
 
   useEffect(() => {
-    if (!isAuthorized || user?.role !== "staff") return
-
-    void loadTicketCount()
+    if (!showTicketBadge) return
 
     const token = getStoredToken()
     const socket = getSocket(token)
     if (!socket) return
 
     const handleTicketUpdate = () => {
-      void loadTicketCount()
+      void refetchTicketCount()
     }
 
     socket.on("ticket:created", handleTicketUpdate)
@@ -123,7 +120,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
       socket.off("ticket:updated", handleTicketUpdate)
       socket.off("incoming_handoff_alert", handleTicketUpdate)
     }
-  }, [isAuthorized, loadTicketCount, user?.role])
+  }, [refetchTicketCount, showTicketBadge])
 
   const navGroups = useMemo(
     () => getDashboardNavGroups(user?.platformRole ?? null, user?.membershipRole ?? null, user?.role),

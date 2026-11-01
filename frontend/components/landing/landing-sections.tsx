@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { MaterialIcon } from "./landing-header";
@@ -49,11 +50,13 @@ export function LandingHero() {
           <div className="flex items-center gap-4 text-label-sm text-on-surface-variant">
             <div className="flex -space-x-2">
               {AVATARS.map((src) => (
-                <img
+                <Image
                   key={src}
                   className="h-8 w-8 rounded-full border-2 border-surface object-cover"
                   src={src}
                   alt=""
+                  width={32}
+                  height={32}
                 />
               ))}
             </div>
@@ -63,7 +66,15 @@ export function LandingHero() {
         <div className="group relative">
           <div className="absolute -inset-4 rounded-[40px] bg-primary/5 blur-2xl transition-all group-hover:bg-primary/10" />
           <div className="glass-card relative overflow-hidden rounded-2xl border border-white/40 shadow-2xl">
-            <img className="aspect-[4/3] w-full object-cover" src={HERO_IMAGE} alt="Technov analytics dashboard" />
+            <Image
+              className="aspect-[4/3] w-full object-cover"
+              src={HERO_IMAGE}
+              alt="Technov analytics dashboard"
+              width={1200}
+              height={900}
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
+            />
             <div className="floating glass-card absolute top-8 -left-12 max-w-[200px] rounded-xl border border-white/60 p-4 shadow-lg">
               <div className="mb-2 flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10 text-green-600">

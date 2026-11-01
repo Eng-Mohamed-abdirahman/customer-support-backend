@@ -1,5 +1,5 @@
-const Contact = require("../models/Contact");
-const Conversation = require("../models/Conversation");
+import Contact from "../models/Contact";
+import Conversation from "../models/Conversation";
 
 const normalizeText = (value: unknown): string => {
   if (typeof value !== "string") {
@@ -83,10 +83,9 @@ const syncContactsFromConversations = async (organizationId: string) => {
   );
 };
 
-module.exports = {
+export {
   normalizePhone,
   upsertWhatsAppContact,
   syncContactsFromConversations,
 };
 
-export {};

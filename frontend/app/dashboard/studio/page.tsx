@@ -4,7 +4,6 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Edit3,
   History,
   Info,
@@ -24,9 +23,9 @@ import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+
 import { Label } from "@/components/ui/label"
-import { Skeleton } from "@/components/ui/skeleton"
+
 import { uploadLogo } from "@/services/brand.service"
 import {
   listMyCompanyApiKeys,
@@ -39,7 +38,7 @@ import {
   regenerateDesign,
   pollDesignUntilComplete,
 } from "@/services/design.service"
-import type { DesignHistoryRecord, DesignType, LayoutAnalysis } from "@/types/design"
+import type { DesignType, LayoutAnalysis } from "@/types/design"
 
 export default function StudioCanvasPage() {
   const [apiKey, setApiKey] = useState<string | null>(null)
