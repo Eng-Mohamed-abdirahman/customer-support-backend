@@ -62,6 +62,7 @@ export const env = {
   INVITATION_JWT_AUDIENCE:
     process.env.INVITATION_JWT_AUDIENCE || "supportly-organization-onboarding",
   NODE_ENV,
+  IS_PRODUCTION,
   ALLOW_PUBLIC_SIGNUP: process.env.ALLOW_PUBLIC_SIGNUP === "true" || NODE_ENV !== "production",
   CORS_ORIGINS: parseCsv(process.env.CORS_ORIGINS),
   email: {

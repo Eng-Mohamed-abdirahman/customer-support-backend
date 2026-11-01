@@ -36,11 +36,31 @@ const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
+// Endpoints that customers' own websites call with an API key, so any origin may reach them.
+const PUBLIC_API_PATHS = [
+	"/api/health",
+	"/api/conversations/ask",
+	"/api/ai/",
+	"/api/tickets",
+	"/api/designs",
+	"/api/support/escalate",
+];
+
+const dashboardOrigins = new Set([env.frontend.url, ...env.CORS_ORIGINS].filter(Boolean));
+const allowAnyDashboardOrigin = !env.IS_PRODUCTION && env.CORS_ORIGINS.length === 0;
+
 app.use(
-	cors({
-		origin: "*",
-		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-		allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-organization-id"],
+	cors((req, callback) => {
+		const path = req.url ?? "";
+		const origin = req.headers.origin;
+		const isPublic = PUBLIC_API_PATHS.some((prefix) => path.startsWith(prefix));
+		const allowed = isPublic || allowAnyDashboardOrigin || (origin ? dashboardOrigins.has(origin) : true);
+
+		callback(null, {
+			origin: allowed ? (isPublic ? "*" : origin || false) : false,
+			methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+			allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-organization-id"],
+		});
 	})
 );
 

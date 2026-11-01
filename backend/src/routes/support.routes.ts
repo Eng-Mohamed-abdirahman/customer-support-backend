@@ -7,6 +7,9 @@ const { AppError } = require("../utils/appError");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { appendMessage, getOrCreateConversation } = require("../services/conversationStore.service");
 const { emitToOrganization, emitToConversation } = require("../services/socket.service");
+const { protect } = require("../middlewares/auth.middleware");
+const { validateApiKey } = require("../middlewares/validateApiKey.middleware");
+const { aiLimiter } = require("../middlewares/rateLimit.middleware");
 
 const router = express.Router();
 
@@ -15,11 +18,14 @@ const router = express.Router();
  */
 router.post(
   "/escalate",
+  aiLimiter,
+  validateApiKey,
   asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId, conversationId, userId, customerPhone, customerName, lastUserMessage, organizationId: bodyOrgId } = req.body;
+    const { sessionId, conversationId, userId, customerPhone, customerName, lastUserMessage } = req.body;
     const targetId = conversationId || sessionId;
 
-    const organizationId = bodyOrgId || (req as any).organizationId || (req as any).user?.organizationId || (req as any).user?.company;
+    // The organization always comes from the API key, never from the request body.
+    const organizationId = req.organizationId;
 
     if (!organizationId) {
       throw new AppError("Organization ID is required for escalation", 400);
@@ -105,22 +111,25 @@ router.post(
  */
 router.post(
   "/accept-chat",
+  protect,
   asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId, conversationId, agentId: bodyAgentId } = req.body;
+    const { sessionId, conversationId } = req.body;
     const targetId = conversationId || sessionId;
-    const agentId = bodyAgentId || (req as any).user?._id;
+    // The agent is always the signed-in user, scoped to their own organization.
+    const agentId = req.user?._id;
+    const organizationId = req.user?.organizationId;
 
     if (!targetId || !mongoose.Types.ObjectId.isValid(targetId)) {
       throw new AppError("Valid Conversation ID is required", 400);
     }
 
-    if (!agentId) {
-      throw new AppError("Agent ID is required to accept chat", 400);
+    if (!agentId || !organizationId) {
+      throw new AppError("Only organization members can accept chats", 403);
     }
 
     // Atomic find and update to prevent race conditions
     const conversation = await Conversation.findOneAndUpdate(
-      { _id: targetId, status: "pending" },
+      { _id: targetId, organizationId, status: "pending" },
       {
         status: "open",
         responderType: "agent",
