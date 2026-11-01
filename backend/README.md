@@ -99,7 +99,7 @@ flowchart LR
 
 ### Prerequisites
 
-- **Node.js 18+** and npm
+- **Node.js 22 LTS** and npm
 - **MongoDB** (local or MongoDB Atlas)
 - API keys for the AI services you want to use: OpenAI, Hugging Face, Pinecone, Cohere (optional), Replicate (optional)
 - For WhatsApp: a Meta developer app with the WhatsApp product enabled
@@ -114,14 +114,10 @@ npm install
 
 ### 2. Configure environment
 
-Create a `.env` file in the project root. The minimum to boot locally:
+Copy the example file and fill in your values. Only the **Core** section is needed to boot; storage, WhatsApp and AI features stay off until their keys are set.
 
-```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/support-saas
-JWT_SECRET=change-me-to-a-long-random-string
-FRONTEND_URL=http://localhost:3000
-OPENAI_API_KEY=sk-...
+```bash
+cp .env.example .env
 ```
 
 See [Environment variables](#-environment-variables) for the full list.
@@ -158,6 +154,17 @@ curl http://localhost:5000/api/health
 | `npm start` | Run the compiled server from `dist/`. |
 | `npm run seed:super-admin` | Create or update the first user from `SEED_USER_*` variables. |
 | `npm run inngest` | Start the local design-job runner (default port `4001`). |
+| `npm test` | Run the Jest + Supertest suite against an in-memory MongoDB. |
+| `npm run test:coverage` | Run the tests with a coverage report. |
+| `npm run typecheck` | Type-check `src/` and `test/` without emitting files. |
+
+### Tests
+
+Tests live in [`test/`](test) and need no database or API keys: each file starts its own in-memory MongoDB. They cover auth, tenant isolation, API keys, the support handoff endpoints, CORS and security headers, intent detection and text chunking.
+
+```bash
+npm test
+```
 
 ## 🔑 Environment variables
 

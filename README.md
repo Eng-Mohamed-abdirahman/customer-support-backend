@@ -21,6 +21,7 @@ and hands the conversation to a human agent the moment it's needed.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Status](https://img.shields.io/badge/status-active_development-brightgreen)
+[![CI](https://github.com/Eng-Mohamed-abdirahman/technov/actions/workflows/ci.yml/badge.svg)](https://github.com/Eng-Mohamed-abdirahman/technov/actions/workflows/ci.yml)
 ![PRs welcome](https://img.shields.io/badge/PRs-welcome-blue)
 
 **[Features](#-key-features)** · **[How it works](#-how-it-works)** · **[Architecture](#-architecture)** · **[Quick start](#-quick-start)** · **[API](#-using-the-api)** · **[Deployment](#-deployment)**
@@ -38,6 +39,7 @@ and hands the conversation to a human agent the moment it's needed.
 - [Tech stack](#-tech-stack)
 - [Repository structure](#-repository-structure)
 - [Quick start](#-quick-start)
+- [Testing and quality checks](#-testing-and-quality-checks)
 - [Using the API](#-using-the-api)
 - [Roles and permissions](#-roles-and-permissions)
 - [Subscription plans](#-subscription-plans)
@@ -272,11 +274,28 @@ technov/
 
 ## 🚀 Quick start
 
+### Option A: Docker (one command)
+
+```bash
+git clone https://github.com/Eng-Mohamed-abdirahman/technov.git
+cd technov
+cp backend/.env.example backend/.env   # add your AI keys here
+docker compose up --build
+```
+
+This starts MongoDB, the API on `http://localhost:5000` and the dashboard on `http://localhost:3000`. Create the first admin:
+
+```bash
+docker compose exec -e SEED_USER_EMAIL=admin@example.com -e SEED_USER_PASSWORD=change-me backend node dist/scripts/seed-super-admin.js
+```
+
+### Option B: Run locally
+
 ### Prerequisites
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| [Node.js](https://nodejs.org) | 18+ (20 LTS recommended) | Comes with npm |
+| [Node.js](https://nodejs.org) | 22 LTS | Comes with npm |
 | [MongoDB](https://www.mongodb.com) | 6+ | Local install or free MongoDB Atlas cluster |
 | [OpenAI](https://platform.openai.com) API key | — | Needed for AI replies |
 | Pinecone, Hugging Face, Cohere | — | Needed for the knowledge base (Cohere is optional) |
@@ -295,23 +314,10 @@ cd backend
 npm install
 ```
 
-Create `backend/.env`:
+Copy the example environment file and fill in your keys. Only the **Core** section is needed to start the API; the AI keys are needed for replies:
 
-```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/support-saas
-JWT_SECRET=replace-with-a-long-random-secret
-FRONTEND_URL=http://localhost:3000
-
-OPENAI_API_KEY=sk-...
-HF_TOKEN=hf_...
-PINECONE_API_KEY=...
-PINECONE_INDEX_NAME=...
-PINECONE_INDEX_HOST=...
-
-# First admin account
-SEED_USER_EMAIL=admin@example.com
-SEED_USER_PASSWORD=change-me
+```bash
+cp .env.example .env
 ```
 
 Create the first super admin, then start the API:
@@ -328,7 +334,7 @@ In a **second terminal**:
 ```bash
 cd frontend
 npm install
-echo NEXT_PUBLIC_API_URL=http://localhost:5000 > .env.local
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -337,6 +343,21 @@ npm run dev
 Go to **[http://localhost:3000](http://localhost:3000)** and sign in with the super admin you seeded. From there you can invite a company, upload knowledge and start chatting.
 
 > 📘 See [backend/README.md](backend/README.md#-environment-variables) for every environment variable, including WhatsApp, email, storage and the design studio.
+
+---
+
+## 🧪 Testing and quality checks
+
+| Command | Where | What it checks |
+| --- | --- | --- |
+| `npm test` | `backend/` | API tests with Jest + Supertest against an in-memory MongoDB (no setup needed) |
+| `npm run typecheck` | `backend/`, `frontend/` | TypeScript in strict mode |
+| `npm run lint` | `frontend/` | ESLint (Next.js rules) |
+| `npm run build` | `backend/`, `frontend/` | Production builds |
+
+The backend tests cover authentication, **tenant isolation** (one company can never read or change another company's conversations), API-key handling (revoked keys, suspended organizations, multiple keys), the support handoff endpoints, CORS and security headers, and the AI intent detection and text chunking.
+
+Every push and pull request runs all of these in **GitHub Actions** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ---
 
@@ -450,7 +471,8 @@ Every plan change is recorded in an **audit log**, and companies can request upg
 - [ ] Embeddable website chat widget
 - [ ] AI design studio and brand identity (in progress)
 - [ ] Orders management UI
-- [ ] Automated test suite and CI
+- [x] Automated test suite and CI
+- [x] Docker Compose for local development
 
 ---
 
@@ -460,9 +482,11 @@ Contributions are welcome.
 
 1. **Fork** the repository.
 2. Create a branch: `git checkout -b feature/amazing-feature`.
-3. Make your changes in `backend/` or `frontend/`.
-4. Commit: `git commit -m "Add amazing feature"`.
-5. Push and open a **pull request**.
+3. Make your changes in `backend/` or `frontend/` and run the checks above.
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org): `git commit -m "feat(tickets): add ticket assignment"`.
+5. Push and open a **pull request**. CI must pass before merging.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guidelines.
 
 Found a bug or have an idea? [Open an issue](https://github.com/Eng-Mohamed-abdirahman/technov/issues).
 
