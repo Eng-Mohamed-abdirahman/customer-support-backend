@@ -33,6 +33,7 @@ and hands the conversation to a human agent the moment it's needed.
 ## 📑 Table of contents
 
 - [About the project](#-about-the-project)
+- [Screenshots](#-screenshots)
 - [Key features](#-key-features)
 - [How it works](#-how-it-works)
 - [Architecture](#-architecture)
@@ -62,6 +63,18 @@ Small and medium businesses get the same questions every day: *What are your pri
 - ✅ **Always on:** replies in seconds, day and night.
 - ✅ **Human when it matters:** customers can ask for a person, and agents take over the live chat in one click.
 - ✅ **Built for many businesses:** every organization's data, keys, usage and settings are fully isolated.
+
+---
+
+## 📸 Screenshots
+
+> Demo data for a fictional shop, "Hiil Electronics".
+
+| Analytics dashboard | Live inbox (WhatsApp + web) |
+| :---: | :---: |
+| ![Analytics dashboard](docs/screenshots/dashboard.png) | ![Live inbox](docs/screenshots/inbox.png) |
+| **Human handoff tickets** | **Knowledge base** |
+| ![Tickets](docs/screenshots/tickets.png) | ![Knowledge base](docs/screenshots/knowledge-base.png) |
 
 ---
 
