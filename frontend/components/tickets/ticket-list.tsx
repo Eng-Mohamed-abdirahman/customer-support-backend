@@ -84,7 +84,7 @@ export function TicketList({
                   className={cn(
                     "w-full rounded-2xl border border-border/70 bg-card/90 p-4 text-left transition",
                     isActive
-                      ? "border-primary/40 bg-primary/5 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
+                      ? "border-primary/40 bg-teal-50 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
                       : "hover:bg-muted/40"
                   )}
                   onClick={() => onSelectTicket(ticket)}

@@ -140,7 +140,7 @@ export function AssignPlanDialog({
           </Button>
           <Button
             type="button"
-            className="bg-gradient-to-r from-[#0096c7] to-[#023e8a] text-white hover:opacity-90"
+            className="bg-primary text-white hover:opacity-90"
             onClick={() => void handleSubmit()}
             disabled={isSubmitting || isLoadingOrgs}
           >

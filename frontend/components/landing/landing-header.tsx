@@ -1,122 +1,50 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
 
-function MaterialIcon({
-  name,
-  filled,
-  className,
-}: {
-  name: string;
-  filled?: boolean;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`material-symbols-outlined ${className ?? ""}`}
-      style={
-        filled
-          ? { fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }
-          : undefined
-      }
-    >
-      {name}
-    </span>
-  );
-}
+import { BrandMark } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
+
+import { focusRing } from "./landing-styles";
+
+const NAV_LINKS = [
+  { href: "#features", label: "Features" },
+  { href: "#how", label: "How it works" },
+  { href: "#pricing", label: "Pricing" },
+];
 
 export function LandingHeader() {
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-outline-variant/10 bg-surface/80 shadow-sm backdrop-blur-xl">
-      <nav className="mx-auto flex h-20 w-full max-w-container-max items-center justify-between px-gutter">
-        <Link href="/" className="text-headline-md font-bold text-on-surface">
-          Technov
-        </Link>
-        <div className="hidden items-center gap-8 md:flex">
-          <a
-            className="text-body-md text-on-surface-variant transition-colors duration-200 hover:text-primary"
-            href="#features"
-          >
-            Features
-          </a>
-          <a
-            className="text-body-md text-on-surface-variant transition-colors duration-200 hover:text-primary"
-            href="#pricing"
-          >
-            Pricing
-          </a>
-          <a
-            className="text-body-md text-on-surface-variant transition-colors duration-200 hover:text-primary"
-            href="#resources"
-          >
-            Resources
-          </a>
-        </div>
-        <div className="flex items-center gap-4">
+    <header className="border-b border-border bg-white">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-8">
+        <a href="#top" className={`rounded-[10px] ${focusRing}`} aria-label="Technov home">
+          <BrandMark />
+        </a>
+        <nav
+          aria-label="Main"
+          className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[15px] font-medium"
+        >
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className={`rounded-md text-navy-800 hover:text-teal-700 ${focusRing}`}
+            >
+              {link.label}
+            </a>
+          ))}
           <Link
             href="/login"
-            className="rounded-lg px-6 py-2.5 font-medium text-primary transition-all hover:bg-primary-container/10 active:scale-95"
+            className={`rounded-md text-navy-800 hover:text-teal-700 ${focusRing}`}
           >
-            Login
+            Sign in
           </Link>
-          <Link
-            href="/login"
-            className="primary-gradient rounded-lg px-6 py-2.5 font-medium text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
+          <Button
+            asChild
+            className="h-11 rounded-[10px] bg-navy-800 px-5 text-[15px] font-semibold text-white hover:bg-navy-700"
           >
-            Start Free
-          </Link>
-        </div>
-      </nav>
+            <Link href="/login">Book a demo</Link>
+          </Button>
+        </nav>
+      </div>
     </header>
   );
 }
-
-export function LandingScrollEffects() {
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("opacity-100", "translate-y-0");
-            entry.target.classList.remove("opacity-0", "translate-y-10");
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    document.querySelectorAll(".landing-page section").forEach((section) => {
-      section.classList.add(
-        "transition-all",
-        "duration-700",
-        "opacity-0",
-        "translate-y-10"
-      );
-      observer.observe(section);
-    });
-
-    const handleScroll = () => {
-      const header = document.querySelector(".landing-page header");
-      if (!header) return;
-
-      if (window.scrollY > 20) {
-        header.classList.add("nav-blur", "bg-surface/90", "shadow-md");
-      } else {
-        header.classList.remove("nav-blur", "bg-surface/90", "shadow-md");
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  return null;
-}
-
-export { MaterialIcon };

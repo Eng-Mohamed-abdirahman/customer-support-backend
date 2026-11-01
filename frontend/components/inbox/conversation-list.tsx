@@ -88,10 +88,10 @@ export function ConversationList({
                 onClick={() => onSelectConversation(conversation)}
                 className={cn(
                   "flex w-full items-start gap-3 border-b border-border/40 px-4 py-3 text-left transition hover:bg-muted/40",
-                  isActive && "bg-primary/5"
+                  isActive && "bg-teal-50 shadow-[inset_3px_0_0_var(--color-teal-500)]"
                 )}
               >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mint text-sm font-semibold text-navy-800">
                   {getInitials(name)}
                 </div>
                 <div className="min-w-0 flex-1">

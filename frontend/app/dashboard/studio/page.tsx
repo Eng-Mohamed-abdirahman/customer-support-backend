@@ -688,7 +688,7 @@ export default function StudioCanvasPage() {
                   Generated Design
                 </h4>
                 {generatedImage && (
-                  <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded flex items-center gap-1">
+                  <span className="text-[10px] font-bold bg-teal-50 text-primary px-2 py-0.5 rounded flex items-center gap-1">
                     <CheckCircle2 className="size-3 fill-primary text-primary-foreground" />
                     High Fidelity
                   </span>

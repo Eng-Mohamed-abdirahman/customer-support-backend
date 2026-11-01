@@ -348,7 +348,7 @@ export function PlanManagementPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Platform / Billing
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">
             Plan Management
           </h1>
           <p className="max-w-2xl text-sm text-slate-500">
@@ -380,7 +380,7 @@ export function PlanManagementPage() {
           </Button>
           <Button
             type="button"
-            className="h-10 rounded-xl bg-gradient-to-r from-[#0096c7] to-[#023e8a] px-4 text-white hover:opacity-90"
+            className="h-10 rounded-xl bg-primary px-4 text-white hover:opacity-90"
             onClick={openCreate}
           >
             <Plus className="size-4" />
@@ -445,7 +445,7 @@ export function PlanManagementPage() {
               </Button>
               <Button
                 type="button"
-                className="rounded-xl bg-gradient-to-r from-[#0096c7] to-[#023e8a] text-white"
+                className="rounded-xl bg-primary text-white"
                 onClick={openCreate}
               >
                 Create Plan

@@ -53,7 +53,7 @@ export function AiResolutionChart({
 
         <CardContent className="flex flex-col items-center justify-center flex-1 gap-6 pb-6">
           {/* Main Visual Display Box */}
-          <div className="relative w-full max-w-[240px] aspect-square rounded-3xl border-[3px] border-primary bg-primary/5 flex flex-col items-center justify-center shadow-inner overflow-hidden">
+          <div className="relative w-full max-w-[240px] aspect-square rounded-3xl border-[3px] border-primary bg-teal-50 flex flex-col items-center justify-center shadow-inner overflow-hidden">
             {/* Green top flag/banner */}
             <div className="absolute top-0 inset-x-0 h-4 bg-emerald-500 flex items-center justify-center">
               <span className="text-[9px] font-bold text-white uppercase tracking-widest">Optimized</span>

@@ -189,7 +189,7 @@ export function RecentConversationsTable({ data = [], isLoading = false }: Recen
                         <TableCell className="py-3.5 pl-6">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9 border border-border/40">
-                              <AvatarFallback className="bg-primary/5 text-primary text-xs font-semibold">
+                              <AvatarFallback className="bg-teal-50 text-primary text-xs font-semibold">
                                 {item.customer.avatar}
                               </AvatarFallback>
                             </Avatar>

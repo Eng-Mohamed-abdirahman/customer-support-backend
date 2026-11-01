@@ -1,45 +1,22 @@
-import {
-  LandingHeader,
-  LandingScrollEffects,
-} from "./landing-header";
-import {
-  LandingFeatures,
-  LandingHero,
-  LandingTrustedBy,
-} from "./landing-sections";
-import {
-  LandingAnalytics,
-  LandingIntegrations,
-  LandingKnowledge,
-  LandingSteps,
-} from "./landing-sections-2";
-import {
-  LandingCta,
-  LandingFaq,
-  LandingFooter,
-  LandingPricing,
-  LandingTestimonials,
-} from "./landing-sections-3";
+import { LandingCta, LandingFooter } from "./landing-footer";
+import { LandingHeader } from "./landing-header";
+import { LandingHero } from "./landing-hero";
+import { LandingPricing } from "./landing-pricing";
+import { LandingChannels, LandingFeatures, LandingHowItWorks } from "./landing-sections";
 
 export function LandingPage() {
   return (
-    <>
-      <LandingScrollEffects />
+    <div className="min-h-screen overflow-x-clip bg-white text-navy-800">
       <LandingHeader />
-      <main className="bg-surface pt-20 text-on-surface">
+      <main>
         <LandingHero />
-        <LandingTrustedBy />
+        <LandingChannels />
         <LandingFeatures />
-        <LandingKnowledge />
-        <LandingAnalytics />
-        <LandingSteps />
-        <LandingIntegrations />
+        <LandingHowItWorks />
         <LandingPricing />
-        <LandingTestimonials />
         <LandingCta />
-        <LandingFaq />
       </main>
       <LandingFooter />
-    </>
+    </div>
   );
 }

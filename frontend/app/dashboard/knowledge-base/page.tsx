@@ -281,7 +281,7 @@ export default function KnowledgeBasePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Workspace / Knowledge Base
             </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+            <h1 className="mt-1 text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">
               Knowledge Base
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">

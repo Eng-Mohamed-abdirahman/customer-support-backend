@@ -84,7 +84,7 @@ export function StaffPerformanceChart({ data = [], isLoading = false }: StaffPer
                   <div key={item.name} className="flex items-center gap-3">
                     {/* User Avatar */}
                     <Avatar className="h-8 w-8 border border-border/60">
-                      <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                      <AvatarFallback className="bg-teal-50 text-primary text-xs font-bold">
                         {item.avatar}
                       </AvatarFallback>
                     </Avatar>
@@ -99,7 +99,7 @@ export function StaffPerformanceChart({ data = [], isLoading = false }: StaffPer
                       {/* Custom progress bar */}
                       <div className="h-2 w-full rounded-full bg-slate-50 border border-slate-100">
                         <div
-                          className="h-2 rounded-full bg-[#023e8a]"
+                          className="h-2 rounded-full bg-[#12304A]"
                           style={{
                             width: `${percentage}%`,
                             transition: "width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)",

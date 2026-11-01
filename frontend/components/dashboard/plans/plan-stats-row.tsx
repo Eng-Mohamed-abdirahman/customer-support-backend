@@ -55,8 +55,8 @@ const statConfig = [
 ]
 
 const toneClasses: Record<string, string> = {
-  sky: "bg-[#0096c7]/10 text-[#0096c7]",
-  indigo: "bg-[#023e8a]/10 text-[#023e8a]",
+  sky: "bg-[#13B8A6]/10 text-[#13B8A6]",
+  indigo: "bg-[#12304A]/10 text-[#12304A]",
   emerald: "bg-emerald-500/10 text-emerald-700",
   violet: "bg-violet-500/10 text-violet-700",
 }

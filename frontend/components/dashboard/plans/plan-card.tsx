@@ -62,11 +62,11 @@ export function PlanCard({
     <Card
       className={cn(
         "relative flex h-full flex-col overflow-hidden border-slate-200/80 bg-white py-0 shadow-[0_1px_2px_rgba(2,62,138,0.04),0_12px_32px_rgba(2,62,138,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(2,62,138,0.12)]",
-        popular && "border-[#0096c7]/40 ring-1 ring-[#0096c7]/20"
+        popular && "border-[#13B8A6]/40 ring-1 ring-[#13B8A6]/20"
       )}
     >
       {popular ? (
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0096c7] to-[#023e8a]" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-primary" />
       ) : null}
 
       <CardHeader className="space-y-4 px-6 pt-6 pb-0">
@@ -77,7 +77,7 @@ export function PlanCard({
                 {plan.name}
               </h3>
               {popular ? (
-                <Badge className="rounded-full border-0 bg-gradient-to-r from-[#0096c7] to-[#023e8a] px-2.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                <Badge className="rounded-full border-0 bg-primary px-2.5 text-[10px] font-semibold uppercase tracking-wider text-white">
                   Most Popular
                 </Badge>
               ) : null}
@@ -154,7 +154,7 @@ export function PlanCard({
         <ul className="space-y-2.5">
           {features.map((feature) => (
             <li key={feature} className="flex items-start gap-2.5 text-sm text-slate-700">
-              <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-[#0096c7]/10 text-[#0096c7]">
+              <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-[#13B8A6]/10 text-[#13B8A6]">
                 <Check className="size-2.5" strokeWidth={3} />
               </span>
               <span>{feature}</span>
@@ -184,7 +184,7 @@ export function PlanCard({
           </Button>
           <Button
             type="button"
-            className="h-9 rounded-xl bg-gradient-to-r from-[#0096c7] to-[#023e8a] text-white hover:opacity-90"
+            className="h-9 rounded-xl bg-primary text-white hover:opacity-90"
             onClick={() => onAssign(plan)}
             disabled={isBusy || !isActive}
           >

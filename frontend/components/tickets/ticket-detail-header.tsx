@@ -41,7 +41,7 @@ export function TicketDetailHeader({
     <div className="border-b border-border/60 bg-background/80 p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <div className="flex size-10 items-center justify-center rounded-full bg-mint text-primary">
             <MessageSquareText className="size-4" />
           </div>
           <div>

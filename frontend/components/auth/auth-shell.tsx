@@ -1,83 +1,90 @@
+import { Check, Headphones } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 type AuthShellProps = {
   heading: string;
   description: string;
-  dividerLabel: string;
-  footerPrompt: string;
-  footerActionLabel: string;
-  footerActionHref: string;
+  dividerLabel?: string;
+  footerPrompt?: string;
+  footerActionLabel?: string;
+  footerActionHref?: string;
   children: ReactNode;
   backHref?: string;
 };
 
-function BrandMark({ compact = false }: { compact?: boolean }) {
+const HIGHLIGHTS = [
+  "Live inbox for WhatsApp and web chat",
+  "Take over from the AI in one click",
+  "Your data stays private to your company",
+];
+
+export function BrandMark({ inverted = false }: { inverted?: boolean }) {
   return (
-    <div className="inline-flex items-center gap-2.5">
-      <span className="inline-flex size-8 items-center justify-center rounded-full border border-primary/45 bg-primary/15">
-        <span className="size-2.5 rounded-full bg-primary shadow-[0_0_18px_0_var(--color-primary)]" />
-      </span>
+    <span className="inline-flex items-center gap-2.5">
       <span
         className={
-          compact
-            ? "text-2xl font-semibold tracking-tight text-white"
-            : "text-4xl font-semibold tracking-tight text-white"
+          inverted
+            ? "flex size-10 items-center justify-center rounded-[10px] bg-teal-500 text-navy-800"
+            : "flex size-10 items-center justify-center rounded-[10px] bg-navy-800 text-teal-500"
         }
+        aria-hidden="true"
       >
-        Technov
+        <Headphones className="size-5" />
       </span>
-    </div>
+      <span
+        className={`font-heading text-2xl font-bold tracking-tight ${inverted ? "text-white" : "text-navy-800"}`}
+      >
+        Tech<span className="text-teal-500">nov</span>
+      </span>
+    </span>
   );
 }
 
-export function AuthShell({
-  heading,
-  description,
-  children,
-}: AuthShellProps) {
+export function AuthShell({ heading, description, children }: AuthShellProps) {
   return (
-    <main className="auth-canvas min-h-screen text-zinc-100">
-      <div className="grid min-h-screen lg:grid-cols-[1.12fr_0.88fr]">
-        <aside className="relative hidden border-r border-white/10 lg:flex">
-          <div className="flex w-full flex-col justify-between px-10 py-10 xl:px-12 xl:py-12">
-            <div className="auth-rise">
-              <BrandMark />
-            </div>
+    <main className="flex min-h-screen flex-wrap bg-white text-navy-800">
+      <aside className="relative flex flex-[1_1_520px] flex-col justify-between gap-10 overflow-hidden bg-navy-800 p-10 text-white sm:p-14">
+        <div
+          className="pointer-events-none absolute -right-48 -bottom-56 size-[560px] rounded-full border-[56px] border-teal-500 opacity-15"
+          aria-hidden="true"
+        />
+        <Link href="/" className="relative self-start rounded-[10px]">
+          <BrandMark inverted />
+        </Link>
+        <div className="relative flex max-w-lg flex-col gap-5">
+          <h2 className="text-4xl leading-tight font-bold sm:text-[44px] sm:leading-[52px]">
+            Welcome back to your support workspace
+          </h2>
+          <p className="text-[17px] leading-relaxed text-navy-100">
+            Pick up live conversations, handle tickets and keep your AI agent learning.
+          </p>
+          <ul className="mt-2 flex flex-col gap-3.5 text-base">
+            {HIGHLIGHTS.map((item) => (
+              <li key={item} className="flex items-center gap-3">
+                <span
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full bg-mint text-navy-800"
+                  aria-hidden="true"
+                >
+                  <Check className="size-4" strokeWidth={2.5} />
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="relative text-sm text-navy-200">© {new Date().getFullYear()} Technov</p>
+      </aside>
 
-            <blockquote className="auth-rise auth-rise-3 max-w-xl space-y-3 text-zinc-200">
-              <p className="text-2xl leading-tight xl:text-[2rem]">
-                &quot;The system acts as a digital AI employee that automatically responds to customer messages 24/7 using business-specific knowledge.&quot;
-              </p>
-              <footer className="text-base font-medium text-zinc-300">
-               Mohamed Abdirahman, CEO of Technov
-              </footer>
-            </blockquote>
-          </div>
-        </aside>
-
-        <section className="relative flex items-center justify-center px-6 py-10 sm:px-10 lg:px-14">
-          <div className="w-full max-w-md space-y-8">
-            <div className="auth-rise space-y-6">
-              <div className="lg:hidden">
-                <BrandMark compact />
-              </div>
-
-              
-
-              <header className="space-y-3">
-                <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                  {heading}
-                </h1>
-                <p className="text-base text-zinc-300 sm:text-lg">{description}</p>
-              </header>
-            </div>
-
-            <div className="auth-rise auth-rise-2">{children}</div>
-
-            
-          </div>
-        </section>
-      </div>
+      <section className="flex flex-[1_1_480px] items-center justify-center px-6 py-14 sm:px-8">
+        <div className="flex w-full max-w-[420px] flex-col gap-7">
+          <header className="flex flex-col gap-2">
+            <h1 className="text-[32px] leading-10 font-bold">{heading}</h1>
+            <p className="text-base text-muted-foreground">{description}</p>
+          </header>
+          {children}
+        </div>
+      </section>
     </main>
   );
 }

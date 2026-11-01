@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, MessageSquare } from "lucide-react"
+import { CheckCircle2, Clock, Loader2, MessageSquare } from "lucide-react"
 import type { FormEvent } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -83,7 +83,7 @@ export function ChatPanel({
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={selectedConversation.status}
-                className="h-8 rounded-md border border-border/60 bg-background px-2 text-xs"
+                className="h-11 rounded-[10px] border-[1.5px] border-border bg-white px-3 text-sm font-medium"
                 disabled
               >
                 <option value={selectedConversation.status}>
@@ -93,21 +93,38 @@ export function ChatPanel({
               </select>
 
               {selectedConversation.responderType === "agent" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void onReturnToAi()}
-                  disabled={returnToAiLoading}
-                >
+                <Button variant="outline" onClick={() => void onReturnToAi()} disabled={returnToAiLoading}>
                   {returnToAiLoading ? <Loader2 className="size-4 animate-spin" /> : "Return to AI"}
                 </Button>
               ) : (
-                <Button size="sm" variant="outline" onClick={() => void onTakeover()} disabled={takeoverLoading}>
-                  {takeoverLoading ? <Loader2 className="size-4 animate-spin" /> : "Take Over"}
+                <Button onClick={() => void onTakeover()} disabled={takeoverLoading}>
+                  {takeoverLoading ? <Loader2 className="size-4 animate-spin" /> : "Take over chat"}
                 </Button>
               )}
             </div>
           </div>
+
+          {selectedConversation.responderType === "agent" ? (
+            <div
+              role="status"
+              className="mx-5 mt-4 flex items-center gap-3 rounded-[10px] bg-emerald-50 px-4 py-3 text-sm text-emerald-600"
+            >
+              <CheckCircle2 className="size-5 shrink-0" aria-hidden="true" />
+              <span>
+                <b>You&apos;re handling this chat.</b> The AI is paused until you return it.
+              </span>
+            </div>
+          ) : selectedConversation.status === "pending" ? (
+            <div
+              role="status"
+              className="mx-5 mt-4 flex items-center gap-3 rounded-[10px] bg-amber-50 px-4 py-3 text-sm text-amber-600"
+            >
+              <Clock className="size-5 shrink-0" aria-hidden="true" />
+              <span>
+                <b>Customer asked for a person.</b> Take over to reply.
+              </span>
+            </div>
+          ) : null}
 
           {actionError ? (
             <div className="px-5 pt-3">
@@ -115,7 +132,7 @@ export function ChatPanel({
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-muted px-5 py-4">
             {messagesError ? (
               <Alert variant="destructive">
                 <AlertTitle>Unable to load messages</AlertTitle>
@@ -144,7 +161,7 @@ export function ChatPanel({
           </div>
 
           {!sessionActive && selectedConversation.channel === "whatsapp" ? (
-            <div className="border-t border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm text-amber-200">
+            <div className="border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-600">
               24-hour session expired. Use a template to re-engage.
             </div>
           ) : null}
@@ -189,9 +206,7 @@ export function ChatPanel({
 function ChatMessage({ message }: { message: ConversationMessageRecord }) {
   if (message.senderType === "system") {
     return (
-      <p
-        className="text-center text-xs text-muted-foreground"
-      >
+      <p className="mx-auto w-fit rounded-full bg-navy-50 px-3 py-1.5 text-center text-xs font-semibold text-navy-600">
         {message.contentText}
       </p>
     )
@@ -200,16 +215,20 @@ function ChatMessage({ message }: { message: ConversationMessageRecord }) {
   const isOutgoing =
     message.senderType === "agent" || message.senderType === "assistant"
 
+  // Customer: white bubble · AI: Deep Navy · human agent: navy-600, so agents can tell them apart.
   return (
     <div
       className={cn("flex", isOutgoing ? "justify-end" : "justify-start")}
     >
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm",
+          "max-w-[75%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed",
           isOutgoing
-            ? "rounded-tr-sm bg-primary text-primary-foreground"
-            : "rounded-tl-sm bg-muted text-foreground"
+            ? cn(
+                "rounded-br-[4px] text-white",
+                message.senderType === "agent" ? "bg-navy-600" : "bg-navy-800"
+              )
+            : "rounded-bl-[4px] bg-white text-navy-800 shadow-e1"
         )}
       >
         <p className="whitespace-pre-wrap">

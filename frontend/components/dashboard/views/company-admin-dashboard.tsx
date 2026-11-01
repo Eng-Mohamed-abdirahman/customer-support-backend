@@ -100,12 +100,13 @@ function buildTrendData(data: DashboardApiResponseData): ConversationTrendData[]
 
 function buildChannelData(data: DashboardApiResponseData): ChannelData[] {
   const channelColors: Record<string, string> = {
-    website: "#0096c7",
-    whatsapp: "#25D366",
-    messenger: "#0099FF",
-    instagram: "#E1306C",
-    api: "#6366f1",
-    email: "#f59e0b",
+    // Technov chart palette: navy and teal first, then lighter brand tints.
+    whatsapp: "#12304A",
+    website: "#13B8A6",
+    messenger: "#4A7AA6",
+    instagram: "#A7E8DC",
+    api: "#0E7C70",
+    email: "#A9C0D6",
   }
 
   const { channels } = data
@@ -116,7 +117,7 @@ function buildChannelData(data: DashboardApiResponseData): ChannelData[] {
     .map(([key, value]) => ({
       name: key.charAt(0).toUpperCase() + key.slice(1),
       value,
-      color: channelColors[key] ?? "#94a3b8",
+      color: channelColors[key] ?? "#9AA8B6",
     }))
 }
 
@@ -124,11 +125,11 @@ function buildTicketStatusData(data: DashboardApiResponseData): TicketStatusData
   const { ticketStatus } = data
 
   const colors: Record<string, string> = {
-    resolved: "#10b981",
-    pending: "#f59e0b",
-    waitingCustomer: "#0096c7",
-    escalated: "#ef4444",
-    closed: "#94a3b8",
+    resolved: "#067647",
+    pending: "#B54708",
+    waitingCustomer: "#13B8A6",
+    escalated: "#B42318",
+    closed: "#9AA8B6",
   }
 
   const labels: Record<string, string> = {
@@ -146,7 +147,7 @@ function buildTicketStatusData(data: DashboardApiResponseData): TicketStatusData
     label: labels[key] ?? key,
     value: value as number,
     total: computedTotal,
-    color: colors[key] ?? "#94a3b8",
+    color: colors[key] ?? "#9AA8B6",
   }))
 }
 
