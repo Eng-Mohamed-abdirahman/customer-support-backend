@@ -444,7 +444,7 @@ export default function BrandSettingsPage() {
                 onClick={triggerFileInput}
                 className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center min-h-[170px] text-center cursor-pointer transition-colors duration-200 group ${
                   dragActive
-                    ? "border-primary bg-primary/5"
+                    ? "border-primary bg-teal-50"
                     : "border-border hover:border-primary hover:bg-muted/30"
                 } ${isSaving ? "pointer-events-none opacity-60" : ""}`}
               >
@@ -456,7 +456,7 @@ export default function BrandSettingsPage() {
                   accept=".png,.jpg,.jpeg,.svg"
                   disabled={isSaving}
                 />
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-primary mb-3 group-hover:scale-105 transition-transform">
                   <UploadCloud className="size-6" />
                 </div>
                 <p className="text-sm font-semibold text-foreground">
@@ -524,7 +524,7 @@ export default function BrandSettingsPage() {
       {/* Bottom Informational Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-5 bg-card border border-border rounded-xl flex items-start gap-4">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-primary flex-shrink-0">
             <Info className="size-4.5" />
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed mt-1">
@@ -533,7 +533,7 @@ export default function BrandSettingsPage() {
         </div>
 
         <div className="p-5 bg-card border border-border rounded-xl flex items-start gap-4">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-primary flex-shrink-0">
             <Eye className="size-4.5" />
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed mt-1">
@@ -542,7 +542,7 @@ export default function BrandSettingsPage() {
         </div>
 
         <div className="p-5 bg-card border border-border rounded-xl flex items-start gap-4">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-teal-50 flex items-center justify-center text-primary flex-shrink-0">
             <Lock className="size-4.5" />
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed mt-1">

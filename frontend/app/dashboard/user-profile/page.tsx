@@ -158,7 +158,7 @@ export default function UserProfilePage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Workspace / Account
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="mt-1 text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">
             User Profile
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -202,7 +202,7 @@ export default function UserProfilePage() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+          <div className="rounded-lg border border-primary/20 bg-teal-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
             {isLoading ? "..." : roleLabel}
           </div>
         </CardContent>

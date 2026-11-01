@@ -88,10 +88,10 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="space-y-6 font-heading">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Contacts</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">Contacts</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your contact list. {displayCount} total contacts.
           </p>

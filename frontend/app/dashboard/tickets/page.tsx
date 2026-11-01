@@ -52,7 +52,7 @@ export default function TicketsPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Workspace / Tickets
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Tickets</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">Tickets</h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Review human handoff requests created from live conversations.
           </p>

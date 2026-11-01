@@ -401,10 +401,10 @@ export default function ConversationsPage() {
   const displaySubtext = selectedConversation ? getWebsiteCustomerSubtext(selectedConversation) : ""
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4 font-heading">
+    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Conversations</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">Conversations</h1>
           <p className="text-sm text-muted-foreground">
             Website chat threads from your embedded widget
           </p>
@@ -487,10 +487,10 @@ export default function ConversationsPage() {
                     }}
                     className={cn(
                       "flex w-full items-start gap-3 border-b border-border/40 px-4 py-3 text-left transition hover:bg-muted/40",
-                      isActive && "bg-primary/5"
+                      isActive && "bg-teal-50"
                     )}
                   >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mint text-sm font-semibold text-primary">
                       {getInitials(name)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -679,7 +679,7 @@ export default function ConversationsPage() {
           {selectedConversation ? (
             <div className="space-y-6">
               <div className="text-center">
-                <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/15 text-2xl font-semibold text-primary">
+                <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-mint text-2xl font-semibold text-primary">
                   {getInitials(displayName)}
                 </div>
                 <h3 className="mt-3 text-lg font-semibold">{displayName}</h3>

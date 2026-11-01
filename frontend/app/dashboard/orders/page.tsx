@@ -72,7 +72,7 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Orders</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">Orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             View and manage customer orders placed via AI.
           </p>

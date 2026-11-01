@@ -362,7 +362,7 @@ export function AiKnowledgeInsightsPanel() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#13B8A6] to-[#12304A] shadow-sm">
               <Sparkles className="h-4.5 w-4.5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">AI Knowledge Insights</h1>
+            <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">AI Knowledge Insights</h1>
           </div>
           <p className="text-sm text-slate-500 ml-11.5">
             AI-powered analysis of real customer conversations — updated every 5 minutes.

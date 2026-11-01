@@ -44,7 +44,7 @@ export function ContactDetailsPanel({
         ) : (
           <div className="space-y-6">
             <div className="text-center">
-              <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/15 text-2xl font-semibold text-primary">
+              <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-mint text-2xl font-semibold text-primary">
                 {getInitials(displayName)}
               </div>
               <h3 className="mt-3 text-lg font-semibold">{displayName}</h3>

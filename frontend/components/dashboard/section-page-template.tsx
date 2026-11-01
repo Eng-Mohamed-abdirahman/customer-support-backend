@@ -52,7 +52,7 @@ export function DashboardSectionPageTemplate({
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">{title}</h1>
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
 

@@ -348,7 +348,7 @@ export function PlanManagementPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Platform / Billing
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">
             Plan Management
           </h1>
           <p className="max-w-2xl text-sm text-slate-500">

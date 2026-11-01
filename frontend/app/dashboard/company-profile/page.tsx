@@ -56,7 +56,7 @@ export default function CompanyProfilePage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Workspace / Company
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="mt-1 text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">
             Company Profile
           </h1>
           <p className="mt-1 max-w-lg text-sm text-muted-foreground">

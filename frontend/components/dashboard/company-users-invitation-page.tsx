@@ -63,7 +63,7 @@ const roleDescriptions: Record<InviteRole, string> = {
 }
 
 const rolePillClassMap: Record<string, string> = {
-  "company-admin": "bg-primary/10 text-primary",
+  "company-admin": "bg-teal-50 text-primary",
   staff: "bg-secondary/10 text-secondary",
   admin: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
 }
@@ -204,7 +204,7 @@ export function CompanyUsersInvitationPage({ title, description }: CompanyUsersI
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Workspace / Users
             </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
+            <h1 className="mt-1 text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">{title}</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
           </div>
 

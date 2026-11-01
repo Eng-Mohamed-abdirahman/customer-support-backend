@@ -84,7 +84,7 @@ export function StaffPerformanceChart({ data = [], isLoading = false }: StaffPer
                   <div key={item.name} className="flex items-center gap-3">
                     {/* User Avatar */}
                     <Avatar className="h-8 w-8 border border-border/60">
-                      <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                      <AvatarFallback className="bg-teal-50 text-primary text-xs font-bold">
                         {item.avatar}
                       </AvatarFallback>
                     </Avatar>

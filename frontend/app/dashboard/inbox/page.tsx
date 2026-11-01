@@ -50,10 +50,10 @@ export default function InboxPage() {
   } = useInbox()
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4 font-heading">
+    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
+          <h1 className="text-[28px] leading-9 font-bold text-navy-800 sm:text-[32px] sm:leading-10">Inbox</h1>
           <p className="text-sm text-muted-foreground">WhatsApp conversations and live customer threads</p>
         </div>
         <div className="flex items-center gap-2">
